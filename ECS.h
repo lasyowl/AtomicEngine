@@ -1,0 +1,107 @@
+#pragma once
+
+#include "EngineEssential.h"
+#include "ECS_Component.h"
+#include "ECS_System.h"
+#include "Singleton.h"
+
+///////////////////////
+// ECS
+///////////////////////
+class ECS : public TSingleton<ECS>
+{
+public:
+	ECS()
+	{
+		for( Entity entity = 0; entity < NUM_ENTITY_MAX; ++entity )
+		{
+			_entities.push( entity );
+		}
+
+		std::memset( _signatures.data(), 0, sizeof( _signatures ) );
+	}
+
+	Entity CreateEntity( /*Signature signature*/ )
+	{
+		assert( !_entities.empty() );
+
+		Entity entity = _entities.front();
+		_entities.pop();
+
+		//_signatures[ entity ] = signature;
+
+		return entity;
+	}
+
+	void DestroyEntity( Entity entity )
+	{
+		_entities.push( entity );
+
+		_signatures[ entity ].reset();
+	}
+
+	template<typename T>
+	void AddComponent( Entity entity )
+	{
+		std::unique_ptr<IComponentRegistry>& componentRegistry = _componentRegistry[ component_type_id<T> ];
+		if( !componentRegistry )
+		{
+			componentRegistry = std::make_unique<SComponentRegistry<T>>();
+		}
+		componentRegistry->AddComponent( entity );
+	}
+
+	template<typename T>
+	void AddSystem()
+	{
+		const SystemId systemTypeId = GetSystemTypeId<T>();
+		std::unique_ptr<ISystem>& system = _systemRegistry[ systemTypeId ];
+		if( !system )
+		{
+			system = std::make_unique<T>();
+		}
+	}
+
+	void RunSystems()
+	{
+		for( std::unique_ptr<ISystem>& system : _systemRegistry )
+		{
+			if( system )
+			{
+				system->RunSystem( _componentRegistry );
+			}
+		}
+	}
+
+private:
+	std::queue<Entity> _entities;
+	std::array<Signature, NUM_ENTITY_MAX> _signatures;
+	std::array<std::unique_ptr<IComponentRegistry>, NUM_COMPONENT_MAX> _componentRegistry;
+	std::array<std::unique_ptr<ISystem>, NUM_SYSTEM_MAX> _systemRegistry;
+};
+
+///////////////////////
+// Public functions
+///////////////////////
+
+Entity ECSCreateEntity()
+{
+	return ECS::GetInstance().CreateEntity();
+}
+
+template<typename T>
+void ECSAddComponent( Entity entity )
+{
+	ECS::GetInstance().AddComponent<T>( entity );
+}
+
+template<typename T>
+void ECSAddSystem()
+{
+	ECS::GetInstance().AddSystem<T>();
+}
+
+void ECSRunSystems()
+{
+	ECS::GetInstance().RunSystems();
+}
