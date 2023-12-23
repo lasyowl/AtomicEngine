@@ -16,6 +16,17 @@ enum class EGraphicsAPI
 	DX12
 };
 
+constexpr int GetPlatformType()
+{
+#if defined( _WIN32 ) || defined( _WIN64 )
+	return Platform_Windows;
+#elif defined( __linux__ )
+	return Platform_Linux;
+#else
+	return Platform_Undefined;
+#endif
+}
+
 class CSystemInfo
 {
 public:

@@ -18,17 +18,15 @@ public:
 			_entities.push( entity );
 		}
 
-		std::memset( _signatures.data(), 0, sizeof( _signatures ) );
+		ECSInitSystems();
 	}
 
-	Entity CreateEntity( /*Signature signature*/ )
+	Entity CreateEntity()
 	{
 		assert( !_entities.empty() );
 
 		Entity entity = _entities.front();
 		_entities.pop();
-
-		//_signatures[ entity ] = signature;
 
 		return entity;
 	}
@@ -36,8 +34,6 @@ public:
 	void DestroyEntity( Entity entity )
 	{
 		_entities.push( entity );
-
-		_signatures[ entity ].reset();
 	}
 
 	template<typename T>
@@ -54,8 +50,7 @@ public:
 	template<typename T>
 	void AddSystem()
 	{
-		const SystemId systemTypeId = GetSystemTypeId<T>();
-		std::unique_ptr<ISystem>& system = _systemRegistry[ systemTypeId ];
+		std::unique_ptr<ISystem>& system = _systemRegistry[ system_type_id<T> ];
 		if( !system )
 		{
 			system = std::make_unique<T>();
@@ -75,7 +70,6 @@ public:
 
 private:
 	std::queue<Entity> _entities;
-	std::array<Signature, NUM_ENTITY_MAX> _signatures;
 	std::array<std::unique_ptr<IComponentRegistry>, NUM_COMPONENT_MAX> _componentRegistry;
 	std::array<std::unique_ptr<ISystem>, NUM_SYSTEM_MAX> _systemRegistry;
 };

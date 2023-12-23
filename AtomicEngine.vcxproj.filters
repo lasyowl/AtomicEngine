@@ -30,7 +30,7 @@
     <ClInclude Include="Engine\System.h">
       <Filter>헤더 파일</Filter>
     </ClInclude>
-    <ClInclude Include="Engine\RSClientLauncher.h">
+    <ClInclude Include="Engine\AtomicEngine.h">
       <Filter>헤더 파일</Filter>
     </ClInclude>
     <ClInclude Include="Engine\EngineDefines.h">
@@ -108,6 +108,15 @@
     <ClInclude Include="TestSystem.h">
       <Filter>헤더 파일</Filter>
     </ClInclude>
+    <ClInclude Include="GPI.h">
+      <Filter>헤더 파일</Filter>
+    </ClInclude>
+    <ClInclude Include="GPI_DX12.h">
+      <Filter>헤더 파일</Filter>
+    </ClInclude>
+    <ClInclude Include="PipelineStateObject.h">
+      <Filter>헤더 파일</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="Engine\Main.cpp">
@@ -116,7 +125,7 @@
     <ClCompile Include="Engine\RSClient.cpp">
       <Filter>소스 파일</Filter>
     </ClCompile>
-    <ClCompile Include="Engine\RSClientLauncher.cpp">
+    <ClCompile Include="Engine\AtomicEngine.cpp">
       <Filter>소스 파일</Filter>
     </ClCompile>
     <ClCompile Include="Engine\stdafx.cpp">
@@ -162,6 +171,9 @@
       <Filter>소스 파일</Filter>
     </ClCompile>
     <ClCompile Include="ECS.cpp">
+      <Filter>소스 파일</Filter>
+    </ClCompile>
+    <ClCompile Include="GPI_DX12.cpp">
       <Filter>소스 파일</Filter>
     </ClCompile>
   </ItemGroup>

@@ -17,8 +17,13 @@ public:
 
 		for( Entity entity = 0; entity < NUM_ENTITY_MAX; ++entity )
 		{
+			if( !testCompReg->HasComponent( entity ) )
+			{
+				continue;
+			}
+
 			STestComponent& component = testCompReg->GetComponent( entity );
-			component.x = entity;
+			component.x = 1;
 		}
 	}
 };

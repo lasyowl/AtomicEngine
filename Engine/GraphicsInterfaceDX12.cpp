@@ -40,7 +40,6 @@ void CGraphicsInterfaceDX12::InitGraphics( const SGraphicsInitParam& InParam )
 {
 	SetWindowParams( ( const SGraphicsInitParamDX12& ) InParam );
 
-	CreateDebugLayer();
 	CreateDevice();
 	CreateDebugLayer();
 	CreateCommandQueuesAndLists();
