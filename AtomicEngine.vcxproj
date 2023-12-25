@@ -22,51 +22,31 @@
     <ClInclude Include="DataType.h" />
     <ClInclude Include="ECS_Component.h" />
     <ClInclude Include="ECS_System.h" />
-    <ClInclude Include="Engine\DX12Misc.h" />
     <ClInclude Include="Engine\EngineDefines.h" />
     <ClInclude Include="Engine\EngineEssential.h" />
     <ClInclude Include="Engine\FileSystem.h" />
     <ClInclude Include="Engine\GraphicsCommandList.h" />
-    <ClInclude Include="Engine\GraphicsInterfaceDX12.h" />
-    <ClInclude Include="Engine\PipelineStateObject.h" />
     <ClInclude Include="Engine\PrimitiveTopology.h" />
-    <ClInclude Include="Engine\Renderer.h" />
-    <ClInclude Include="Engine\RenderObject.h" />
-    <ClInclude Include="Engine\RenderObjectBatch.h" />
-    <ClInclude Include="Engine\RenderPass.h" />
-    <ClInclude Include="Engine\RenderResource.h" />
-    <ClInclude Include="Engine\RenderResourceDX12.h" />
     <ClInclude Include="Engine\AtomicEngine.h" />
-    <ClInclude Include="Engine\GraphicsInterface.h" />
-    <ClInclude Include="Engine\RSClient.h" />
     <ClInclude Include="Engine\Shader.h" />
     <ClInclude Include="Engine\ShaderCompiler.h" />
-    <ClInclude Include="Engine\Shape.h" />
     <ClInclude Include="Engine\Singleton.h" />
     <ClInclude Include="Engine\stdafx.h" />
     <ClInclude Include="Engine\System.h" />
-    <ClInclude Include="Engine\SystemTranslator.h" />
-    <ClInclude Include="Engine\ThirdParty.h" />
-    <ClInclude Include="Engine\WindowsTranslator.h" />
     <ClInclude Include="ECS.h" />
     <ClInclude Include="GPI.h" />
+    <ClInclude Include="GPIResource_DX12.h" />
     <ClInclude Include="GPI_DX12.h" />
     <ClInclude Include="PipelineStateObject.h" />
+    <ClInclude Include="GPIResource.h" />
+    <ClInclude Include="RenderSystem.h" />
     <ClInclude Include="TestSystem.h" />
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="ECS.cpp" />
     <ClCompile Include="Engine\FileSystem.cpp" />
-    <ClCompile Include="Engine\GraphicsInterfaceDX12.cpp" />
     <ClCompile Include="Engine\Main.cpp" />
-    <ClCompile Include="Engine\PipelineStateObject.cpp" />
     <ClCompile Include="Engine\PrimitiveTopology.cpp" />
-    <ClCompile Include="Engine\Renderer.cpp" />
-    <ClCompile Include="Engine\RenderObject.cpp" />
-    <ClCompile Include="Engine\RenderObjectBatch.cpp" />
-    <ClCompile Include="Engine\RenderResource.cpp" />
-    <ClCompile Include="Engine\RenderResourceDX12.cpp" />
-    <ClCompile Include="Engine\RSClient.cpp" />
     <ClCompile Include="Engine\AtomicEngine.cpp" />
     <ClCompile Include="Engine\Shader.cpp" />
     <ClCompile Include="Engine\ShaderCompiler.cpp" />
@@ -74,7 +54,7 @@
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">Create</PrecompiledHeader>
     </ClCompile>
     <ClCompile Include="Engine\System.cpp" />
-    <ClCompile Include="Engine\WindowsTranslator.cpp" />
+    <ClCompile Include="GPIResource_DX12.cpp" />
     <ClCompile Include="GPI_DX12.cpp" />
   </ItemGroup>
   <PropertyGroup Label="Globals">

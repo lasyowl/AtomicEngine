@@ -18,7 +18,7 @@ struct IComponentRegistry
 };
 
 template <typename T>
-struct SComponentRegistry : public IComponentRegistry
+struct ComponentRegistry : public IComponentRegistry
 {
 	virtual void AddComponent( Entity entity ) override
 	{

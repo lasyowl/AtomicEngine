@@ -1,6 +1,7 @@
 #include "stdafx.h"
 #include "GPI_DX12.h"
 #include "EngineDefines.h"
+#include "AtomicEngine.h"
 
 #include <d3d12.h>
 #include <dxgi.h>
@@ -14,205 +15,114 @@
 		throw std::runtime_error( msg );\
 	}
 
-/* todo : Generate from file */
-std::tuple<ID3D12PipelineState*, ID3D12RootSignature*> CreatePSO( ID3D12Device* device )
+constexpr D3D12_VIEWPORT ToDX12Viewport( uint32 width, uint32 height )
 {
-	ID3D12PipelineState* pso;
-	ID3D12RootSignature* rootSignature;
-
-	/* Create root signature */
-	D3D12_ROOT_PARAMETER rootParam{};
-	rootParam.ParameterType = D3D12_ROOT_PARAMETER_TYPE_CBV;
-	rootParam.ShaderVisibility = D3D12_SHADER_VISIBILITY_VERTEX;
-	rootParam.Descriptor.ShaderRegister = 0;
-	rootParam.Descriptor.RegisterSpace = 0;
-
-	D3D12_ROOT_SIGNATURE_DESC rootSignatureDesc{};
-	rootSignatureDesc.NumParameters = 1;
-	rootSignatureDesc.pParameters = &rootParam;
-	rootSignatureDesc.NumStaticSamplers = 0;
-	rootSignatureDesc.pStaticSamplers = nullptr;
-	rootSignatureDesc.Flags = D3D12_ROOT_SIGNATURE_FLAG_ALLOW_INPUT_ASSEMBLER_INPUT_LAYOUT;
-
-	ID3DBlob* rootBlob;
-	ID3DBlob* errorBlob;
-	CHECK_HRESULT( D3D12SerializeRootSignature( &rootSignatureDesc, D3D_ROOT_SIGNATURE_VERSION_1, &rootBlob, &errorBlob ),
-				   "Failed to serialize root signature" );
-
-	CHECK_HRESULT( device->CreateRootSignature( 0, rootBlob->GetBufferPointer(), rootBlob->GetBufferSize(), IID_PPV_ARGS( &rootSignature ) ),
-				   "Failed to create root signature" );
-
-	/* Create pipeline state object */
-	const D3D12_INPUT_ELEMENT_DESC layout[] =
-	{
-		{ "POSITION", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0, 0,
-		D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0 },
-		{ "TEXCOORD", 0, DXGI_FORMAT_R32G32_FLOAT, 0, 12,
-		D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0 }
-	};
-
-	const D3D_SHADER_MACRO macros[] = {
-		{ "D3D12_SAMPLE_BASIC", "1" },
-		{ nullptr, nullptr }
-	};
-
-	std::ifstream shaderFile( "Engine/Shader/Test.hlsl", std::ios_base::in );
-	std::string parsedShader = std::string( std::istreambuf_iterator<char>( shaderFile ),
-											std::istreambuf_iterator<char>() );
-
-	ID3DBlob* vertexShader;
-	CHECK_HRESULT( D3DCompile( parsedShader.c_str(), parsedShader.size(),
-				   "", macros, nullptr,
-				   "VS_main", "vs_5_0", 0, 0, &vertexShader, nullptr ),
-				   "Vertex shader compilation failed." );
-
-	ID3DBlob* pixelShader;
-	CHECK_HRESULT( D3DCompile( parsedShader.c_str(), parsedShader.size(),
-				   "", macros, nullptr,
-				   "PS_main", "ps_5_0", 0, 0, &pixelShader, nullptr ),
-				   "Pixel shader compilation failed." );
-
-	D3D12_RASTERIZER_DESC rasterizerDesc{};
-	rasterizerDesc.FillMode = D3D12_FILL_MODE_SOLID;
-	rasterizerDesc.CullMode = D3D12_CULL_MODE_BACK;
-	rasterizerDesc.FrontCounterClockwise = FALSE;
-	rasterizerDesc.DepthBias = D3D12_DEFAULT_DEPTH_BIAS;
-	rasterizerDesc.DepthBiasClamp = D3D12_DEFAULT_DEPTH_BIAS_CLAMP;
-	rasterizerDesc.SlopeScaledDepthBias = D3D12_DEFAULT_SLOPE_SCALED_DEPTH_BIAS;
-	rasterizerDesc.DepthClipEnable = TRUE;
-	rasterizerDesc.MultisampleEnable = FALSE;
-	rasterizerDesc.AntialiasedLineEnable = FALSE;
-	rasterizerDesc.ForcedSampleCount = 0;
-	rasterizerDesc.ConservativeRaster = D3D12_CONSERVATIVE_RASTERIZATION_MODE_OFF;
-
-	D3D12_BLEND_DESC blendState{};
-	blendState.AlphaToCoverageEnable = FALSE;
-	blendState.IndependentBlendEnable = FALSE;
-	for( uint32 Index = 0; Index < D3D12_SIMULTANEOUS_RENDER_TARGET_COUNT; ++Index )
-	{
-		const D3D12_RENDER_TARGET_BLEND_DESC defaultRenderTargetBlendDesc =
-		{
-			FALSE,
-			FALSE,
-			D3D12_BLEND_ONE, D3D12_BLEND_ZERO, D3D12_BLEND_OP_ADD,
-			D3D12_BLEND_ONE, D3D12_BLEND_ZERO, D3D12_BLEND_OP_ADD,
-			D3D12_LOGIC_OP_NOOP,
-			D3D12_COLOR_WRITE_ENABLE_ALL,
-		};
-		blendState.RenderTarget[ Index ] = defaultRenderTargetBlendDesc;
-	}
-	// Simple alpha blending
-	blendState.RenderTarget[ 0 ].BlendEnable = true;
-	blendState.RenderTarget[ 0 ].SrcBlend = D3D12_BLEND_SRC_ALPHA;
-	blendState.RenderTarget[ 0 ].DestBlend = D3D12_BLEND_INV_SRC_ALPHA;
-	blendState.RenderTarget[ 0 ].BlendOp = D3D12_BLEND_OP_ADD;
-	blendState.RenderTarget[ 0 ].SrcBlendAlpha = D3D12_BLEND_ONE;
-	blendState.RenderTarget[ 0 ].DestBlendAlpha = D3D12_BLEND_ZERO;
-	blendState.RenderTarget[ 0 ].BlendOpAlpha = D3D12_BLEND_OP_ADD;
-	blendState.RenderTarget[ 0 ].RenderTargetWriteMask = D3D12_COLOR_WRITE_ENABLE_ALL;
-
-	D3D12_GRAPHICS_PIPELINE_STATE_DESC psoDesc{};
-	psoDesc.RasterizerState = rasterizerDesc;
-	psoDesc.BlendState = blendState;
-	psoDesc.VS.BytecodeLength = vertexShader->GetBufferSize();
-	psoDesc.VS.pShaderBytecode = vertexShader->GetBufferPointer();
-	psoDesc.PS.BytecodeLength = pixelShader->GetBufferSize();
-	psoDesc.PS.pShaderBytecode = pixelShader->GetBufferPointer();
-	psoDesc.pRootSignature = rootSignature;
-	psoDesc.NumRenderTargets = 1;
-	psoDesc.RTVFormats[ 0 ] = DXGI_FORMAT_R8G8B8A8_UNORM_SRGB;
-	psoDesc.DSVFormat = DXGI_FORMAT_UNKNOWN;
-	psoDesc.InputLayout.NumElements = std::extent<decltype(layout)>::value;
-	psoDesc.InputLayout.pInputElementDescs = layout;
-	psoDesc.SampleDesc.Count = 1;
-	psoDesc.DepthStencilState.DepthEnable = false;
-	psoDesc.DepthStencilState.StencilEnable = false;
-	psoDesc.SampleMask = 0xFFFFFFFF;
-	psoDesc.PrimitiveTopologyType = D3D12_PRIMITIVE_TOPOLOGY_TYPE_TRIANGLE;
-
-	device->CreateGraphicsPipelineState( &psoDesc, IID_PPV_ARGS( &pso ) );
-
-	return { pso, rootSignature };
+	return D3D12_VIEWPORT{ 0, 0, ( float )width, ( float )height, 0, 1 };
 }
 
-IVertexBufferContextRef CreateVertexBuffer( void* data, uint64 SizeInByte )
+constexpr D3D12_RECT ToDX12Rect( uint32 width, uint32 height )
 {
-	return CreateBuffer< SVertexBufferContextDX12 >( data, SizeInByte );
+	return D3D12_RECT{ 0, 0, ( int32 )width, ( int32 )height };
 }
 
-IIndexBufferContextRef CreateIndexBuffer( void* data, uint64 SizeInByte )
+constexpr D3D12_RESOURCE_DESC ResourceDescBuffer( uint64 width, uint32 height = 1, uint16 depth = 1 )
 {
-	return CreateBuffer< SIndexBufferContextDX12 >( data, SizeInByte );
+	D3D12_RESOURCE_DESC bufferDesc{};
+	bufferDesc.Dimension = D3D12_RESOURCE_DIMENSION_BUFFER;
+	bufferDesc.Alignment = 0;
+	bufferDesc.Width = width;
+	bufferDesc.Height = height;
+	bufferDesc.DepthOrArraySize = depth;
+	bufferDesc.MipLevels = 1;
+	bufferDesc.Format = DXGI_FORMAT_UNKNOWN;
+	bufferDesc.SampleDesc.Count = 1;
+	bufferDesc.SampleDesc.Quality = 0;
+	bufferDesc.Layout = D3D12_TEXTURE_LAYOUT_ROW_MAJOR;
+	bufferDesc.Flags = D3D12_RESOURCE_FLAG_NONE;
+
+	return bufferDesc;
 }
 
-template<typename TBufferContext>
-std::shared_ptr<TBufferContext> CreateBuffer( void* data, uint64 SizeInByte )
+constexpr D3D12_HEAP_PROPERTIES HeapProperties( D3D12_HEAP_TYPE heapType )
 {
-	CDX12CommandQueueSet& CmdQueueSet = CmdQueueSets[ D3D12_COMMAND_LIST_TYPE_COPY ];
-	ID3D12GraphicsCommandList* CmdList = *CmdQueueSet.CmdListIter;
-	ID3D12CommandAllocator* CmdAllocator = CmdQueueSet.Allocator;
-	ID3D12CommandQueue* CmdQueue = CmdQueueSet.CmdQueue;
-	ID3D12Fence* Fence = CmdQueueSet.Fence;
-	HANDLE FenceEventHandle = CmdQueueSet.FenceEventHandle;
+	D3D12_HEAP_PROPERTIES heapProp{};
+	heapProp.Type = heapType;
+	heapProp.CPUPageProperty = D3D12_CPU_PAGE_PROPERTY_UNKNOWN;
+	heapProp.MemoryPoolPreference = D3D12_MEMORY_POOL_UNKNOWN;
+	heapProp.CreationNodeMask = 1;
+	heapProp.VisibleNodeMask = 1;
 
-	D3D12_RESOURCE_DESC BufferDesc = Predefined::ResourceDescBuffer( SizeInByte );
-	D3D12_HEAP_PROPERTIES UploadHeapProp = Predefined::HeapProperties( D3D12_HEAP_TYPE_UPLOAD );
-	D3D12_HEAP_PROPERTIES DefaultHeapProp = Predefined::HeapProperties( D3D12_HEAP_TYPE_DEFAULT );
+	return heapProp;
+}
+
+void CopyMemoryToBuffer( ID3D12Resource* buffer, void* data, uint64 size )
+{
+	void* virtualMem;
+	buffer->Map( 0, nullptr, &virtualMem );
+	::memcpy( virtualMem, data, size );
+	buffer->Unmap( 0, nullptr );
+}
+
+ID3D12Resource* CreateBuffer( ID3D12Device* device, CommandQueueContext& cmdQueueContext, void* data, uint64 size )
+{
+	ID3D12GraphicsCommandList* cmdList = *cmdQueueContext.cmdListIter;
+	ID3D12CommandAllocator* cmdAllocator = cmdQueueContext.allocator;
+	ID3D12Fence* fence = cmdQueueContext.fence;
+	HANDLE fenceEventHandle = cmdQueueContext.fenceEventHandle;
+
+	D3D12_RESOURCE_DESC bufferDesc = ResourceDescBuffer( size );
+	D3D12_HEAP_PROPERTIES uploadHeapProp = HeapProperties( D3D12_HEAP_TYPE_UPLOAD );
+	D3D12_HEAP_PROPERTIES defaultHeapProp = HeapProperties( D3D12_HEAP_TYPE_DEFAULT );
 
 	// Create upload buffer on CPU
-	ID3D12Resource* UploadBuffer;
-	CHECK_HRESULT( Device->CreateCommittedResource( &UploadHeapProp,
+	ID3D12Resource* uploadBuffer;
+	CHECK_HRESULT( device->CreateCommittedResource( &uploadHeapProp,
 				   D3D12_HEAP_FLAG_NONE,
-				   &BufferDesc,
+				   &bufferDesc,
 				   D3D12_RESOURCE_STATE_GENERIC_READ,
 				   nullptr,
-				   IID_PPV_ARGS( &UploadBuffer ) ) );
+				   IID_PPV_ARGS( &uploadBuffer ) ),
+				   "Failed to create upload buffer." );
 
-	ID3D12Resource* OutBuffer;
-	CHECK_HRESULT( Device->CreateCommittedResource( &DefaultHeapProp,
+	ID3D12Resource* outBuffer;
+	CHECK_HRESULT( device->CreateCommittedResource( &defaultHeapProp,
 				   D3D12_HEAP_FLAG_NONE,
-				   &BufferDesc,
+				   &bufferDesc,
 				   D3D12_RESOURCE_STATE_COPY_DEST,
 				   nullptr,
-				   IID_PPV_ARGS( &OutBuffer ) ) );
+				   IID_PPV_ARGS( &outBuffer ) ),
+				   "Failed to create output buffer." );
 
-	CopyMemoryToBuffer( UploadBuffer, data, SizeInByte );
+	CopyMemoryToBuffer( uploadBuffer, data, size );
 
-	CHECK_HRESULT( CmdAllocator->Reset() );
-	CHECK_HRESULT( CmdList->Reset( CmdAllocator, nullptr ) );
+	CHECK_HRESULT( cmdAllocator->Reset(), "Failed to reset command allocator." );
+	CHECK_HRESULT( cmdList->Reset( cmdAllocator, nullptr ), "Failed to reset command list." );
 
-	CmdList->CopyBufferRegion( OutBuffer, 0, UploadBuffer, 0, SizeInByte );
+	cmdList->CopyBufferRegion( outBuffer, 0, uploadBuffer, 0, size );
 
-	D3D12_RESOURCE_BARRIER Barrier;
-	Barrier.Type = D3D12_RESOURCE_BARRIER_TYPE_TRANSITION;
-	Barrier.Flags = D3D12_RESOURCE_BARRIER_FLAG_NONE;
-	Barrier.Transition.pResource = OutBuffer;
-	Barrier.Transition.StateBefore = D3D12_RESOURCE_STATE_COPY_DEST;
-	Barrier.Transition.StateAfter = D3D12_RESOURCE_STATE_COMMON;
-	Barrier.Transition.Subresource = D3D12_RESOURCE_BARRIER_ALL_SUBRESOURCES;
+	D3D12_RESOURCE_BARRIER barrier;
+	barrier.Type = D3D12_RESOURCE_BARRIER_TYPE_TRANSITION;
+	barrier.Flags = D3D12_RESOURCE_BARRIER_FLAG_NONE;
+	barrier.Transition.pResource = outBuffer;
+	barrier.Transition.StateBefore = D3D12_RESOURCE_STATE_COPY_DEST;
+	barrier.Transition.StateAfter = D3D12_RESOURCE_STATE_COMMON;
+	barrier.Transition.Subresource = D3D12_RESOURCE_BARRIER_ALL_SUBRESOURCES;
 
-	CmdList->ResourceBarrier( 1, &Barrier );
+	cmdList->ResourceBarrier( 1, &barrier );
 
-	CHECK_HRESULT( CmdList->Close() );
+	CHECK_HRESULT( cmdList->Close(), "Failed to close command list." );
 
-	CmdQueueSet.ExecuteCommandList( CmdList );
-	CHECK_HRESULT( CmdQueue->Signal( Fence, 1 ) );
+	ID3D12CommandList* cmdListInterface = cmdList;
+	cmdQueueContext.cmdQueue->ExecuteCommandLists( 1, &cmdListInterface );
+	CHECK_HRESULT( cmdQueueContext.cmdQueue->Signal( fence, 1 ), "Failed to signal command queue." );
 
-	if( Fence->GetCompletedValue() != 1 )
+	if( fence->GetCompletedValue() != 1 )
 	{
-		Fence->SetEventOnCompletion( 1, FenceEventHandle );
-		WaitForSingleObject( FenceEventHandle, INFINITE );
+		fence->SetEventOnCompletion( 1, fenceEventHandle );
+		WaitForSingleObject( fenceEventHandle, INFINITE );
 	}
 
-	return std::make_shared<TBufferContext>( OutBuffer );
-}
-
-void CopyMemoryToBuffer( ID3D12Resource * Buffer, void* data, uint64 SizeInByte )
-{
-	void* VirtualMem;
-	Buffer->Map( 0, nullptr, &VirtualMem );
-	::memcpy( VirtualMem, data, SizeInByte );
-	Buffer->Unmap( 0, nullptr );
+	return outBuffer;
 }
 
 ///////////////////////////////////////
@@ -311,7 +221,7 @@ void GPI_DX12::Initialize()
 	for( int32 Index = 0; Index < SWAPCHAIN_BUFFER_COUNT; ++Index )
 	{
 		SwapChainBufferContext& swapChainBuffer = _swapChainBuffers[ Index ];
-		swapChainBuffer.BufferIndex = Index;
+		swapChainBuffer.bufferIndex = Index;
 
 		D3D12_RENDER_TARGET_VIEW_DESC viewDesc{};
 		viewDesc.Format = DXGI_FORMAT_R8G8B8A8_UNORM_SRGB;
@@ -319,11 +229,11 @@ void GPI_DX12::Initialize()
 		viewDesc.Texture2D.MipSlice = 0;
 		viewDesc.Texture2D.PlaneSlice = 0;
 
-		CHECK_HRESULT( _swapChain->GetBuffer( Index, IID_PPV_ARGS( &swapChainBuffer.RenderTarget ) ), "Failed to get swapchain buffer." );
+		CHECK_HRESULT( _swapChain->GetBuffer( Index, IID_PPV_ARGS( &swapChainBuffer.renderTarget ) ), "Failed to get swapchain buffer." );
 
-		_device->CreateRenderTargetView( swapChainBuffer.RenderTarget, &viewDesc, RenderTargetViewDescHandle );
+		_device->CreateRenderTargetView( swapChainBuffer.renderTarget, &viewDesc, RenderTargetViewDescHandle );
 
-		swapChainBuffer.RenderTargetHandlePtr = RenderTargetViewDescHandle.ptr;
+		swapChainBuffer.renderTargetHandlePtr = RenderTargetViewDescHandle.ptr;
 		RenderTargetViewDescHandle.ptr += RenderTargetViewDescSize;
 	}
 
@@ -332,164 +242,331 @@ void GPI_DX12::Initialize()
 
 void GPI_DX12::BeginFrame()
 {
-	CDX12CommandQueueSet& CmdQueueSet = CmdQueueSets[ D3D12_COMMAND_LIST_TYPE_DIRECT ];
-	ID3D12CommandAllocator* CmdAllocator = CmdQueueSet.Allocator;
-	ID3D12GraphicsCommandList* CmdList = *CmdQueueSet.CmdListIter;
-	ID3D12CommandQueue* CmdQueue = CmdQueueSet.CmdQueue;
-	ID3D12Fence* Fence = CmdQueueSet.Fence;
-	uint64& FenceValue = CmdQueueSet.FenceValue;
-	HANDLE FenceEventHandle = CmdQueueSet.FenceEventHandle;
+	CommandQueueContext& cmdQueueCtx = _cmdQueueCtx[ D3D12_COMMAND_LIST_TYPE_DIRECT ];
+	ID3D12CommandAllocator* cmdAllocator = cmdQueueCtx.allocator;
+	ID3D12GraphicsCommandList* cmdList = *cmdQueueCtx.cmdListIter;
+	ID3D12CommandQueue* cmdQueue = cmdQueueCtx.cmdQueue;
+	ID3D12Fence* fence = cmdQueueCtx.fence;
+	uint64& fenceValue = cmdQueueCtx.fenceValue;
+	HANDLE fenceEventHandle = cmdQueueCtx.fenceEventHandle;
 
-	if( Fence->GetCompletedValue() < FenceValue )
+	if( fence->GetCompletedValue() < fenceValue )
 	{
-		CHECK_HRESULT( Fence->SetEventOnCompletion( FenceValue, FenceEventHandle ) );
-		WaitForSingleObject( FenceEventHandle, INFINITE );
+		CHECK_HRESULT( fence->SetEventOnCompletion( fenceValue, fenceEventHandle ),
+					   "Failed to set fence." );
+		WaitForSingleObject( fenceEventHandle, INFINITE );
 	}
 
-	CHECK_HRESULT( CmdAllocator->Reset() );
-	CHECK_HRESULT( CmdList->Reset( CmdAllocator, nullptr ) );
+	CHECK_HRESULT( cmdAllocator->Reset(), "Failed to reset command allocator." );
+	CHECK_HRESULT( cmdList->Reset( cmdAllocator, nullptr ), "Failed to reset command list." );
 
-	D3D12_CPU_DESCRIPTOR_HANDLE RenderTargetHandle;
-	RenderTargetHandle.ptr = SwapChainBufferIter->RenderTargetHandlePtr;
+	D3D12_CPU_DESCRIPTOR_HANDLE renderTargetHandle;
+	renderTargetHandle.ptr = _swapChainBufferIter->renderTargetHandlePtr;
+	cmdList->OMSetRenderTargets( 1, &renderTargetHandle, true, nullptr );
 
-	CmdList->OMSetRenderTargets( 1, &RenderTargetHandle, true, nullptr );
-	CmdList->RSSetViewports( 1, &WindowViewport );
-	CmdList->RSSetScissorRects( 1, &WindowScissorRect );
+	D3D12_VIEWPORT viewport = ToDX12Viewport( _windowWidth, _windowHeight );
+	D3D12_RECT scissorRect = ToDX12Rect( _windowWidth, _windowHeight );
+	cmdList->RSSetViewports( 1, &viewport );
+	cmdList->RSSetScissorRects( 1, &scissorRect );
 
 	// Transition back buffer
-	D3D12_RESOURCE_BARRIER Barrier;
-	Barrier.Transition.pResource = SwapChainBufferIter->RenderTarget;
-	Barrier.Type = D3D12_RESOURCE_BARRIER_TYPE_TRANSITION;
-	Barrier.Flags = D3D12_RESOURCE_BARRIER_FLAG_NONE;
-	Barrier.Transition.StateBefore = D3D12_RESOURCE_STATE_PRESENT;
-	Barrier.Transition.StateAfter = D3D12_RESOURCE_STATE_RENDER_TARGET;
-	Barrier.Transition.Subresource = D3D12_RESOURCE_BARRIER_ALL_SUBRESOURCES;
+	D3D12_RESOURCE_BARRIER barrier;
+	barrier.Transition.pResource = _swapChainBufferIter->renderTarget;
+	barrier.Type = D3D12_RESOURCE_BARRIER_TYPE_TRANSITION;
+	barrier.Flags = D3D12_RESOURCE_BARRIER_FLAG_NONE;
+	barrier.Transition.StateBefore = D3D12_RESOURCE_STATE_PRESENT;
+	barrier.Transition.StateAfter = D3D12_RESOURCE_STATE_RENDER_TARGET;
+	barrier.Transition.Subresource = D3D12_RESOURCE_BARRIER_ALL_SUBRESOURCES;
 
-	CmdList->ResourceBarrier( 1, &Barrier );
+	cmdList->ResourceBarrier( 1, &barrier );
 
-	static const float ClearColor[] = {
+	static float clearColor[] = {
 		0.042f, 0.042f, 0.242f,	1
 	};
 
-	CmdList->ClearRenderTargetView( RenderTargetHandle,
-									ClearColor, 0, nullptr );
+	cmdList->ClearRenderTargetView( renderTargetHandle, clearColor, 0, nullptr );
 
-	CHECK_HRESULT( CmdList->Close() );
+	CHECK_HRESULT( cmdList->Close(), "Failed to close command list." );
 
-	CmdQueueSet.ExecuteCommandList( CmdList );
-	CmdQueue->Signal( Fence, ++FenceValue );
+	ID3D12CommandList* cmdListInterface = cmdList;
+	cmdQueue->ExecuteCommandLists( 1, &cmdListInterface );
+
+	cmdQueue->Signal( fence, ++fenceValue );
 }
 
-void CGraphicsInterfaceDX12::EndFrame()
+void GPI_DX12::EndFrame()
 {
-	CDX12CommandQueueSet& CmdQueueSet = CmdQueueSets[ D3D12_COMMAND_LIST_TYPE_DIRECT ];
-	ID3D12GraphicsCommandList* CmdList = *CmdQueueSet.CmdListIter;
-	ID3D12CommandAllocator* CmdAllocator = CmdQueueSet.Allocator;
-	ID3D12CommandQueue* CmdQueue = CmdQueueSet.CmdQueue;
-	ID3D12Fence* Fence = CmdQueueSet.Fence;
-	uint64& FenceValue = CmdQueueSet.FenceValue;
-	HANDLE FenceEventHandle = CmdQueueSet.FenceEventHandle;
+	CommandQueueContext& cmdQueueCtx = _cmdQueueCtx[ D3D12_COMMAND_LIST_TYPE_DIRECT ];
+	ID3D12CommandAllocator* cmdAllocator = cmdQueueCtx.allocator;
+	ID3D12GraphicsCommandList* cmdList = *cmdQueueCtx.cmdListIter;
+	ID3D12CommandQueue* cmdQueue = cmdQueueCtx.cmdQueue;
+	ID3D12Fence* fence = cmdQueueCtx.fence;
+	uint64& fenceValue = cmdQueueCtx.fenceValue;
+	HANDLE fenceEventHandle = cmdQueueCtx.fenceEventHandle;
 
-	if( Fence->GetCompletedValue() < FenceValue )
+	if( fence->GetCompletedValue() < fenceValue )
 	{
-		CHECK_HRESULT( Fence->SetEventOnCompletion( FenceValue, FenceEventHandle ) );
-		WaitForSingleObject( FenceEventHandle, INFINITE );
-	}
-
-	CHECK_HRESULT( CmdAllocator->Reset() );
-	CHECK_HRESULT( CmdList->Reset( CmdAllocator, nullptr ) );
-
-	D3D12_RESOURCE_BARRIER Barrier;
-	Barrier.Transition.pResource = SwapChainBufferIter->RenderTarget;
-	Barrier.Type = D3D12_RESOURCE_BARRIER_TYPE_TRANSITION;
-	Barrier.Flags = D3D12_RESOURCE_BARRIER_FLAG_NONE;
-	Barrier.Transition.StateBefore = D3D12_RESOURCE_STATE_RENDER_TARGET;
-	Barrier.Transition.StateAfter = D3D12_RESOURCE_STATE_PRESENT;
-	Barrier.Transition.Subresource = D3D12_RESOURCE_BARRIER_ALL_SUBRESOURCES;
-
-	CmdList->ResourceBarrier( 1, &Barrier );
-
-	CHECK_HRESULT( CmdList->Close() );
-
-	CmdQueueSet.ExecuteCommandList( CmdList );
-
-	CHECK_HRESULT( SwapChain->Present( 1, 0 ) );
-
-	CHECK_HRESULT( CmdQueue->Signal( Fence, ++FenceValue ) );
-
-	if( ++SwapChainBufferIter == SwapChainBuffers.end() )
-	{
-		SwapChainBufferIter = SwapChainBuffers.begin();
-	}
-
-	CmdQueueSet.ItinerateCommandList();
-}
-
-void CGraphicsInterfaceDX12::SetPipelineState( ID3D12PipelineState* pso, ID3D12RootSignature* rootSignature )
-{
-	CDX12CommandQueueSet& CmdQueueSet = CmdQueueSets[ D3D12_COMMAND_LIST_TYPE_DIRECT ];
-	ID3D12GraphicsCommandList* CmdList = *CmdQueueSet.CmdListIter;
-	ID3D12CommandAllocator* CmdAllocator = CmdQueueSet.Allocator;
-	ID3D12Fence* Fence = CmdQueueSet.Fence;
-	uint64& FenceValue = CmdQueueSet.FenceValue;
-	HANDLE FenceEventHandle = CmdQueueSet.FenceEventHandle;
-
-	if( Fence->GetCompletedValue() < FenceValue )
-	{
-		CHECK_HRESULT( Fence->SetEventOnCompletion( FenceValue, FenceEventHandle ), 
+		CHECK_HRESULT( fence->SetEventOnCompletion( fenceValue, fenceEventHandle ),
 					   "Failed to set fence." );
-		WaitForSingleObject( FenceEventHandle, INFINITE );
+		WaitForSingleObject( fenceEventHandle, INFINITE );
 	}
 
-	CHECK_HRESULT( CmdAllocator->Reset(), "Failed to reset allocator." );
-	CHECK_HRESULT( CmdList->Reset( CmdAllocator, nullptr ), "Failed to reset command list." );
+	CHECK_HRESULT( cmdAllocator->Reset(), "Failed to reset command allocator." );
+	CHECK_HRESULT( cmdList->Reset( cmdAllocator, nullptr ), "Failed to reset command list." );
+	
+	D3D12_RESOURCE_BARRIER barrier;
+	barrier.Transition.pResource = _swapChainBufferIter->renderTarget;
+	barrier.Type = D3D12_RESOURCE_BARRIER_TYPE_TRANSITION;
+	barrier.Flags = D3D12_RESOURCE_BARRIER_FLAG_NONE;
+	barrier.Transition.StateBefore = D3D12_RESOURCE_STATE_RENDER_TARGET;
+	barrier.Transition.StateAfter = D3D12_RESOURCE_STATE_PRESENT;
+	barrier.Transition.Subresource = D3D12_RESOURCE_BARRIER_ALL_SUBRESOURCES;
 
-	CmdList->SetPipelineState( pso );
-	CmdList->SetGraphicsRootSignature( rootSignature );
-	CmdList->IASetPrimitiveTopology( D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST );
+	cmdList->ResourceBarrier( 1, &barrier );
+	
+	CHECK_HRESULT( cmdList->Close(), "Failed to close command list." );
+	
+	ID3D12CommandList* cmdListInterface = cmdList;
+	cmdQueue->ExecuteCommandLists( 1, &cmdListInterface );
 
-	D3D12_CPU_DESCRIPTOR_HANDLE RenderTargetHandle;
-	RenderTargetHandle.ptr = SwapChainBufferIter->RenderTargetHandlePtr;
+	CHECK_HRESULT( _swapChain->Present( 1, 0 ), "Failed to present swapchain." );
 
-	CmdList->OMSetRenderTargets( 1, &RenderTargetHandle, true, nullptr );
-	CmdList->RSSetViewports( 1, &WindowViewport );
-	CmdList->RSSetScissorRects( 1, &WindowScissorRect );
+	CHECK_HRESULT( cmdQueue->Signal( fence, ++fenceValue ), "Failed to signal command queue." );
+
+	if( ++_swapChainBufferIter == _swapChainBuffers.end() )
+	{
+		_swapChainBufferIter = _swapChainBuffers.begin();
+	}
+
+	if( ++cmdQueueCtx.cmdListIter == cmdQueueCtx.cmdLists.end() )
+	{
+		cmdQueueCtx.cmdListIter = cmdQueueCtx.cmdLists.begin();
+	}
 }
 
-void CGraphicsInterfaceDX12::Render( const CRenderObject& InRenderObject )
+void GPI_DX12::SetPipelineState( ID3D12PipelineState* pso, ID3D12RootSignature* rootSignature )
 {
-	CDX12CommandQueueSet& CmdQueueSet = CmdQueueSets[ D3D12_COMMAND_LIST_TYPE_DIRECT ];
-	ID3D12GraphicsCommandList* CmdList = *CmdQueueSet.CmdListIter;
+	CommandQueueContext& cmdQueueCtx = _cmdQueueCtx[ D3D12_COMMAND_LIST_TYPE_DIRECT ];
+	ID3D12CommandAllocator* cmdAllocator = cmdQueueCtx.allocator;
+	ID3D12GraphicsCommandList* cmdList = *cmdQueueCtx.cmdListIter;
+	ID3D12Fence* fence = cmdQueueCtx.fence;
+	uint64& fenceValue = cmdQueueCtx.fenceValue;
+	HANDLE fenceEventHandle = cmdQueueCtx.fenceEventHandle;
 
-	const CVertexBuffer& VB = InRenderObject.GetVertexBuffer();
-	const CIndexBuffer& IB = InRenderObject.GetIndexBuffer();
+	if( fence->GetCompletedValue() < fenceValue )
+	{
+		CHECK_HRESULT( fence->SetEventOnCompletion( fenceValue, fenceEventHandle ),
+					   "Failed to set fence." );
+		WaitForSingleObject( fenceEventHandle, INFINITE );
+	}
+
+	CHECK_HRESULT( cmdAllocator->Reset(), "Failed to reset allocator." );
+	CHECK_HRESULT( cmdList->Reset( cmdAllocator, nullptr ), "Failed to reset command list." );
+
+	cmdList->SetPipelineState( pso );
+	cmdList->SetGraphicsRootSignature( rootSignature );
+	cmdList->IASetPrimitiveTopology( D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST );
+
+	D3D12_CPU_DESCRIPTOR_HANDLE renderTargetHandle;
+	renderTargetHandle.ptr = _swapChainBufferIter->renderTargetHandlePtr;
+	cmdList->OMSetRenderTargets( 1, &renderTargetHandle, true, nullptr );
+
+	D3D12_VIEWPORT viewport = ToDX12Viewport( _windowWidth, _windowHeight );
+	D3D12_RECT scissorRect = ToDX12Rect( _windowWidth, _windowHeight );
+	cmdList->RSSetViewports( 1, &viewport );
+	cmdList->RSSetScissorRects( 1, &scissorRect );
+}
+
+void GPI_DX12::SetPipelineState( uint32 pipelineStateHash )
+{
+	assert( _pipelineStateCache.end() != _pipelineStateCache.find( pipelineStateHash ) );
+
+	auto& [rootSignature, pso] = _pipelineStateCache[ pipelineStateHash ];
+	SetPipelineState( pso, rootSignature );
+}
+
+void GPI_DX12::Render( IVertexBuffer* vertexBuffer, IIndexBuffer* indexBuffer )
+{
+	CommandQueueContext& cmdQueueCtx = _cmdQueueCtx[ D3D12_COMMAND_LIST_TYPE_DIRECT ];
+	ID3D12GraphicsCommandList* cmdList = *cmdQueueCtx.cmdListIter;
 
 	D3D12_VERTEX_BUFFER_VIEW VBView;
-	VBView.BufferLocation = VB.GetGPUVirtualAddress();
-	VBView.SizeInBytes = (uint32) VB.GetSizeInByte();
-	VBView.StrideInBytes = VB.GetStrideInByte();
+	VBView.BufferLocation = vertexBuffer->GetGPUVirtualAddress();
+	VBView.SizeInBytes = ( uint32 )vertexBuffer->GetSize();
+	VBView.StrideInBytes = vertexBuffer->GetStride();
 
 	D3D12_INDEX_BUFFER_VIEW IBView;
-	IBView.BufferLocation = IB.GetGPUVirtualAddress();
-	IBView.SizeInBytes = (uint32) IB.GetSizeInByte();
+	IBView.BufferLocation = indexBuffer->GetGPUVirtualAddress();
+	IBView.SizeInBytes = ( uint32 )indexBuffer->GetSize();
 	IBView.Format = DXGI_FORMAT_R32_UINT;
 
-	CmdList->IASetVertexBuffers( 0, 1, &VBView );
-	CmdList->IASetIndexBuffer( &IBView );
-	CmdList->DrawIndexedInstanced( 6, 1, 0, 0, 0 );
+	cmdList->IASetVertexBuffers( 0, 1, &VBView );
+	cmdList->IASetIndexBuffer( &IBView );
+	cmdList->DrawIndexedInstanced( 6, 1, 0, 0, 0 );
 }
 
-void CGraphicsInterfaceDX12::FlushPipelineState()
+void GPI_DX12::FlushPipelineState()
 {
-	CDX12CommandQueueSet& CmdQueueSet = CmdQueueSets[ D3D12_COMMAND_LIST_TYPE_DIRECT ];
-	ID3D12GraphicsCommandList* CmdList = *CmdQueueSet.CmdListIter;
-	ID3D12CommandQueue* CmdQueue = CmdQueueSet.CmdQueue;
-	ID3D12Fence* Fence = CmdQueueSet.Fence;
-	uint64& FenceValue = CmdQueueSet.FenceValue;
+	CommandQueueContext& cmdQueueCtx = _cmdQueueCtx[ D3D12_COMMAND_LIST_TYPE_DIRECT ];
+	ID3D12GraphicsCommandList* cmdList = *cmdQueueCtx.cmdListIter;
+	ID3D12CommandQueue* cmdQueue = cmdQueueCtx.cmdQueue;
+	ID3D12Fence* fence = cmdQueueCtx.fence;
+	uint64& fenceValue = cmdQueueCtx.fenceValue;
 
-	CHECK_HRESULT( CmdList->Close(), "Failed to close command list." );
+	CHECK_HRESULT( cmdList->Close(), "Failed to close command list." );
 
-	CmdQueueSet.ExecuteCommandList( CmdList );
+	ID3D12CommandList* cmdListInterface = cmdList;
+	cmdQueue->ExecuteCommandLists( 1, &cmdListInterface );
 
-	CHECK_HRESULT( CmdQueue->Signal( Fence, ++FenceValue ), "Failed to signal fence." );
+	CHECK_HRESULT( cmdQueue->Signal( fence, ++fenceValue ), "Failed to signal fence." );
+}
+
+/* todo : Generate from file */
+ID3D12RootSignature* GPI_DX12::CreateRootSignature()
+{
+	ID3D12RootSignature* rootSignature;
+
+	D3D12_ROOT_PARAMETER rootParam{};
+	rootParam.ParameterType = D3D12_ROOT_PARAMETER_TYPE_CBV;
+	rootParam.ShaderVisibility = D3D12_SHADER_VISIBILITY_VERTEX;
+	rootParam.Descriptor.ShaderRegister = 0;
+	rootParam.Descriptor.RegisterSpace = 0;
+
+	D3D12_ROOT_SIGNATURE_DESC rootSignatureDesc{};
+	rootSignatureDesc.NumParameters = 1;
+	rootSignatureDesc.pParameters = &rootParam;
+	rootSignatureDesc.NumStaticSamplers = 0;
+	rootSignatureDesc.pStaticSamplers = nullptr;
+	rootSignatureDesc.Flags = D3D12_ROOT_SIGNATURE_FLAG_ALLOW_INPUT_ASSEMBLER_INPUT_LAYOUT;
+
+	ID3DBlob* rootBlob;
+	ID3DBlob* errorBlob;
+	CHECK_HRESULT( D3D12SerializeRootSignature( &rootSignatureDesc, D3D_ROOT_SIGNATURE_VERSION_1, &rootBlob, &errorBlob ),
+				   "Failed to serialize root signature" );
+
+	CHECK_HRESULT( _device->CreateRootSignature( 0, rootBlob->GetBufferPointer(), rootBlob->GetBufferSize(), IID_PPV_ARGS( &rootSignature ) ),
+				   "Failed to create root signature" );
+
+	return rootSignature;
+}
+
+/* todo : Generate from file */
+ID3D12PipelineState* GPI_DX12::CreatePipelineState( ID3D12RootSignature* rootSignature )
+{
+	ID3D12PipelineState* pso;
+
+	const D3D12_INPUT_ELEMENT_DESC layout[] =
+	{
+		{ "POSITION", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0, 0,
+		D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0 },
+		{ "TEXCOORD", 0, DXGI_FORMAT_R32G32_FLOAT, 0, 12,
+		D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0 }
+	};
+
+	const D3D_SHADER_MACRO macros[] = {
+		{ "D3D12_SAMPLE_BASIC", "1" },
+		{ nullptr, nullptr }
+	};
+
+	std::ifstream shaderFile( "Engine/Shader/Test.hlsl", std::ios_base::in );
+	std::string parsedShader = std::string( std::istreambuf_iterator<char>( shaderFile ),
+											std::istreambuf_iterator<char>() );
+
+	ID3DBlob* vertexShader;
+	CHECK_HRESULT( D3DCompile( parsedShader.c_str(), parsedShader.size(),
+				   "", macros, nullptr,
+				   "VS_main", "vs_5_0", 0, 0, &vertexShader, nullptr ),
+				   "Vertex shader compilation failed." );
+
+	ID3DBlob* pixelShader;
+	CHECK_HRESULT( D3DCompile( parsedShader.c_str(), parsedShader.size(),
+				   "", macros, nullptr,
+				   "PS_main", "ps_5_0", 0, 0, &pixelShader, nullptr ),
+				   "Pixel shader compilation failed." );
+
+	D3D12_RASTERIZER_DESC rasterizerDesc{};
+	rasterizerDesc.FillMode = D3D12_FILL_MODE_SOLID;
+	rasterizerDesc.CullMode = D3D12_CULL_MODE_BACK;
+	rasterizerDesc.FrontCounterClockwise = FALSE;
+	rasterizerDesc.DepthBias = D3D12_DEFAULT_DEPTH_BIAS;
+	rasterizerDesc.DepthBiasClamp = D3D12_DEFAULT_DEPTH_BIAS_CLAMP;
+	rasterizerDesc.SlopeScaledDepthBias = D3D12_DEFAULT_SLOPE_SCALED_DEPTH_BIAS;
+	rasterizerDesc.DepthClipEnable = TRUE;
+	rasterizerDesc.MultisampleEnable = FALSE;
+	rasterizerDesc.AntialiasedLineEnable = FALSE;
+	rasterizerDesc.ForcedSampleCount = 0;
+	rasterizerDesc.ConservativeRaster = D3D12_CONSERVATIVE_RASTERIZATION_MODE_OFF;
+
+	D3D12_BLEND_DESC blendState{};
+	blendState.AlphaToCoverageEnable = FALSE;
+	blendState.IndependentBlendEnable = FALSE;
+	for( uint32 Index = 0; Index < D3D12_SIMULTANEOUS_RENDER_TARGET_COUNT; ++Index )
+	{
+		const D3D12_RENDER_TARGET_BLEND_DESC defaultRenderTargetBlendDesc =
+		{
+			FALSE,
+			FALSE,
+			D3D12_BLEND_ONE, D3D12_BLEND_ZERO, D3D12_BLEND_OP_ADD,
+			D3D12_BLEND_ONE, D3D12_BLEND_ZERO, D3D12_BLEND_OP_ADD,
+			D3D12_LOGIC_OP_NOOP,
+			D3D12_COLOR_WRITE_ENABLE_ALL,
+		};
+		blendState.RenderTarget[ Index ] = defaultRenderTargetBlendDesc;
+	}
+	// Simple alpha blending
+	blendState.RenderTarget[ 0 ].BlendEnable = true;
+	blendState.RenderTarget[ 0 ].SrcBlend = D3D12_BLEND_SRC_ALPHA;
+	blendState.RenderTarget[ 0 ].DestBlend = D3D12_BLEND_INV_SRC_ALPHA;
+	blendState.RenderTarget[ 0 ].BlendOp = D3D12_BLEND_OP_ADD;
+	blendState.RenderTarget[ 0 ].SrcBlendAlpha = D3D12_BLEND_ONE;
+	blendState.RenderTarget[ 0 ].DestBlendAlpha = D3D12_BLEND_ZERO;
+	blendState.RenderTarget[ 0 ].BlendOpAlpha = D3D12_BLEND_OP_ADD;
+	blendState.RenderTarget[ 0 ].RenderTargetWriteMask = D3D12_COLOR_WRITE_ENABLE_ALL;
+
+	D3D12_GRAPHICS_PIPELINE_STATE_DESC psoDesc{};
+	psoDesc.RasterizerState = rasterizerDesc;
+	psoDesc.BlendState = blendState;
+	psoDesc.VS.BytecodeLength = vertexShader->GetBufferSize();
+	psoDesc.VS.pShaderBytecode = vertexShader->GetBufferPointer();
+	psoDesc.PS.BytecodeLength = pixelShader->GetBufferSize();
+	psoDesc.PS.pShaderBytecode = pixelShader->GetBufferPointer();
+	psoDesc.pRootSignature = rootSignature;
+	psoDesc.NumRenderTargets = 1;
+	psoDesc.RTVFormats[ 0 ] = DXGI_FORMAT_R8G8B8A8_UNORM_SRGB;
+	psoDesc.DSVFormat = DXGI_FORMAT_UNKNOWN;
+	psoDesc.InputLayout.NumElements = std::extent<decltype( layout )>::value;
+	psoDesc.InputLayout.pInputElementDescs = layout;
+	psoDesc.SampleDesc.Count = 1;
+	psoDesc.DepthStencilState.DepthEnable = false;
+	psoDesc.DepthStencilState.StencilEnable = false;
+	psoDesc.SampleMask = 0xFFFFFFFF;
+	psoDesc.PrimitiveTopologyType = D3D12_PRIMITIVE_TOPOLOGY_TYPE_TRIANGLE;
+
+	_device->CreateGraphicsPipelineState( &psoDesc, IID_PPV_ARGS( &pso ) );
+
+	return pso;
+}
+
+IVertexBufferRef GPI_DX12::CreateVertexBuffer( void* data, uint32 stride, uint32 size )
+{
+	ID3D12Resource* buffer = CreateBuffer( _device, _cmdQueueCtx[ D3D12_COMMAND_LIST_TYPE_COPY ], data, size );
+	return std::make_shared<VertexBuffer_DX12>( buffer, size, stride );
+}
+
+IIndexBufferRef GPI_DX12::CreateIndexBuffer( void* data, uint32 size )
+{
+	ID3D12Resource* buffer = CreateBuffer( _device, _cmdQueueCtx[ D3D12_COMMAND_LIST_TYPE_COPY ], data, size );
+	return std::make_shared<IndexBuffer_DX12>( buffer, size );
+}
+
+uint32 GPI_DX12::CreatePipelineState()
+{
+	// temp
+	ID3D12RootSignature* rootSignature = CreateRootSignature();
+	ID3D12PipelineState* pipelineState = CreatePipelineState( rootSignature );
+	uint32 hash = reinterpret_cast< uint32 >( rootSignature ) + reinterpret_cast< uint32 >( pipelineState );
+
+	_pipelineStateCache.emplace( hash, std::tuple( rootSignature, pipelineState ) );
+
+	return hash;
 }

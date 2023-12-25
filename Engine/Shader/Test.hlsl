@@ -78,12 +78,12 @@ VertexShaderOutput VS_main(
     return output;
 }
 
-Texture2D<float4> anteruTexture : register(t0);
+Texture2D<float4> texture : register(t0);
 SamplerState texureSampler      : register(s0);
 
 float4 PS_main (float4 position : SV_POSITION,
                 float2 uv : TEXCOORD) : SV_TARGET
 {
-    return anteruTexture.Sample (texureSampler, uv);
+    return texture.Sample (texureSampler, uv);
 }
 #endif

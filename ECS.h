@@ -42,7 +42,7 @@ public:
 		std::unique_ptr<IComponentRegistry>& componentRegistry = _componentRegistry[ component_type_id<T> ];
 		if( !componentRegistry )
 		{
-			componentRegistry = std::make_unique<SComponentRegistry<T>>();
+			componentRegistry = std::make_unique<ComponentRegistry<T>>();
 		}
 		componentRegistry->AddComponent( entity );
 	}

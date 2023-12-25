@@ -1,8 +1,8 @@
 #include "stdafx.h"
 #include "AtomicEngine.h"
-#include "RSClient.h"
 #include "System.h"
 #include "../GPI_DX12.h"
+#include "../RenderSystem.h"
 
 namespace
 {
@@ -17,6 +17,7 @@ namespace
 
 		_gpi = std::make_unique<GPI_DX12>( hWnd, 1920, 1080 );
 		_gpi->Initialize();
+		_gpi->SetWindowSize( 1920, 1080 );
 	}
 
 	LRESULT CALLBACK WindowMessageProcessor( HWND HWnd, UINT Msg, WPARAM WParam, LPARAM LParam )
@@ -59,7 +60,7 @@ namespace
 		HWND WindowHandle = CreateWindowEx(
 			0,								// Optional window styles.
 			WindowName.c_str(),				// Window class
-			L"RSClient",					// Window text
+			L"Atomic Engine",				// Window text
 			WS_OVERLAPPEDWINDOW,			// Window style
 
 			// Size and position
@@ -86,14 +87,22 @@ namespace
 
 		InitGPI( hWnd );
 
+		Entity entity = ECSCreateEntity();
+		ECSAddComponent<RenderComponent>( entity );
+		ECSAddSystem<RenderSystem>();
+
 		bool ShutOff = false;
 
 		std::future<void> RenderThread = std::async(
-			[&]()-> void
+			[ & ]()-> void
 			{
 				while( !ShutOff )
 				{
-					//RenderFrame();
+					_gpi->BeginFrame();
+
+					ECSRunSystems();
+
+					_gpi->EndFrame();
 				}
 			} );
 
