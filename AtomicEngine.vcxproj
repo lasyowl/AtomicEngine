@@ -19,13 +19,14 @@
     </ProjectConfiguration>
   </ItemGroup>
   <ItemGroup>
+    <ClInclude Include="SceneViewSystem.h" />
+    <ClInclude Include="GPIConstantBuffer.h" />
     <ClInclude Include="DataType.h" />
     <ClInclude Include="ECS_Component.h" />
     <ClInclude Include="ECS_System.h" />
     <ClInclude Include="Engine\EngineDefines.h" />
     <ClInclude Include="Engine\EngineEssential.h" />
     <ClInclude Include="Engine\FileSystem.h" />
-    <ClInclude Include="Engine\GraphicsCommandList.h" />
     <ClInclude Include="Engine\PrimitiveTopology.h" />
     <ClInclude Include="Engine\AtomicEngine.h" />
     <ClInclude Include="Engine\Shader.h" />
@@ -37,10 +38,13 @@
     <ClInclude Include="GPI.h" />
     <ClInclude Include="GPIResource_DX12.h" />
     <ClInclude Include="GPI_DX12.h" />
+    <ClInclude Include="Math.h" />
+    <ClInclude Include="Matrix.h" />
     <ClInclude Include="PipelineStateObject.h" />
     <ClInclude Include="GPIResource.h" />
     <ClInclude Include="RenderSystem.h" />
     <ClInclude Include="TestSystem.h" />
+    <ClInclude Include="Vector.h" />
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="ECS.cpp" />

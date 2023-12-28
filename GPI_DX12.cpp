@@ -2,6 +2,7 @@
 #include "GPI_DX12.h"
 #include "EngineDefines.h"
 #include "AtomicEngine.h"
+#include "GPIConstantBuffer.h"
 
 #include <d3d12.h>
 #include <dxgi.h>
@@ -25,7 +26,14 @@ constexpr D3D12_RECT ToDX12Rect( uint32 width, uint32 height )
 	return D3D12_RECT{ 0, 0, ( int32 )width, ( int32 )height };
 }
 
-constexpr D3D12_RESOURCE_DESC ResourceDescBuffer( uint64 width, uint32 height = 1, uint16 depth = 1 )
+/**
+ * Parameterized resource desc getter for vertex buffer
+ * @param width : size for 1/2/3d buffer
+ * @param height : size for 2/3d buffer
+ * @param depth : size for 3d buffer
+ * @return DirectX12 resource descriptor
+ */
+constexpr D3D12_RESOURCE_DESC GetVertexBufferDesc( uint64 width, uint32 height = 1, uint16 depth = 1 )
 {
 	D3D12_RESOURCE_DESC bufferDesc{};
 	bufferDesc.Dimension = D3D12_RESOURCE_DIMENSION_BUFFER;
@@ -55,6 +63,21 @@ constexpr D3D12_HEAP_PROPERTIES HeapProperties( D3D12_HEAP_TYPE heapType )
 	return heapProp;
 }
 
+ID3D12DescriptorHeap* CreateDescriptorHeap( ID3D12Device* device, int32 numDesc, D3D12_DESCRIPTOR_HEAP_TYPE descType, D3D12_DESCRIPTOR_HEAP_FLAGS descFlag )
+{
+	ID3D12DescriptorHeap* descHeap;
+
+	D3D12_DESCRIPTOR_HEAP_DESC descHeapDesc{};
+	descHeapDesc.NumDescriptors = numDesc;
+	descHeapDesc.Type = descType;
+	descHeapDesc.Flags = descFlag;
+
+	CHECK_HRESULT( device->CreateDescriptorHeap( &descHeapDesc, IID_PPV_ARGS( &descHeap ) ),
+				   "Failed to create descriptor heap." );
+
+	return descHeap;
+}
+
 void CopyMemoryToBuffer( ID3D12Resource* buffer, void* data, uint64 size )
 {
 	void* virtualMem;
@@ -70,7 +93,7 @@ ID3D12Resource* CreateBuffer( ID3D12Device* device, CommandQueueContext& cmdQueu
 	ID3D12Fence* fence = cmdQueueContext.fence;
 	HANDLE fenceEventHandle = cmdQueueContext.fenceEventHandle;
 
-	D3D12_RESOURCE_DESC bufferDesc = ResourceDescBuffer( size );
+	D3D12_RESOURCE_DESC bufferDesc = GetVertexBufferDesc( size );
 	D3D12_HEAP_PROPERTIES uploadHeapProp = HeapProperties( D3D12_HEAP_TYPE_UPLOAD );
 	D3D12_HEAP_PROPERTIES defaultHeapProp = HeapProperties( D3D12_HEAP_TYPE_DEFAULT );
 
@@ -125,13 +148,67 @@ ID3D12Resource* CreateBuffer( ID3D12Device* device, CommandQueueContext& cmdQueu
 	return outBuffer;
 }
 
+void UpdateBuffer( ID3D12Device* device, CommandQueueContext& cmdQueueContext, ID3D12Resource* outBuffer, void* data, uint64 size )
+{
+	ID3D12GraphicsCommandList* cmdList = *cmdQueueContext.cmdListIter;
+	ID3D12CommandAllocator* cmdAllocator = cmdQueueContext.allocator;
+	ID3D12Fence* fence = cmdQueueContext.fence;
+	HANDLE fenceEventHandle = cmdQueueContext.fenceEventHandle;
+
+	D3D12_RESOURCE_DESC bufferDesc = GetVertexBufferDesc( size );
+	D3D12_HEAP_PROPERTIES uploadHeapProp = HeapProperties( D3D12_HEAP_TYPE_UPLOAD );
+	D3D12_HEAP_PROPERTIES defaultHeapProp = HeapProperties( D3D12_HEAP_TYPE_DEFAULT );
+
+	// Create upload buffer on CPU
+	ID3D12Resource* uploadBuffer;
+	CHECK_HRESULT( device->CreateCommittedResource( &uploadHeapProp,
+				   D3D12_HEAP_FLAG_NONE,
+				   &bufferDesc,
+				   D3D12_RESOURCE_STATE_GENERIC_READ,
+				   nullptr,
+				   IID_PPV_ARGS( &uploadBuffer ) ),
+				   "Failed to create upload buffer." );
+
+	CopyMemoryToBuffer( uploadBuffer, data, size );
+
+	CHECK_HRESULT( cmdAllocator->Reset(), "Failed to reset command allocator." );
+	CHECK_HRESULT( cmdList->Reset( cmdAllocator, nullptr ), "Failed to reset command list." );
+
+	cmdList->CopyBufferRegion( outBuffer, 0, uploadBuffer, 0, size );
+
+	D3D12_RESOURCE_BARRIER barrier;
+	barrier.Type = D3D12_RESOURCE_BARRIER_TYPE_TRANSITION;
+	barrier.Flags = D3D12_RESOURCE_BARRIER_FLAG_NONE;
+	barrier.Transition.pResource = outBuffer;
+	barrier.Transition.StateBefore = D3D12_RESOURCE_STATE_COPY_DEST;
+	barrier.Transition.StateAfter = D3D12_RESOURCE_STATE_COMMON;
+	barrier.Transition.Subresource = D3D12_RESOURCE_BARRIER_ALL_SUBRESOURCES;
+
+	cmdList->ResourceBarrier( 1, &barrier );
+
+	CHECK_HRESULT( cmdList->Close(), "Failed to close command list." );
+
+	ID3D12CommandList* cmdListInterface = cmdList;
+	cmdQueueContext.cmdQueue->ExecuteCommandLists( 1, &cmdListInterface );
+	CHECK_HRESULT( cmdQueueContext.cmdQueue->Signal( fence, 1 ), "Failed to signal command queue." );
+
+	if( fence->GetCompletedValue() != 1 )
+	{
+		fence->SetEventOnCompletion( 1, fenceEventHandle );
+		WaitForSingleObject( fenceEventHandle, INFINITE );
+	}
+}
+
 ///////////////////////////////////////
 // GPI_DX12
 ///////////////////////////////////////
 GPI_DX12::GPI_DX12( const HWND hWnd, const int32 screenWidth, const int32 screenHeight )
 	: _device( nullptr )
 	, _swapChain( nullptr )
-	, _descHeap( nullptr )
+	, _swapChainBuffers( {} )
+	, _rtvHeap( nullptr )
+	, _dsvHeap( nullptr )
+	, _cbvHeap( nullptr )
 	, _debugInterface( nullptr )
 	, _debugInfoQueue( nullptr )
 	, _hWnd( hWnd )
@@ -141,103 +218,126 @@ GPI_DX12::GPI_DX12( const HWND hWnd, const int32 screenWidth, const int32 screen
 
 void GPI_DX12::Initialize()
 {
+	/* Cretate and enable debug layer */
+	CHECK_HRESULT( D3D12GetDebugInterface( IID_PPV_ARGS( &_debugInterface ) ), "Failed to create debug layer." );
+	_debugInterface->EnableDebugLayer();
+
 	/* Create device */
 	CHECK_HRESULT( D3D12CreateDevice( nullptr, D3D_FEATURE_LEVEL_11_0, IID_PPV_ARGS( &_device ) ), "Failed to create device." );
 
-	/* Cretate debug layer */
-	CHECK_HRESULT( D3D12GetDebugInterface( IID_PPV_ARGS( &_debugInterface ) ), "Failed to create debug layer.");
-
 	/* Create command queue and lists */
-	D3D12_COMMAND_LIST_TYPE cmdListTypes[] = {
-		D3D12_COMMAND_LIST_TYPE_DIRECT,
-		D3D12_COMMAND_LIST_TYPE_COMPUTE,
-		D3D12_COMMAND_LIST_TYPE_COPY
-	};
-
-	for( D3D12_COMMAND_LIST_TYPE type : cmdListTypes )
 	{
-		CommandQueueContext& cmdQueueCtx = _cmdQueueCtx[ type ];
+		D3D12_COMMAND_LIST_TYPE cmdListTypes[] = {
+			D3D12_COMMAND_LIST_TYPE_DIRECT,
+			D3D12_COMMAND_LIST_TYPE_COMPUTE,
+			D3D12_COMMAND_LIST_TYPE_COPY
+		};
 
-		D3D12_COMMAND_QUEUE_DESC queueDesc{};
-		queueDesc.Flags = D3D12_COMMAND_QUEUE_FLAG_NONE;
-		queueDesc.Type = type;
-
-		CHECK_HRESULT( _device->CreateCommandQueue( &queueDesc, IID_PPV_ARGS( &cmdQueueCtx.cmdQueue ) ), 
-					   "Failed to create command queue." );
-		CHECK_HRESULT( _device->CreateCommandAllocator( queueDesc.Type, IID_PPV_ARGS( &cmdQueueCtx.allocator ) ), 
-					   "Failed to create command allocator." );
-
-		for( int32 Index = 0; Index < CMD_LIST_PER_QUEUE_COUNT; ++Index )
+		for( D3D12_COMMAND_LIST_TYPE type : cmdListTypes )
 		{
-			ID3D12GraphicsCommandList*& cmdList = cmdQueueCtx.cmdLists[ Index ];
+			CommandQueueContext& cmdQueueCtx = _cmdQueueCtx[ type ];
 
-			CHECK_HRESULT( _device->CreateCommandList( 0, queueDesc.Type, cmdQueueCtx.allocator, nullptr, IID_PPV_ARGS( &cmdList ) ), 
-						   "Failed to create command list." );
-			CHECK_HRESULT( cmdList->Close(), 
-						   "Failed to close command list." );
+			D3D12_COMMAND_QUEUE_DESC queueDesc{};
+			queueDesc.Flags = D3D12_COMMAND_QUEUE_FLAG_NONE;
+			queueDesc.Type = type;
+
+			CHECK_HRESULT( _device->CreateCommandQueue( &queueDesc, IID_PPV_ARGS( &cmdQueueCtx.cmdQueue ) ),
+						   "Failed to create command queue." );
+			CHECK_HRESULT( _device->CreateCommandAllocator( queueDesc.Type, IID_PPV_ARGS( &cmdQueueCtx.allocator ) ),
+						   "Failed to create command allocator." );
+
+			for( int32 Index = 0; Index < CMD_LIST_PER_QUEUE_COUNT; ++Index )
+			{
+				ID3D12GraphicsCommandList*& cmdList = cmdQueueCtx.cmdLists[ Index ];
+
+				CHECK_HRESULT( _device->CreateCommandList( 0, queueDesc.Type, cmdQueueCtx.allocator, nullptr, IID_PPV_ARGS( &cmdList ) ),
+							   "Failed to create command list." );
+				CHECK_HRESULT( cmdList->Close(),
+							   "Failed to close command list." );
+			}
+
+			CHECK_HRESULT( _device->CreateFence( 0, D3D12_FENCE_FLAG_NONE, IID_PPV_ARGS( &cmdQueueCtx.fence ) ),
+						   "Failed to create fence." );
+
+			cmdQueueCtx.fenceEventHandle = CreateEvent( nullptr, FALSE, FALSE, nullptr );
+			cmdQueueCtx.fenceValue = 0;
+			cmdQueueCtx.cmdListIter = cmdQueueCtx.cmdLists.begin();
 		}
-
-		CHECK_HRESULT( _device->CreateFence( 0, D3D12_FENCE_FLAG_NONE, IID_PPV_ARGS( &cmdQueueCtx.fence ) ), 
-					   "Failed to create fence.");
-
-		cmdQueueCtx.fenceEventHandle = CreateEvent( nullptr, FALSE, FALSE, nullptr );
-		cmdQueueCtx.fenceValue = 0;
-		cmdQueueCtx.cmdListIter = cmdQueueCtx.cmdLists.begin();
 	}
 
 	/* Create swapchain */
-	CommandQueueContext& cmdQueueCtx = _cmdQueueCtx[ D3D12_COMMAND_LIST_TYPE_DIRECT ];
-
-	DXGI_SWAP_CHAIN_DESC swapChainDesc{};
-	swapChainDesc.BufferCount = SWAPCHAIN_BUFFER_COUNT;
-	swapChainDesc.BufferDesc.Format = DXGI_FORMAT_R8G8B8A8_UNORM;
-	swapChainDesc.BufferUsage = DXGI_USAGE_RENDER_TARGET_OUTPUT;
-	swapChainDesc.BufferDesc.Width = _screenWidth;
-	swapChainDesc.BufferDesc.Height = _screenHeight;
-	swapChainDesc.OutputWindow = _hWnd;
-	swapChainDesc.SampleDesc.Count = 1;
-	swapChainDesc.SwapEffect = DXGI_SWAP_EFFECT_FLIP_DISCARD;
-	swapChainDesc.Windowed = true;
-
-	IDXGIFactory6* dxgiFactory;
-	CHECK_HRESULT( CreateDXGIFactory1( IID_PPV_ARGS( &dxgiFactory ) ), 
-				   "Failed to create dxgi factory." );
-	CHECK_HRESULT( dxgiFactory->CreateSwapChain( cmdQueueCtx.cmdQueue, &swapChainDesc, &_swapChain ), 
-				   "Failed to create swapchain." );
-
-	/* Create descriptor heap */
-	D3D12_DESCRIPTOR_HEAP_DESC descHeapDesc{};
-	descHeapDesc.NumDescriptors = SWAPCHAIN_BUFFER_COUNT;
-	descHeapDesc.Type = D3D12_DESCRIPTOR_HEAP_TYPE_RTV;
-	descHeapDesc.Flags = D3D12_DESCRIPTOR_HEAP_FLAG_NONE;
-
-	CHECK_HRESULT( _device->CreateDescriptorHeap( &descHeapDesc, IID_PPV_ARGS( &_descHeap ) ), 
-				   "Failed to create descriptor heap." );
-
-	/* Create rendertargets */
-	D3D12_CPU_DESCRIPTOR_HANDLE RenderTargetViewDescHandle = _descHeap->GetCPUDescriptorHandleForHeapStart();
-	size_t RenderTargetViewDescSize = _device->GetDescriptorHandleIncrementSize( D3D12_DESCRIPTOR_HEAP_TYPE_RTV );
-
-	for( int32 Index = 0; Index < SWAPCHAIN_BUFFER_COUNT; ++Index )
 	{
-		SwapChainBufferContext& swapChainBuffer = _swapChainBuffers[ Index ];
-		swapChainBuffer.bufferIndex = Index;
+		CommandQueueContext& cmdQueueCtx = _cmdQueueCtx[ D3D12_COMMAND_LIST_TYPE_DIRECT ];
 
-		D3D12_RENDER_TARGET_VIEW_DESC viewDesc{};
-		viewDesc.Format = DXGI_FORMAT_R8G8B8A8_UNORM_SRGB;
-		viewDesc.ViewDimension = D3D12_RTV_DIMENSION_TEXTURE2D;
-		viewDesc.Texture2D.MipSlice = 0;
-		viewDesc.Texture2D.PlaneSlice = 0;
+		DXGI_SWAP_CHAIN_DESC swapChainDesc{};
+		swapChainDesc.BufferCount = SWAPCHAIN_BUFFER_COUNT;
+		swapChainDesc.BufferDesc.Format = DXGI_FORMAT_R8G8B8A8_UNORM;
+		swapChainDesc.BufferUsage = DXGI_USAGE_RENDER_TARGET_OUTPUT;
+		swapChainDesc.BufferDesc.Width = _screenWidth;
+		swapChainDesc.BufferDesc.Height = _screenHeight;
+		swapChainDesc.OutputWindow = _hWnd;
+		swapChainDesc.SampleDesc.Count = 1;
+		swapChainDesc.SwapEffect = DXGI_SWAP_EFFECT_FLIP_DISCARD;
+		swapChainDesc.Windowed = true;
 
-		CHECK_HRESULT( _swapChain->GetBuffer( Index, IID_PPV_ARGS( &swapChainBuffer.renderTarget ) ), "Failed to get swapchain buffer." );
-
-		_device->CreateRenderTargetView( swapChainBuffer.renderTarget, &viewDesc, RenderTargetViewDescHandle );
-
-		swapChainBuffer.renderTargetHandlePtr = RenderTargetViewDescHandle.ptr;
-		RenderTargetViewDescHandle.ptr += RenderTargetViewDescSize;
+		IDXGIFactory6* dxgiFactory;
+		CHECK_HRESULT( CreateDXGIFactory1( IID_PPV_ARGS( &dxgiFactory ) ),
+					   "Failed to create dxgi factory." );
+		CHECK_HRESULT( dxgiFactory->CreateSwapChain( cmdQueueCtx.cmdQueue, &swapChainDesc, &_swapChain ),
+					   "Failed to create swapchain." );
 	}
 
-	_swapChainBufferIter = _swapChainBuffers.begin();
+	/* Create rendertargets */
+	{
+		_rtvHeap = CreateDescriptorHeap( _device, SWAPCHAIN_BUFFER_COUNT, D3D12_DESCRIPTOR_HEAP_TYPE_RTV, D3D12_DESCRIPTOR_HEAP_FLAG_NONE );
+
+		D3D12_CPU_DESCRIPTOR_HANDLE rtvDescHandle = _rtvHeap->GetCPUDescriptorHandleForHeapStart();
+		size_t rtvDescSize = _device->GetDescriptorHandleIncrementSize( D3D12_DESCRIPTOR_HEAP_TYPE_RTV );
+
+		for( int32 Index = 0; Index < SWAPCHAIN_BUFFER_COUNT; ++Index )
+		{
+			SwapChainBufferContext& swapChainBuffer = _swapChainBuffers[ Index ];
+			swapChainBuffer.bufferIndex = Index;
+
+			D3D12_RENDER_TARGET_VIEW_DESC rtvDesc{};
+			rtvDesc.Format = DXGI_FORMAT_R8G8B8A8_UNORM_SRGB;
+			rtvDesc.ViewDimension = D3D12_RTV_DIMENSION_TEXTURE2D;
+			rtvDesc.Texture2D.MipSlice = 0;
+			rtvDesc.Texture2D.PlaneSlice = 0;
+
+			CHECK_HRESULT( _swapChain->GetBuffer( Index, IID_PPV_ARGS( &swapChainBuffer.renderTarget ) ), "Failed to get swapchain buffer." );
+
+			_device->CreateRenderTargetView( swapChainBuffer.renderTarget, &rtvDesc, rtvDescHandle );
+
+			swapChainBuffer.renderTargetHandlePtr = rtvDescHandle.ptr;
+			rtvDescHandle.ptr += rtvDescSize;
+		}
+
+		_swapChainBufferIter = _swapChainBuffers.begin();
+	}
+
+	/* Create constant buffers */
+	{
+		_cbvHeap = CreateDescriptorHeap( _device, SWAPCHAIN_BUFFER_COUNT, D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV, D3D12_DESCRIPTOR_HEAP_FLAG_SHADER_VISIBLE );
+
+		D3D12_CPU_DESCRIPTOR_HANDLE cbvDescHandle = _cbvHeap->GetCPUDescriptorHandleForHeapStart();
+		size_t cbvDescSize = _device->GetDescriptorHandleIncrementSize( D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV );
+
+		for( int32 Index = 0; Index < SWAPCHAIN_BUFFER_COUNT; ++Index )
+		{
+			float data[ 64 ] = { 1, 1, 1, 1 };
+
+			buffer[ Index ] = CreateBuffer( _device, _cmdQueueCtx[ D3D12_COMMAND_LIST_TYPE_COPY ], data, 256 );
+
+			D3D12_CONSTANT_BUFFER_VIEW_DESC cbvDesc{};
+			cbvDesc.BufferLocation = buffer[ Index ]->GetGPUVirtualAddress();
+			cbvDesc.SizeInBytes = 256;
+
+			_device->CreateConstantBufferView( &cbvDesc, cbvDescHandle );
+
+			cbvDescHandle.ptr += cbvDescSize;
+		}
+	}
 }
 
 void GPI_DX12::BeginFrame()
@@ -269,7 +369,7 @@ void GPI_DX12::BeginFrame()
 	cmdList->RSSetViewports( 1, &viewport );
 	cmdList->RSSetScissorRects( 1, &scissorRect );
 
-	// Transition back buffer
+	// State transition of back buffer
 	D3D12_RESOURCE_BARRIER barrier;
 	barrier.Transition.pResource = _swapChainBufferIter->renderTarget;
 	barrier.Type = D3D12_RESOURCE_BARRIER_TYPE_TRANSITION;
@@ -375,12 +475,15 @@ void GPI_DX12::SetPipelineState( ID3D12PipelineState* pso, ID3D12RootSignature* 
 	D3D12_RECT scissorRect = ToDX12Rect( _windowWidth, _windowHeight );
 	cmdList->RSSetViewports( 1, &viewport );
 	cmdList->RSSetScissorRects( 1, &scissorRect );
+
+	cmdList->SetDescriptorHeaps( 1, &_cbvHeap );
+	cmdList->SetGraphicsRootDescriptorTable( 0, _cbvHeap->GetGPUDescriptorHandleForHeapStart() );
 }
 
 void GPI_DX12::SetPipelineState( uint32 pipelineStateHash )
 {
 	assert( _pipelineStateCache.end() != _pipelineStateCache.find( pipelineStateHash ) );
-
+	
 	auto& [rootSignature, pso] = _pipelineStateCache[ pipelineStateHash ];
 	SetPipelineState( pso, rootSignature );
 }
@@ -426,11 +529,16 @@ ID3D12RootSignature* GPI_DX12::CreateRootSignature()
 {
 	ID3D12RootSignature* rootSignature;
 
+	D3D12_DESCRIPTOR_RANGE descRange{};
+	descRange.RangeType = D3D12_DESCRIPTOR_RANGE_TYPE_CBV;
+	descRange.NumDescriptors = 1;
+	descRange.BaseShaderRegister = 0;
+
 	D3D12_ROOT_PARAMETER rootParam{};
-	rootParam.ParameterType = D3D12_ROOT_PARAMETER_TYPE_CBV;
-	rootParam.ShaderVisibility = D3D12_SHADER_VISIBILITY_VERTEX;
-	rootParam.Descriptor.ShaderRegister = 0;
-	rootParam.Descriptor.RegisterSpace = 0;
+	rootParam.ParameterType = D3D12_ROOT_PARAMETER_TYPE_DESCRIPTOR_TABLE;
+	rootParam.ShaderVisibility = D3D12_SHADER_VISIBILITY_ALL;
+	rootParam.DescriptorTable.NumDescriptorRanges = 1;
+	rootParam.DescriptorTable.pDescriptorRanges = &descRange;
 
 	D3D12_ROOT_SIGNATURE_DESC rootSignatureDesc{};
 	rootSignatureDesc.NumParameters = 1;
@@ -464,7 +572,7 @@ ID3D12PipelineState* GPI_DX12::CreatePipelineState( ID3D12RootSignature* rootSig
 	};
 
 	const D3D_SHADER_MACRO macros[] = {
-		{ "D3D12_SAMPLE_BASIC", "1" },
+		{ "D3D12_SAMPLE_CONSTANT_BUFFER", "1" },
 		{ nullptr, nullptr }
 	};
 
@@ -569,4 +677,12 @@ uint32 GPI_DX12::CreatePipelineState()
 	_pipelineStateCache.emplace( hash, std::tuple( rootSignature, pipelineState ) );
 
 	return hash;
+}
+
+void GPI_DX12::UpdateConstantBuffer( const ConstantBuffer& constBuffer )
+{
+	for( int32 Index = 0; Index < SWAPCHAIN_BUFFER_COUNT; ++Index )
+	{
+		UpdateBuffer( _device, _cmdQueueCtx[ D3D12_COMMAND_LIST_TYPE_COPY ], buffer[ Index ], ( void* )&constBuffer, sizeof( constBuffer ) );
+	}
 }

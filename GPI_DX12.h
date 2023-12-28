@@ -49,6 +49,8 @@ public:
 
 	virtual uint32 CreatePipelineState() override;
 
+	virtual void UpdateConstantBuffer( const struct ConstantBuffer& constBuffer ) override;
+
 private:
 	void SetPipelineState( ID3D12PipelineState* pso, ID3D12RootSignature* rootSignature );
 
@@ -62,7 +64,12 @@ private:
 
 	struct ID3D12Device*	_device;
 	struct IDXGISwapChain*	_swapChain;
-	struct ID3D12DescriptorHeap* _descHeap;
+	struct ID3D12DescriptorHeap* _rtvHeap;
+	struct ID3D12DescriptorHeap* _dsvHeap;
+	struct ID3D12DescriptorHeap* _cbvHeap;
+
+	// temp
+	ID3D12Resource* buffer[ 3 ];
 
 	struct ID3D12Debug*		_debugInterface;
 	struct ID3D12InfoQueue* _debugInfoQueue;

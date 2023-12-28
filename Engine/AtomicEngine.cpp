@@ -3,6 +3,7 @@
 #include "System.h"
 #include "../GPI_DX12.h"
 #include "../RenderSystem.h"
+#include "../SceneViewSystem.h"
 
 namespace
 {
@@ -88,8 +89,12 @@ namespace
 		InitGPI( hWnd );
 
 		Entity entity = ECSCreateEntity();
-		ECSAddComponent<RenderComponent>( entity );
+		ECSAddComponent<PrimitiveComponent>( entity );
 		ECSAddSystem<RenderSystem>();
+
+		Entity camEntity = ECSCreateEntity();
+		ECSAddComponent<SceneViewComponent>( camEntity );
+		ECSAddSystem<SceneViewSystem>();
 
 		bool ShutOff = false;
 

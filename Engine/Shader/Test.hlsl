@@ -1,4 +1,4 @@
-#ifdef D3D12_SAMPLE_BASIC
+#if D3D12_SAMPLE_BASIC
 struct VertexShaderOutput
 {
     float4 position : SV_POSITION;
@@ -26,7 +26,7 @@ float4 PS_main (float4 position : SV_POSITION,
 #elif D3D12_SAMPLE_CONSTANT_BUFFER
 cbuffer PerFrameConstants : register (b0)
 {
-    float4 scale;
+    float4x4 viewProjection;
 }
 
 struct VertexShaderOutput
@@ -41,8 +41,10 @@ VertexShaderOutput VS_main(
 {
     VertexShaderOutput output;
 
-    output.position = position;
-    output.position.xy *= scale.x;
+    output.position = position * 0.5f;
+    output.position.w = 1;
+    output.position = mul(output.position, viewProjection);
+    
     output.uv = uv;
 
     return output;

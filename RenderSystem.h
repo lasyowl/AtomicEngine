@@ -3,8 +3,9 @@
 #include "ECS.h"
 #include "GPIResource_DX12.h"
 #include "AtomicEngine.h"
+#include "Vector.h"
 
-struct RenderComponent
+struct PrimitiveComponent
 {
 	IVertexBufferRef vertexBuffer;
 	IIndexBufferRef indexBuffer;
@@ -15,8 +16,7 @@ class RenderSystem : public ISystem
 public:
 	virtual void RunSystem( std::array<std::unique_ptr<struct IComponentRegistry>, NUM_COMPONENT_MAX>& componentRegistry ) override
 	{
-		std::unique_ptr<IComponentRegistry>& renderCompRegInterface = componentRegistry[ component_type_id<RenderComponent> ];
-		ComponentRegistry<RenderComponent>* renderCompReg = static_cast< ComponentRegistry<RenderComponent>* >( renderCompRegInterface.get() );
+		ComponentRegistry<PrimitiveComponent>* renderCompReg = GetRegistry<PrimitiveComponent>( componentRegistry );
 
 		static uint32 pipelineStateHash = 0;
 		if( pipelineStateHash == 0 )
@@ -32,7 +32,7 @@ public:
 				continue;
 			}
 
-			RenderComponent& component = renderCompReg->GetComponent( entity );
+			PrimitiveComponent& component = renderCompReg->GetComponent( entity );
 			if( !component.vertexBuffer )
 			{
 				/* todo : Read from files */

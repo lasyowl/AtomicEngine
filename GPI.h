@@ -17,6 +17,8 @@ public:
 
 	virtual uint32 CreatePipelineState() abstract;
 
+	virtual void UpdateConstantBuffer( const struct ConstantBuffer& constBuffer ) abstract;
+
 	virtual void SetPipelineState( uint32 pipelineStateHash ) abstract;
 	virtual void Render( IVertexBuffer* vertexBuffer, IIndexBuffer* indexBuffer ) abstract;
 	virtual void FlushPipelineState() abstract;
