@@ -3,6 +3,7 @@
 #include "EngineDefines.h"
 #include "AtomicEngine.h"
 #include "GPIConstantBuffer.h"
+#include "DebugUtil.h"
 
 #include <d3d12.h>
 #include <dxgi.h>
@@ -13,7 +14,7 @@
 
 #define CHECK_HRESULT( hr, msg ) \
 	if(FAILED (hr)) {\
-		throw std::runtime_error( msg );\
+		AEMessageBox( msg );\
 	}
 
 constexpr D3D12_VIEWPORT ToDX12Viewport( uint32 width, uint32 height )
@@ -33,7 +34,7 @@ constexpr D3D12_RECT ToDX12Rect( uint32 width, uint32 height )
  * @param depth : size for 3d buffer
  * @return DirectX12 resource descriptor
  */
-constexpr D3D12_RESOURCE_DESC GetVertexBufferDesc( uint64 width, uint32 height = 1, uint16 depth = 1 )
+constexpr D3D12_RESOURCE_DESC GetVertexBufferDesc( D3D12_RESOURCE_FLAGS flags, uint64 width, uint32 height = 1, uint16 depth = 1 )
 {
 	D3D12_RESOURCE_DESC bufferDesc{};
 	bufferDesc.Dimension = D3D12_RESOURCE_DIMENSION_BUFFER;
@@ -46,7 +47,7 @@ constexpr D3D12_RESOURCE_DESC GetVertexBufferDesc( uint64 width, uint32 height =
 	bufferDesc.SampleDesc.Count = 1;
 	bufferDesc.SampleDesc.Quality = 0;
 	bufferDesc.Layout = D3D12_TEXTURE_LAYOUT_ROW_MAJOR;
-	bufferDesc.Flags = D3D12_RESOURCE_FLAG_NONE;
+	bufferDesc.Flags = flags;
 
 	return bufferDesc;
 }
@@ -73,7 +74,7 @@ ID3D12DescriptorHeap* CreateDescriptorHeap( ID3D12Device* device, int32 numDesc,
 	descHeapDesc.Flags = descFlag;
 
 	CHECK_HRESULT( device->CreateDescriptorHeap( &descHeapDesc, IID_PPV_ARGS( &descHeap ) ),
-				   "Failed to create descriptor heap." );
+				   L"Failed to create descriptor heap." );
 
 	return descHeap;
 }
@@ -93,7 +94,8 @@ ID3D12Resource* CreateBuffer( ID3D12Device* device, CommandQueueContext& cmdQueu
 	ID3D12Fence* fence = cmdQueueContext.fence;
 	HANDLE fenceEventHandle = cmdQueueContext.fenceEventHandle;
 
-	D3D12_RESOURCE_DESC bufferDesc = GetVertexBufferDesc( size );
+	D3D12_RESOURCE_DESC uploadBufferDesc = GetVertexBufferDesc( D3D12_RESOURCE_FLAG_NONE, size );
+	D3D12_RESOURCE_DESC outbufferDesc = GetVertexBufferDesc( D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS, size );
 	D3D12_HEAP_PROPERTIES uploadHeapProp = HeapProperties( D3D12_HEAP_TYPE_UPLOAD );
 	D3D12_HEAP_PROPERTIES defaultHeapProp = HeapProperties( D3D12_HEAP_TYPE_DEFAULT );
 
@@ -101,25 +103,25 @@ ID3D12Resource* CreateBuffer( ID3D12Device* device, CommandQueueContext& cmdQueu
 	ID3D12Resource* uploadBuffer;
 	CHECK_HRESULT( device->CreateCommittedResource( &uploadHeapProp,
 				   D3D12_HEAP_FLAG_NONE,
-				   &bufferDesc,
+				   &uploadBufferDesc,
 				   D3D12_RESOURCE_STATE_GENERIC_READ,
 				   nullptr,
 				   IID_PPV_ARGS( &uploadBuffer ) ),
-				   "Failed to create upload buffer." );
+				   L"Failed to create upload buffer." );
 
 	ID3D12Resource* outBuffer;
 	CHECK_HRESULT( device->CreateCommittedResource( &defaultHeapProp,
 				   D3D12_HEAP_FLAG_NONE,
-				   &bufferDesc,
+				   &outbufferDesc,
 				   D3D12_RESOURCE_STATE_COPY_DEST,
 				   nullptr,
 				   IID_PPV_ARGS( &outBuffer ) ),
-				   "Failed to create output buffer." );
+				   L"Failed to create output buffer." );
 
 	CopyMemoryToBuffer( uploadBuffer, data, size );
 
-	CHECK_HRESULT( cmdAllocator->Reset(), "Failed to reset command allocator." );
-	CHECK_HRESULT( cmdList->Reset( cmdAllocator, nullptr ), "Failed to reset command list." );
+	CHECK_HRESULT( cmdAllocator->Reset(), L"Failed to reset command allocator." );
+	CHECK_HRESULT( cmdList->Reset( cmdAllocator, nullptr ), L"Failed to reset command list." );
 
 	cmdList->CopyBufferRegion( outBuffer, 0, uploadBuffer, 0, size );
 
@@ -133,11 +135,11 @@ ID3D12Resource* CreateBuffer( ID3D12Device* device, CommandQueueContext& cmdQueu
 
 	cmdList->ResourceBarrier( 1, &barrier );
 
-	CHECK_HRESULT( cmdList->Close(), "Failed to close command list." );
+	CHECK_HRESULT( cmdList->Close(), L"Failed to close command list." );
 
 	ID3D12CommandList* cmdListInterface = cmdList;
 	cmdQueueContext.cmdQueue->ExecuteCommandLists( 1, &cmdListInterface );
-	CHECK_HRESULT( cmdQueueContext.cmdQueue->Signal( fence, 1 ), "Failed to signal command queue." );
+	CHECK_HRESULT( cmdQueueContext.cmdQueue->Signal( fence, 1 ), L"Failed to signal command queue." );
 
 	if( fence->GetCompletedValue() != 1 )
 	{
@@ -155,24 +157,23 @@ void UpdateBuffer( ID3D12Device* device, CommandQueueContext& cmdQueueContext, I
 	ID3D12Fence* fence = cmdQueueContext.fence;
 	HANDLE fenceEventHandle = cmdQueueContext.fenceEventHandle;
 
-	D3D12_RESOURCE_DESC bufferDesc = GetVertexBufferDesc( size );
+	D3D12_RESOURCE_DESC uploadBufferDesc = GetVertexBufferDesc( D3D12_RESOURCE_FLAG_NONE, size );
 	D3D12_HEAP_PROPERTIES uploadHeapProp = HeapProperties( D3D12_HEAP_TYPE_UPLOAD );
-	D3D12_HEAP_PROPERTIES defaultHeapProp = HeapProperties( D3D12_HEAP_TYPE_DEFAULT );
 
 	// Create upload buffer on CPU
 	ID3D12Resource* uploadBuffer;
 	CHECK_HRESULT( device->CreateCommittedResource( &uploadHeapProp,
 				   D3D12_HEAP_FLAG_NONE,
-				   &bufferDesc,
+				   &uploadBufferDesc,
 				   D3D12_RESOURCE_STATE_GENERIC_READ,
 				   nullptr,
 				   IID_PPV_ARGS( &uploadBuffer ) ),
-				   "Failed to create upload buffer." );
+				   L"Failed to create upload buffer." );
 
 	CopyMemoryToBuffer( uploadBuffer, data, size );
 
-	CHECK_HRESULT( cmdAllocator->Reset(), "Failed to reset command allocator." );
-	CHECK_HRESULT( cmdList->Reset( cmdAllocator, nullptr ), "Failed to reset command list." );
+	CHECK_HRESULT( cmdAllocator->Reset(), L"Failed to reset command allocator." );
+	CHECK_HRESULT( cmdList->Reset( cmdAllocator, nullptr ), L"Failed to reset command list." );
 
 	cmdList->CopyBufferRegion( outBuffer, 0, uploadBuffer, 0, size );
 
@@ -186,17 +187,30 @@ void UpdateBuffer( ID3D12Device* device, CommandQueueContext& cmdQueueContext, I
 
 	cmdList->ResourceBarrier( 1, &barrier );
 
-	CHECK_HRESULT( cmdList->Close(), "Failed to close command list." );
+	CHECK_HRESULT( cmdList->Close(), L"Failed to close command list." );
 
 	ID3D12CommandList* cmdListInterface = cmdList;
 	cmdQueueContext.cmdQueue->ExecuteCommandLists( 1, &cmdListInterface );
-	CHECK_HRESULT( cmdQueueContext.cmdQueue->Signal( fence, 1 ), "Failed to signal command queue." );
+	CHECK_HRESULT( cmdQueueContext.cmdQueue->Signal( fence, 1 ), L"Failed to signal command queue." );
 
 	if( fence->GetCompletedValue() != 1 )
 	{
 		fence->SetEventOnCompletion( 1, fenceEventHandle );
 		WaitForSingleObject( fenceEventHandle, INFINITE );
 	}
+}
+
+void TransitionResource( ID3D12GraphicsCommandList* cmdList, ID3D12Resource* resource, D3D12_RESOURCE_STATES stateBefore, D3D12_RESOURCE_STATES stateAfter )
+{
+	D3D12_RESOURCE_BARRIER barrier;
+	barrier.Type = D3D12_RESOURCE_BARRIER_TYPE_TRANSITION;
+	barrier.Flags = D3D12_RESOURCE_BARRIER_FLAG_NONE;
+	barrier.Transition.pResource = resource;
+	barrier.Transition.StateBefore = stateBefore;
+	barrier.Transition.StateAfter = stateAfter;
+	barrier.Transition.Subresource = D3D12_RESOURCE_BARRIER_ALL_SUBRESOURCES;
+
+	cmdList->ResourceBarrier( 1, &barrier );
 }
 
 ///////////////////////////////////////
@@ -209,6 +223,7 @@ GPI_DX12::GPI_DX12( const HWND hWnd, const int32 screenWidth, const int32 screen
 	, _rtvHeap( nullptr )
 	, _dsvHeap( nullptr )
 	, _cbvHeap( nullptr )
+	, _uavHeap( nullptr )
 	, _debugInterface( nullptr )
 	, _debugInfoQueue( nullptr )
 	, _hWnd( hWnd )
@@ -219,11 +234,11 @@ GPI_DX12::GPI_DX12( const HWND hWnd, const int32 screenWidth, const int32 screen
 void GPI_DX12::Initialize()
 {
 	/* Cretate and enable debug layer */
-	CHECK_HRESULT( D3D12GetDebugInterface( IID_PPV_ARGS( &_debugInterface ) ), "Failed to create debug layer." );
+	CHECK_HRESULT( D3D12GetDebugInterface( IID_PPV_ARGS( &_debugInterface ) ), L"Failed to create debug layer." );
 	_debugInterface->EnableDebugLayer();
 
 	/* Create device */
-	CHECK_HRESULT( D3D12CreateDevice( nullptr, D3D_FEATURE_LEVEL_11_0, IID_PPV_ARGS( &_device ) ), "Failed to create device." );
+	CHECK_HRESULT( D3D12CreateDevice( nullptr, D3D_FEATURE_LEVEL_11_0, IID_PPV_ARGS( &_device ) ), L"Failed to create device." );
 
 	/* Create command queue and lists */
 	{
@@ -242,22 +257,22 @@ void GPI_DX12::Initialize()
 			queueDesc.Type = type;
 
 			CHECK_HRESULT( _device->CreateCommandQueue( &queueDesc, IID_PPV_ARGS( &cmdQueueCtx.cmdQueue ) ),
-						   "Failed to create command queue." );
+						   L"Failed to create command queue." );
 			CHECK_HRESULT( _device->CreateCommandAllocator( queueDesc.Type, IID_PPV_ARGS( &cmdQueueCtx.allocator ) ),
-						   "Failed to create command allocator." );
+						   L"Failed to create command allocator." );
 
 			for( int32 Index = 0; Index < CMD_LIST_PER_QUEUE_COUNT; ++Index )
 			{
 				ID3D12GraphicsCommandList*& cmdList = cmdQueueCtx.cmdLists[ Index ];
 
 				CHECK_HRESULT( _device->CreateCommandList( 0, queueDesc.Type, cmdQueueCtx.allocator, nullptr, IID_PPV_ARGS( &cmdList ) ),
-							   "Failed to create command list." );
+							   L"Failed to create command list." );
 				CHECK_HRESULT( cmdList->Close(),
-							   "Failed to close command list." );
+							   L"Failed to close command list." );
 			}
 
 			CHECK_HRESULT( _device->CreateFence( 0, D3D12_FENCE_FLAG_NONE, IID_PPV_ARGS( &cmdQueueCtx.fence ) ),
-						   "Failed to create fence." );
+						   L"Failed to create fence." );
 
 			cmdQueueCtx.fenceEventHandle = CreateEvent( nullptr, FALSE, FALSE, nullptr );
 			cmdQueueCtx.fenceValue = 0;
@@ -282,9 +297,9 @@ void GPI_DX12::Initialize()
 
 		IDXGIFactory6* dxgiFactory;
 		CHECK_HRESULT( CreateDXGIFactory1( IID_PPV_ARGS( &dxgiFactory ) ),
-					   "Failed to create dxgi factory." );
+					   L"Failed to create dxgi factory." );
 		CHECK_HRESULT( dxgiFactory->CreateSwapChain( cmdQueueCtx.cmdQueue, &swapChainDesc, &_swapChain ),
-					   "Failed to create swapchain." );
+					   L"Failed to create swapchain." );
 	}
 
 	/* Create rendertargets */
@@ -305,7 +320,7 @@ void GPI_DX12::Initialize()
 			rtvDesc.Texture2D.MipSlice = 0;
 			rtvDesc.Texture2D.PlaneSlice = 0;
 
-			CHECK_HRESULT( _swapChain->GetBuffer( Index, IID_PPV_ARGS( &swapChainBuffer.renderTarget ) ), "Failed to get swapchain buffer." );
+			CHECK_HRESULT( _swapChain->GetBuffer( Index, IID_PPV_ARGS( &swapChainBuffer.renderTarget ) ), L"Failed to get swapchain buffer." );
 
 			_device->CreateRenderTargetView( swapChainBuffer.renderTarget, &rtvDesc, rtvDescHandle );
 
@@ -353,12 +368,12 @@ void GPI_DX12::BeginFrame()
 	if( fence->GetCompletedValue() < fenceValue )
 	{
 		CHECK_HRESULT( fence->SetEventOnCompletion( fenceValue, fenceEventHandle ),
-					   "Failed to set fence." );
+					   L"Failed to set fence." );
 		WaitForSingleObject( fenceEventHandle, INFINITE );
 	}
 
-	CHECK_HRESULT( cmdAllocator->Reset(), "Failed to reset command allocator." );
-	CHECK_HRESULT( cmdList->Reset( cmdAllocator, nullptr ), "Failed to reset command list." );
+	CHECK_HRESULT( cmdAllocator->Reset(), L"Failed to reset command allocator." );
+	CHECK_HRESULT( cmdList->Reset( cmdAllocator, nullptr ), L"Failed to reset command list." );
 
 	D3D12_CPU_DESCRIPTOR_HANDLE renderTargetHandle;
 	renderTargetHandle.ptr = _swapChainBufferIter->renderTargetHandlePtr;
@@ -386,7 +401,7 @@ void GPI_DX12::BeginFrame()
 
 	cmdList->ClearRenderTargetView( renderTargetHandle, clearColor, 0, nullptr );
 
-	CHECK_HRESULT( cmdList->Close(), "Failed to close command list." );
+	CHECK_HRESULT( cmdList->Close(), L"Failed to close command list." );
 
 	ID3D12CommandList* cmdListInterface = cmdList;
 	cmdQueue->ExecuteCommandLists( 1, &cmdListInterface );
@@ -407,12 +422,12 @@ void GPI_DX12::EndFrame()
 	if( fence->GetCompletedValue() < fenceValue )
 	{
 		CHECK_HRESULT( fence->SetEventOnCompletion( fenceValue, fenceEventHandle ),
-					   "Failed to set fence." );
+					   L"Failed to set fence." );
 		WaitForSingleObject( fenceEventHandle, INFINITE );
 	}
 
-	CHECK_HRESULT( cmdAllocator->Reset(), "Failed to reset command allocator." );
-	CHECK_HRESULT( cmdList->Reset( cmdAllocator, nullptr ), "Failed to reset command list." );
+	CHECK_HRESULT( cmdAllocator->Reset(), L"Failed to reset command allocator." );
+	CHECK_HRESULT( cmdList->Reset( cmdAllocator, nullptr ), L"Failed to reset command list." );
 	
 	D3D12_RESOURCE_BARRIER barrier;
 	barrier.Transition.pResource = _swapChainBufferIter->renderTarget;
@@ -424,14 +439,14 @@ void GPI_DX12::EndFrame()
 
 	cmdList->ResourceBarrier( 1, &barrier );
 	
-	CHECK_HRESULT( cmdList->Close(), "Failed to close command list." );
+	CHECK_HRESULT( cmdList->Close(), L"Failed to close command list." );
 	
 	ID3D12CommandList* cmdListInterface = cmdList;
 	cmdQueue->ExecuteCommandLists( 1, &cmdListInterface );
 
-	CHECK_HRESULT( _swapChain->Present( 1, 0 ), "Failed to present swapchain." );
+	CHECK_HRESULT( _swapChain->Present( 1, 0 ), L"Failed to present swapchain." );
 
-	CHECK_HRESULT( cmdQueue->Signal( fence, ++fenceValue ), "Failed to signal command queue." );
+	CHECK_HRESULT( cmdQueue->Signal( fence, ++fenceValue ), L"Failed to signal command queue." );
 
 	if( ++_swapChainBufferIter == _swapChainBuffers.end() )
 	{
@@ -456,12 +471,12 @@ void GPI_DX12::SetPipelineState( ID3D12PipelineState* pso, ID3D12RootSignature* 
 	if( fence->GetCompletedValue() < fenceValue )
 	{
 		CHECK_HRESULT( fence->SetEventOnCompletion( fenceValue, fenceEventHandle ),
-					   "Failed to set fence." );
+					   L"Failed to set fence." );
 		WaitForSingleObject( fenceEventHandle, INFINITE );
 	}
 
-	CHECK_HRESULT( cmdAllocator->Reset(), "Failed to reset allocator." );
-	CHECK_HRESULT( cmdList->Reset( cmdAllocator, nullptr ), "Failed to reset command list." );
+	CHECK_HRESULT( cmdAllocator->Reset(), L"Failed to reset allocator." );
+	CHECK_HRESULT( cmdList->Reset( cmdAllocator, nullptr ), L"Failed to reset command list." );
 
 	cmdList->SetPipelineState( pso );
 	cmdList->SetGraphicsRootSignature( rootSignature );
@@ -488,24 +503,30 @@ void GPI_DX12::SetPipelineState( uint32 pipelineStateHash )
 	SetPipelineState( pso, rootSignature );
 }
 
-void GPI_DX12::Render( IVertexBuffer* vertexBuffer, IIndexBuffer* indexBuffer )
+void GPI_DX12::Render( IVertexBuffer* positionBuffer, IVertexBuffer* uvBuffer, IIndexBuffer* indexBuffer )
 {
 	CommandQueueContext& cmdQueueCtx = _cmdQueueCtx[ D3D12_COMMAND_LIST_TYPE_DIRECT ];
 	ID3D12GraphicsCommandList* cmdList = *cmdQueueCtx.cmdListIter;
 
-	D3D12_VERTEX_BUFFER_VIEW VBView;
-	VBView.BufferLocation = vertexBuffer->GetGPUVirtualAddress();
-	VBView.SizeInBytes = ( uint32 )vertexBuffer->GetSize();
-	VBView.StrideInBytes = vertexBuffer->GetStride();
+	D3D12_VERTEX_BUFFER_VIEW VBViews[ 2 ];
+	VBViews[ 0 ].BufferLocation = positionBuffer->GetGPUVirtualAddress();
+	VBViews[ 0 ].SizeInBytes = ( uint32 )positionBuffer->GetSize();
+	VBViews[ 0 ].StrideInBytes = positionBuffer->GetStride();
+	if( uvBuffer )
+	{
+		VBViews[ 1 ].BufferLocation = uvBuffer->GetGPUVirtualAddress();
+		VBViews[ 1 ].SizeInBytes = ( uint32 )uvBuffer->GetSize();
+		VBViews[ 1 ].StrideInBytes = uvBuffer->GetStride();
+	}
 
 	D3D12_INDEX_BUFFER_VIEW IBView;
 	IBView.BufferLocation = indexBuffer->GetGPUVirtualAddress();
 	IBView.SizeInBytes = ( uint32 )indexBuffer->GetSize();
 	IBView.Format = DXGI_FORMAT_R32_UINT;
 
-	cmdList->IASetVertexBuffers( 0, 1, &VBView );
+	cmdList->IASetVertexBuffers( 0, uvBuffer ? 2 : 1, VBViews );
 	cmdList->IASetIndexBuffer( &IBView );
-	cmdList->DrawIndexedInstanced( 6, 1, 0, 0, 0 );
+	cmdList->DrawIndexedInstanced( indexBuffer->GetSize() / 4, 1, 0, 0, 0 );
 }
 
 void GPI_DX12::FlushPipelineState()
@@ -516,12 +537,12 @@ void GPI_DX12::FlushPipelineState()
 	ID3D12Fence* fence = cmdQueueCtx.fence;
 	uint64& fenceValue = cmdQueueCtx.fenceValue;
 
-	CHECK_HRESULT( cmdList->Close(), "Failed to close command list." );
+	CHECK_HRESULT( cmdList->Close(), L"Failed to close command list." );
 
 	ID3D12CommandList* cmdListInterface = cmdList;
 	cmdQueue->ExecuteCommandLists( 1, &cmdListInterface );
 
-	CHECK_HRESULT( cmdQueue->Signal( fence, ++fenceValue ), "Failed to signal fence." );
+	CHECK_HRESULT( cmdQueue->Signal( fence, ++fenceValue ), L"Failed to signal fence." );
 }
 
 /* todo : Generate from file */
@@ -550,10 +571,10 @@ ID3D12RootSignature* GPI_DX12::CreateRootSignature()
 	ID3DBlob* rootBlob;
 	ID3DBlob* errorBlob;
 	CHECK_HRESULT( D3D12SerializeRootSignature( &rootSignatureDesc, D3D_ROOT_SIGNATURE_VERSION_1, &rootBlob, &errorBlob ),
-				   "Failed to serialize root signature" );
+				   L"Failed to serialize root signature" );
 
 	CHECK_HRESULT( _device->CreateRootSignature( 0, rootBlob->GetBufferPointer(), rootBlob->GetBufferSize(), IID_PPV_ARGS( &rootSignature ) ),
-				   "Failed to create root signature" );
+				   L"Failed to create root signature" );
 
 	return rootSignature;
 }
@@ -567,7 +588,7 @@ ID3D12PipelineState* GPI_DX12::CreatePipelineState( ID3D12RootSignature* rootSig
 	{
 		{ "POSITION", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0, 0,
 		D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0 },
-		{ "TEXCOORD", 0, DXGI_FORMAT_R32G32_FLOAT, 0, 12,
+		{ "TEXCOORD", 0, DXGI_FORMAT_R32G32_FLOAT, 1, 0,
 		D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0 }
 	};
 
@@ -584,13 +605,13 @@ ID3D12PipelineState* GPI_DX12::CreatePipelineState( ID3D12RootSignature* rootSig
 	CHECK_HRESULT( D3DCompile( parsedShader.c_str(), parsedShader.size(),
 				   "", macros, nullptr,
 				   "VS_main", "vs_5_0", 0, 0, &vertexShader, nullptr ),
-				   "Vertex shader compilation failed." );
+				   L"Vertex shader compilation failed." );
 
 	ID3DBlob* pixelShader;
 	CHECK_HRESULT( D3DCompile( parsedShader.c_str(), parsedShader.size(),
 				   "", macros, nullptr,
 				   "PS_main", "ps_5_0", 0, 0, &pixelShader, nullptr ),
-				   "Pixel shader compilation failed." );
+				   L"Pixel shader compilation failed." );
 
 	D3D12_RASTERIZER_DESC rasterizerDesc{};
 	rasterizerDesc.FillMode = D3D12_FILL_MODE_SOLID;
@@ -655,6 +676,78 @@ ID3D12PipelineState* GPI_DX12::CreatePipelineState( ID3D12RootSignature* rootSig
 	return pso;
 }
 
+/* todo : Generate from file */
+ID3D12RootSignature* GPI_DX12::CreateRootSignature1()
+{
+	ID3D12RootSignature* rootSignature;
+
+	D3D12_DESCRIPTOR_RANGE descRange{};
+	descRange.RangeType = D3D12_DESCRIPTOR_RANGE_TYPE_UAV;
+	descRange.NumDescriptors = 1;
+	descRange.BaseShaderRegister = 0;
+
+	D3D12_ROOT_PARAMETER rootParam{};
+	rootParam.ParameterType = D3D12_ROOT_PARAMETER_TYPE_DESCRIPTOR_TABLE;
+	rootParam.ShaderVisibility = D3D12_SHADER_VISIBILITY_ALL;
+	rootParam.DescriptorTable.NumDescriptorRanges = 1;
+	rootParam.DescriptorTable.pDescriptorRanges = &descRange;
+
+	D3D12_ROOT_SIGNATURE_DESC rootSignatureDesc{};
+	rootSignatureDesc.NumParameters = 1;
+	rootSignatureDesc.pParameters = &rootParam;
+	rootSignatureDesc.NumStaticSamplers = 0;
+	rootSignatureDesc.pStaticSamplers = nullptr;
+	rootSignatureDesc.Flags = D3D12_ROOT_SIGNATURE_FLAG_ALLOW_INPUT_ASSEMBLER_INPUT_LAYOUT;
+
+	ID3DBlob* rootBlob;
+	ID3DBlob* errorBlob;
+	CHECK_HRESULT( D3D12SerializeRootSignature( &rootSignatureDesc, D3D_ROOT_SIGNATURE_VERSION_1, &rootBlob, &errorBlob ),
+				   L"Failed to serialize root signature" );
+
+	CHECK_HRESULT( _device->CreateRootSignature( 0, rootBlob->GetBufferPointer(), rootBlob->GetBufferSize(), IID_PPV_ARGS( &rootSignature ) ),
+				   L"Failed to create root signature" );
+
+	return rootSignature;
+}
+
+/* todo : Generate from file */
+ID3D12PipelineState* GPI_DX12::CreatePipelineState1( ID3D12RootSignature* rootSignature )
+{
+	ID3D12PipelineState* pso;
+
+	const D3D_SHADER_MACRO macros[] = {
+		{ "D3D12_SAMPLE_CONSTANT_BUFFER", "1" },
+		{ nullptr, nullptr }
+	};
+
+	std::ifstream shaderFile( "Engine/Shader/TestCS.hlsl", std::ios_base::in );
+	std::string parsedShader = std::string( std::istreambuf_iterator<char>( shaderFile ),
+											std::istreambuf_iterator<char>() );
+
+	ID3DBlob* computeShader;
+	ID3DBlob* errorBlob;
+	CHECK_HRESULT( D3DCompile( parsedShader.c_str(), parsedShader.size(),
+				   "", macros, nullptr,
+				   "CS_main", "cs_5_0", 0, 0, &computeShader, &errorBlob ),
+				   L"Compute shader compilation failed." );
+	if( errorBlob )
+	{
+		std::string errorMsg = ( char* )errorBlob->GetBufferPointer();
+		std::wstring wErrorMsg;
+		wErrorMsg.assign( errorMsg.begin(), errorMsg.end() );
+		AEMessageBox( wErrorMsg );
+	}
+
+	D3D12_COMPUTE_PIPELINE_STATE_DESC psoDesc{};
+	psoDesc.pRootSignature = rootSignature;
+	psoDesc.CS.BytecodeLength = computeShader->GetBufferSize();
+	psoDesc.CS.pShaderBytecode = computeShader->GetBufferPointer();
+
+	_device->CreateComputePipelineState( &psoDesc, IID_PPV_ARGS( &pso ) );
+
+	return pso;
+}
+
 IVertexBufferRef GPI_DX12::CreateVertexBuffer( void* data, uint32 stride, uint32 size )
 {
 	ID3D12Resource* buffer = CreateBuffer( _device, _cmdQueueCtx[ D3D12_COMMAND_LIST_TYPE_COPY ], data, size );
@@ -684,5 +777,69 @@ void GPI_DX12::UpdateConstantBuffer( const ConstantBuffer& constBuffer )
 	for( int32 Index = 0; Index < SWAPCHAIN_BUFFER_COUNT; ++Index )
 	{
 		UpdateBuffer( _device, _cmdQueueCtx[ D3D12_COMMAND_LIST_TYPE_COPY ], buffer[ Index ], ( void* )&constBuffer, sizeof( constBuffer ) );
+	}
+}
+
+void GPI_DX12::RunCS()
+{
+	CHECK_HRESULT( _cmdQueueCtx[ D3D12_COMMAND_LIST_TYPE_COMPUTE ].allocator->Reset(), L"Failed to reset command allocator." );
+	CHECK_HRESULT( ( *_cmdQueueCtx[ D3D12_COMMAND_LIST_TYPE_COMPUTE ].cmdListIter )->Reset( _cmdQueueCtx[ D3D12_COMMAND_LIST_TYPE_COMPUTE ].allocator, nullptr ), L"Failed to reset command list." );
+
+	static ID3D12Resource* buffer = nullptr;
+	if( !buffer )
+	{
+		_uavHeap = CreateDescriptorHeap( _device, 1, D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV, D3D12_DESCRIPTOR_HEAP_FLAG_SHADER_VISIBLE );
+
+		int32 data[ 64 ] = {};
+		buffer = CreateBuffer( _device, _cmdQueueCtx[ D3D12_COMMAND_LIST_TYPE_COPY ], data, 256 );
+
+		TransitionResource( *_cmdQueueCtx[ D3D12_COMMAND_LIST_TYPE_COMPUTE ].cmdListIter, buffer, D3D12_RESOURCE_STATE_COMMON, D3D12_RESOURCE_STATE_UNORDERED_ACCESS );
+
+		D3D12_CPU_DESCRIPTOR_HANDLE uavDescHandle = _uavHeap->GetCPUDescriptorHandleForHeapStart();
+
+		D3D12_UNORDERED_ACCESS_VIEW_DESC uavDesc{};
+		uavDesc.Format = DXGI_FORMAT_R32_UINT;
+		uavDesc.ViewDimension = D3D12_UAV_DIMENSION_BUFFER;
+		uavDesc.Buffer.FirstElement = 0;
+		uavDesc.Buffer.CounterOffsetInBytes = 0;
+		uavDesc.Buffer.NumElements = 64;
+		uavDesc.Buffer.StructureByteStride = 0;
+		uavDesc.Buffer.Flags = D3D12_BUFFER_UAV_FLAG_NONE;
+
+		_device->CreateUnorderedAccessView( buffer, nullptr, &uavDesc, uavDescHandle );
+	}
+
+	static ID3D12RootSignature* rootSignature = nullptr;
+	static ID3D12PipelineState* pipelineState = nullptr;
+	if( !rootSignature )
+	{
+		// temp
+		rootSignature = CreateRootSignature1();
+		pipelineState = CreatePipelineState1( rootSignature );
+	}
+
+	CommandQueueContext& cmdQueueCtx = _cmdQueueCtx[ D3D12_COMMAND_LIST_TYPE_COMPUTE ];
+	ID3D12GraphicsCommandList* cmdList = *cmdQueueCtx.cmdListIter;
+
+	cmdList->SetPipelineState( pipelineState );
+	cmdList->SetComputeRootSignature( rootSignature );
+
+	cmdList->SetDescriptorHeaps( 1, &_uavHeap );
+	cmdList->SetComputeRootDescriptorTable( 0, _uavHeap->GetGPUDescriptorHandleForHeapStart() );
+
+	cmdList->Dispatch( 1, 1, 1 );
+
+	CHECK_HRESULT( cmdList->Close(), L"Failed to close command list." );
+
+	ID3D12Fence* fence = _cmdQueueCtx[ D3D12_COMMAND_LIST_TYPE_COMPUTE ].fence;
+	HANDLE fenceEventHandle = _cmdQueueCtx[ D3D12_COMMAND_LIST_TYPE_COMPUTE ].fenceEventHandle;
+	ID3D12CommandList* cmdListInterface = cmdList;
+	_cmdQueueCtx[ D3D12_COMMAND_LIST_TYPE_COMPUTE ].cmdQueue->ExecuteCommandLists( 1, &cmdListInterface );
+	CHECK_HRESULT( _cmdQueueCtx[ D3D12_COMMAND_LIST_TYPE_COMPUTE ].cmdQueue->Signal( fence, 1 ), L"Failed to signal command queue." );
+
+	if( fence->GetCompletedValue() != 1 )
+	{
+		fence->SetEventOnCompletion( 1, fenceEventHandle );
+		WaitForSingleObject( fenceEventHandle, INFINITE );
 	}
 }

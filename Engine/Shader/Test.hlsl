@@ -6,12 +6,12 @@ struct VertexShaderOutput
 };
 
 VertexShaderOutput VS_main(
-    float4 position : POSITION,
+    float3 position : POSITION,
     float2 uv : TEXCOORD)
 {
     VertexShaderOutput output;
 
-    output.position = position * 0.5f;
+    output.position.xyz = position * 0.5f;
     output.position.w = 1;
     output.uv = uv;
 
@@ -36,14 +36,12 @@ struct VertexShaderOutput
 };
 
 VertexShaderOutput VS_main(
-    float4 position : POSITION,
+    float3 position : POSITION,
     float2 uv : TEXCOORD)
 {
     VertexShaderOutput output;
 
-    output.position = position * 0.5f;
-    output.position.w = 1;
-    output.position = mul(output.position, viewProjection);
+    output.position = mul(float4(position, 1.0f), viewProjection);
     
     output.uv = uv;
 
@@ -68,13 +66,13 @@ struct VertexShaderOutput
 };
 
 VertexShaderOutput VS_main(
-    float4 position : POSITION,
+    float3 position : POSITION,
     float2 uv : TEXCOORD)
 {
     VertexShaderOutput output;
 
-    output.position = position;
-    output.position.xy *= scale.x;
+    output.position.xyz = position * 0.5f;
+    output.position.w = 1;
     output.uv = uv;
 
     return output;

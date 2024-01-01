@@ -32,14 +32,16 @@ public:
 			}
 
 			SceneViewComponent& sceneView = viewCompReg->GetComponent( entity );
-			sceneView.position = Vec3{ 0, -3, -20 };
+			static float pos = -10;
+			//pos += 0.1f;
+			sceneView.position = Vec3{ 0, 0, pos };
 			sceneView.direction = Vec3{ 0, 0, 1 };
 
 			sceneView.matView = AEMath::GetViewMatrix( sceneView.position, sceneView.direction, Vec3::up );
-			sceneView.matProjection = AEMath::GetPerspectiveMatrixFOV( 60 * 3.14, 1.080 / 1.080, 0.1f, 10.0f );
+			sceneView.matProjection = AEMath::GetPerspectiveMatrixFOV( 0.25f * 3.14f, 1920.0f / 1080.0f, 0.1f, 1000.0f );
 
 			ConstantBuffer constBuffer{};
-			constBuffer.matViewProjection = sceneView.matView * sceneView.matProjection;
+			constBuffer.matViewProjection = sceneView.matProjection * sceneView.matView;
 			AtomicEngine::GetGPI()->UpdateConstantBuffer( constBuffer );
 		}
 	}

@@ -1,15 +1,9 @@
 #pragma once
 
 #include "ECS.h"
-#include "GPIResource_DX12.h"
 #include "AtomicEngine.h"
-#include "Vector.h"
-
-struct PrimitiveComponent
-{
-	IVertexBufferRef vertexBuffer;
-	IIndexBufferRef indexBuffer;
-};
+#include "AssetLoader.h"
+#include "PrimitiveComponent.h"
 
 class RenderSystem : public ISystem
 {
@@ -33,35 +27,33 @@ public:
 			}
 
 			PrimitiveComponent& component = renderCompReg->GetComponent( entity );
-			if( !component.vertexBuffer )
+			if( !component.positionBuffer )
 			{
-				/* todo : Read from files */
-				struct Vertex
+				//component.staticMesh = AssetLoader::LoadStaticMesh( "Resource/Sponza-master/sponza.obj" );
+				component.staticMesh = AssetLoader::LoadStaticMesh( "Resource/teapot.obj" );
+				//component.staticMesh = AssetLoader::LoadStaticMesh( "Resource/teapot.obj" );
+				std::shared_ptr<StaticMesh>& staticMesh = component.staticMesh;
+
+				component.positionBuffer = AtomicEngine::GetGPI()->CreateVertexBuffer( staticMesh->GetPositionPtr(), staticMesh->GetPositionStride(), staticMesh->GetPositionByteSize() );
+				if( !staticMesh->uv.empty() )
 				{
-					float position[ 3 ];
-					float uv[ 2 ];
-				};
+					component.uvBuffer = AtomicEngine::GetGPI()->CreateVertexBuffer( staticMesh->GetUVPtr(), staticMesh->GetUVStride(), staticMesh->GetUVByteSize() );
+				}
+				else
+				{
+					component.uvBuffer = nullptr;
+				}
 
-				Vertex vertices[ 4 ] = {
-					// Upper Left
-					{ { -1.0f, 1.0f, 0 }, { 0, 0 } },
-					// Upper Right
-					{ { 1.0f, 1.0f, 0 }, { 1, 0 } },
-					// Bottom right
-					{ { 1.0f, -1.0f, 0 }, { 1, 1 } },
-					// Bottom left
-					{ { -1.0f, -1.0f, 0 }, { 0, 1 } }
-				};
-
-				int indices[ 6 ] = {
-					0, 1, 2, 2, 3, 0
-				};
-
-				component.vertexBuffer = AtomicEngine::GetGPI()->CreateVertexBuffer( vertices, sizeof( vertices ) / 4, sizeof( vertices ) );
-				component.indexBuffer = AtomicEngine::GetGPI()->CreateIndexBuffer( indices, sizeof( indices ) );
+				for( int32 index = 0; index < staticMesh->GetNumMeshes(); ++index )
+				{
+					IIndexBufferRef indexBuffer = AtomicEngine::GetGPI()->CreateIndexBuffer( staticMesh->GetIndexPtr( index ), staticMesh->GetIndexByteSize( index ) );
+					component.indexBuffer.emplace_back( indexBuffer );
+				}
 			}
-
-			AtomicEngine::GetGPI()->Render( component.vertexBuffer.get(), component.indexBuffer.get() );
+			for( int32 index = 0; index < component.staticMesh->GetNumMeshes(); ++index )
+			{
+				AtomicEngine::GetGPI()->Render( component.positionBuffer.get(), component.uvBuffer.get(), component.indexBuffer[index].get());
+			}
 		}
 
 		AtomicEngine::GetGPI()->FlushPipelineState();

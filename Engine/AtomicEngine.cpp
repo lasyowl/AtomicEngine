@@ -21,30 +21,35 @@ namespace
 		_gpi->SetWindowSize( 1920, 1080 );
 	}
 
-	LRESULT CALLBACK WindowMessageProcessor( HWND HWnd, UINT Msg, WPARAM WParam, LPARAM LParam )
+	LRESULT CALLBACK WindowMessageProcessor( HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam )
 	{
-		switch( Msg )
+		switch( msg )
 		{
-		case WM_DESTROY:
-		{
-			PostQuitMessage( 0 );
-			return 0;
+			case WM_KEYDOWN:
+				wchar_t buffer[ 32 ];
+				swprintf_s( buffer, L"%c\n", wParam );
+				OutputDebugStringW( buffer );
+				return 0;
+			case WM_DESTROY:
+			{
+				PostQuitMessage( 0 );
+				return 0;
+			}
+			//case WM_PAINT:
+			//{
+			//	PAINTSTRUCT ps;
+			//	HDC hdc = BeginPaint( HWnd, &ps );
+
+			//	// All painting occurs here, between BeginPaint and EndPaint.
+
+			//	FillRect( hdc, &ps.rcPaint, (HBRUSH) (COLOR_WINDOW + 2) );
+
+			//	EndPaint( HWnd, &ps );
+
+			//	return 0;
+			//}
 		}
-		//case WM_PAINT:
-		//{
-		//	PAINTSTRUCT ps;
-		//	HDC hdc = BeginPaint( HWnd, &ps );
-
-		//	// All painting occurs here, between BeginPaint and EndPaint.
-
-		//	FillRect( hdc, &ps.rcPaint, (HBRUSH) (COLOR_WINDOW + 2) );
-
-		//	EndPaint( HWnd, &ps );
-
-		//	return 0;
-		//}
-		}
-		return DefWindowProc( HWnd, Msg, WParam, LParam );
+		return DefWindowProc( hWnd, msg, wParam, lParam );
 	}
 
 	HWND CreateClientWindow( HINSTANCE ProcessHandle )

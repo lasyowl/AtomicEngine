@@ -12,6 +12,10 @@ public:
 	virtual void BeginFrame() abstract;
 	virtual void EndFrame() abstract;
 
+	virtual void SetPipelineState( uint32 pipelineStateHash ) abstract;
+	virtual void Render( IVertexBuffer* positionBuffer, IVertexBuffer* uvBuffer, IIndexBuffer* indexBuffer ) abstract;
+	virtual void FlushPipelineState() abstract;
+
 	virtual IVertexBufferRef CreateVertexBuffer( void* data, uint32 stride, uint32 size ) abstract;
 	virtual IIndexBufferRef CreateIndexBuffer( void* data, uint32 size ) abstract;
 
@@ -19,9 +23,7 @@ public:
 
 	virtual void UpdateConstantBuffer( const struct ConstantBuffer& constBuffer ) abstract;
 
-	virtual void SetPipelineState( uint32 pipelineStateHash ) abstract;
-	virtual void Render( IVertexBuffer* vertexBuffer, IIndexBuffer* indexBuffer ) abstract;
-	virtual void FlushPipelineState() abstract;
+	virtual void RunCS() abstract;
 
 	void SetWindowSize( uint32 width, uint32 height )
 	{
