@@ -18,5 +18,7 @@
 #include <future>
 #include <iostream>
 
+#include <d3d12.h>
+
 #include "../DataType.h"
 #include "EngineDefines.h"

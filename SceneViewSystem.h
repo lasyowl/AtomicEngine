@@ -32,9 +32,11 @@ public:
 			}
 
 			SceneViewComponent& sceneView = viewCompReg->GetComponent( entity );
-			static float pos = -10;
+			static float posZ = -10;
+			static float posY = 0;
 			//pos += 0.1f;
-			sceneView.position = Vec3{ 0, 0, pos };
+			posY = min( posY + 0.01f, 10 );
+			sceneView.position = Vec3{ 5, posY, posZ };
 			sceneView.direction = Vec3{ 0, 0, 1 };
 
 			sceneView.matView = AEMath::GetViewMatrix( sceneView.position, sceneView.direction, Vec3::up );

@@ -35,6 +35,14 @@ public:
 				std::shared_ptr<StaticMesh>& staticMesh = component.staticMesh;
 
 				component.positionBuffer = AtomicEngine::GetGPI()->CreateVertexBuffer( staticMesh->GetPositionPtr(), staticMesh->GetPositionStride(), staticMesh->GetPositionByteSize() );
+				if( !staticMesh->normal.empty() )
+				{
+					component.normalBuffer = AtomicEngine::GetGPI()->CreateVertexBuffer( staticMesh->GetNormalPtr(), staticMesh->GetNormalStride(), staticMesh->GetNormalByteSize() );
+				}
+				else
+				{
+					component.normalBuffer = nullptr;
+				}
 				if( !staticMesh->uv.empty() )
 				{
 					component.uvBuffer = AtomicEngine::GetGPI()->CreateVertexBuffer( staticMesh->GetUVPtr(), staticMesh->GetUVStride(), staticMesh->GetUVByteSize() );
@@ -52,7 +60,7 @@ public:
 			}
 			for( int32 index = 0; index < component.staticMesh->GetNumMeshes(); ++index )
 			{
-				AtomicEngine::GetGPI()->Render( component.positionBuffer.get(), component.uvBuffer.get(), component.indexBuffer[index].get());
+				AtomicEngine::GetGPI()->Render( component.positionBuffer.get(), component.uvBuffer.get(), component.normalBuffer.get(), component.indexBuffer[index].get());
 			}
 		}
 

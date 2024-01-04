@@ -4,6 +4,7 @@
 #include <assimp/Importer.hpp>
 #include <assimp/scene.h>
 #include <assimp/postprocess.h>
+#include <FreeImage/x64/FreeImage.h>
 
 std::shared_ptr<StaticMesh> LoadStaticMesh_WavefrontObj( std::ifstream& file )
 {
@@ -104,6 +105,7 @@ std::shared_ptr<StaticMesh> LoadStaticMesh_Assimp( const aiScene* scene )
 	const aiMesh* mesh = scene->mMeshes[ 0 ];
 
 	staticMesh->position.resize( mesh->mNumVertices );
+	staticMesh->normal.resize( mesh->mNumVertices );
 	//staticMesh->uv.resize( mesh->mNumVertices );
 	staticMesh->indices.resize( 1 );
 	std::vector<uint32>& indices = staticMesh->indices[ 0 ];
@@ -119,6 +121,10 @@ std::shared_ptr<StaticMesh> LoadStaticMesh_Assimp( const aiScene* scene )
 	}
 
 	memcpy( staticMesh->position.data(), mesh->mVertices, mesh->mNumVertices * sizeof( aiVector3D ) );
+	if( mesh->mNormals )
+	{
+		memcpy( staticMesh->normal.data(), mesh->mNormals, mesh->mNumVertices * sizeof( aiVector3D ) );
+	}
 
 	return staticMesh;
 }
@@ -145,7 +151,7 @@ std::shared_ptr<StaticMesh> AssetLoader::LoadStaticMesh( const std::string& file
 	std::shared_ptr<StaticMesh> staticMesh;
 
 	Assimp::Importer assimp;
-	if( const aiScene* assimpScene = assimp.ReadFile( fileName, aiProcess_ConvertToLeftHanded | aiProcess_Triangulate | aiProcess_GenNormals ) )
+	if( const aiScene* assimpScene = assimp.ReadFile( fileName, aiProcess_ConvertToLeftHanded | aiProcess_Triangulate | aiProcess_GenUVCoords | aiProcess_GenSmoothNormals ) )
 	{
 		staticMesh = LoadStaticMesh_Assimp( assimpScene );
 	}
@@ -188,4 +194,33 @@ std::shared_ptr<StaticMesh> AssetLoader::LoadStaticMesh( const std::string& file
 	//staticMesh->indices = meshes;
 
 	//return staticMesh;
+}
+
+std::shared_ptr<RawImage> AssetLoader::LoadRawImage( const std::string& fileName )
+{
+	static bool bFreeImageInitialized = false;
+	if( !bFreeImageInitialized )
+	{
+		FreeImage_Initialise();
+	}
+
+	FIBITMAP* image = FreeImage_Load( FIF_PNG, fileName.c_str(), PNG_DEFAULT );
+	if( !image )
+	{
+		return nullptr;
+	}
+
+	BITMAPINFO* info = FreeImage_GetInfo( image );
+
+	std::shared_ptr<RawImage> result( new RawImage() );
+	result->width = info->bmiHeader.biWidth;
+	result->height = info->bmiHeader.biHeight;
+
+	uint32 imageSize = result->width * result->height * 3;
+	result->data.resize( imageSize );
+	memcpy( result->data.data(), FreeImage_GetBits( image ), imageSize );
+	
+	FreeImage_Unload( image );
+
+	return result;
 }

@@ -13,7 +13,7 @@ public:
 	virtual void EndFrame() abstract;
 
 	virtual void SetPipelineState( uint32 pipelineStateHash ) abstract;
-	virtual void Render( IVertexBuffer* positionBuffer, IVertexBuffer* uvBuffer, IIndexBuffer* indexBuffer ) abstract;
+	virtual void Render( IVertexBuffer* positionBuffer, IVertexBuffer* uvBuffer, IVertexBuffer* normalBuffer, IIndexBuffer* indexBuffer ) abstract;
 	virtual void FlushPipelineState() abstract;
 
 	virtual IVertexBufferRef CreateVertexBuffer( void* data, uint32 stride, uint32 size ) abstract;

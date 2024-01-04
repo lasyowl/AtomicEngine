@@ -4,32 +4,22 @@
 #include "GPI.h"
 #include "GPIResource_DX12.h"
 
-struct ID3D12DescriptorHeap;
-struct ID3D12PipelineState;
-struct ID3D12RootSignature;
-struct ID3D12GraphicsCommandList;
+struct IDXGISwapChain;
 
 constexpr int32 CMD_LIST_PER_QUEUE_COUNT = 3;
-constexpr int32 SWAPCHAIN_BUFFER_COUNT = 3;
+constexpr int32 SWAPCHAIN_COUNT = 3;
 
 struct CommandQueueContext
 {
-	struct ID3D12CommandQueue* cmdQueue;
-	struct ID3D12CommandAllocator* allocator;
+	ID3D12CommandQueue* cmdQueue;
+	ID3D12CommandAllocator* allocator;
 
 	std::array<ID3D12GraphicsCommandList*, CMD_LIST_PER_QUEUE_COUNT> cmdLists;
 	std::array<ID3D12GraphicsCommandList*, CMD_LIST_PER_QUEUE_COUNT>::iterator cmdListIter;
 
-	struct ID3D12Fence* fence;
+	ID3D12Fence* fence;
 	HANDLE fenceEventHandle;
 	uint64 fenceValue;
-};
-
-struct SwapChainBufferContext
-{
-	ID3D12Resource* renderTarget;
-	uint32 bufferIndex;
-	size_t renderTargetHandlePtr;
 };
 
 class GPI_DX12 : public IGPI
@@ -42,7 +32,7 @@ public:
 	virtual void EndFrame() override;
 
 	virtual void SetPipelineState( uint32 pipelineStateHash ) override;
-	virtual void Render( IVertexBuffer* positionBuffer, IVertexBuffer* uvBuffer, IIndexBuffer* indexBuffer ) override;
+	virtual void Render( IVertexBuffer* positionBuffer, IVertexBuffer* uvBuffer, IVertexBuffer* normalBuffer, IIndexBuffer* indexBuffer ) override;
 	virtual void FlushPipelineState() override;
 
 	virtual IVertexBufferRef CreateVertexBuffer( void* data, uint32 stride, uint32 size ) override;
@@ -67,23 +57,37 @@ private:
 	int32 _screenWidth;
 	int32 _screenHeight;
 
-	struct ID3D12Device*	_device;
-	struct IDXGISwapChain*	_swapChain;
+	ID3D12Device* _device;
+	IDXGISwapChain* _swapChain;
 	ID3D12DescriptorHeap* _rtvHeap;
 	ID3D12DescriptorHeap* _dsvHeap;
-	ID3D12DescriptorHeap* _cbvHeap;
+
+	/* Heap includes static per frame resource view descriptors( constant buffer, shader resource, unordered access ). */
+	ID3D12DescriptorHeap* _rvHeap;
+
+	// todo : separate for compute shader
 	ID3D12DescriptorHeap* _uavHeap;
+	ID3D12DescriptorHeap* _srvHeap;
 
-	struct ID3D12Debug*		_debugInterface;
-	struct ID3D12InfoQueue* _debugInfoQueue;
+	ID3D12Debug* _debugInterface;
+	ID3D12InfoQueue* _debugInfoQueue;
 
-	std::unordered_map<enum D3D12_COMMAND_LIST_TYPE, CommandQueueContext> _cmdQueueCtx;
+	std::unordered_map<D3D12_COMMAND_LIST_TYPE, CommandQueueContext> _cmdQueueCtx;
 
-	std::array<SwapChainBufferContext, SWAPCHAIN_BUFFER_COUNT> _swapChainBuffers;
-	std::array<SwapChainBufferContext, SWAPCHAIN_BUFFER_COUNT>::iterator _swapChainBufferIter;
+	std::array<ID3D12Resource*, SWAPCHAIN_COUNT> _swapChainBuffers;
+
+	int32 _swapChainIndex;
+
+	size_t _descSize[ D3D12_DESCRIPTOR_HEAP_TYPE_NUM_TYPES ];
 
 	std::unordered_map<uint32, std::tuple<ID3D12RootSignature*, ID3D12PipelineState*>> _pipelineStateCache;
-	// temp
-	ID3D12Resource* buffer[ 3 ];
 	//std::unordered_map<uint32, ID3D12Resource*> _constBufferCache;
+
+	ID3D12Resource* _constantBuffer;
+	ID3D12Resource* _gBuffers[ 4 ];
+
+	ID3D12Resource* _depthStencilBuffer;
+
+	std::shared_ptr<struct RawImage> rawImage;
+	ID3D12Resource* textureBuffer;
 };

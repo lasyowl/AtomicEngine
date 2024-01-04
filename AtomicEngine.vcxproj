@@ -22,6 +22,7 @@
     <ClInclude Include="AssetLoader.h" />
     <ClInclude Include="DebugUtil.h" />
     <ClInclude Include="PrimitiveComponent.h" />
+    <ClInclude Include="RawImage.h" />
     <ClInclude Include="SceneViewSystem.h" />
     <ClInclude Include="GPIConstantBuffer.h" />
     <ClInclude Include="DataType.h" />
@@ -165,9 +166,9 @@
     <Link>
       <SubSystem>Windows</SubSystem>
       <GenerateDebugInformation>true</GenerateDebugInformation>
-      <AdditionalDependencies>d3d12.lib;d3dcompiler.lib;onecore.lib;dxgi.lib;assimp-vc143-mtd.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <AdditionalDependencies>d3d12.lib;d3dcompiler.lib;onecore.lib;dxgi.lib;assimp-vc143-mtd.lib;FreeImage.lib;%(AdditionalDependencies)</AdditionalDependencies>
       <EntryPointSymbol>WinMainCRTStartup</EntryPointSymbol>
-      <AdditionalLibraryDirectories>D:\GitRepository\AtomicEngine\ThirdParty\assimp\lib\Debug;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
+      <AdditionalLibraryDirectories>D:\GitRepository\AtomicEngine\ThirdParty\assimp\lib\Debug;D:\GitRepository\AtomicEngine\ThirdParty\FreeImage\x64;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
     </Link>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
