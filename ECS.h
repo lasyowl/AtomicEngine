@@ -39,7 +39,7 @@ public:
 	template<typename T>
 	void AddComponent( Entity entity )
 	{
-		std::unique_ptr<IComponentRegistry>& componentRegistry = _componentRegistry[ component_type_id<T> ];
+		std::unique_ptr<IComponentRegistry>& componentRegistry = _componentRegistry[ get_component_type_id<T>() ];
 		if( !componentRegistry )
 		{
 			componentRegistry = std::make_unique<ComponentRegistry<T>>();
@@ -50,7 +50,7 @@ public:
 	template<typename T>
 	void AddSystem()
 	{
-		std::unique_ptr<ISystem>& system = _systemRegistry[ system_type_id<T> ];
+		std::unique_ptr<ISystem>& system = _systemRegistry[ get_system_type_id<T>() ];
 		if( !system )
 		{
 			system = std::make_unique<T>();
@@ -78,10 +78,7 @@ private:
 // Public functions
 ///////////////////////
 
-Entity ECSCreateEntity()
-{
-	return ECS::GetInstance().CreateEntity();
-}
+Entity ECSCreateEntity();
 
 template<typename T>
 void ECSAddComponent( Entity entity )
@@ -95,7 +92,4 @@ void ECSAddSystem()
 	ECS::GetInstance().AddSystem<T>();
 }
 
-void ECSRunSystems()
-{
-	ECS::GetInstance().RunSystems();
-}
+void ECSRunSystems();

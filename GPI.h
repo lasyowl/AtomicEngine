@@ -2,6 +2,9 @@
 
 #include "GPIResource.h"
 
+struct GPIPipelineStateDesc;
+
+/* GPU Interface */
 class IGPI
 {
 public:
@@ -12,14 +15,14 @@ public:
 	virtual void BeginFrame() abstract;
 	virtual void EndFrame() abstract;
 
-	virtual void SetPipelineState( uint32 pipelineStateHash ) abstract;
+	virtual void SetPipelineState( const GPIPipelineStateDesc& pipelineDesc ) abstract;
 	virtual void Render( IVertexBuffer* positionBuffer, IVertexBuffer* uvBuffer, IVertexBuffer* normalBuffer, IIndexBuffer* indexBuffer ) abstract;
 	virtual void FlushPipelineState() abstract;
 
 	virtual IVertexBufferRef CreateVertexBuffer( void* data, uint32 stride, uint32 size ) abstract;
 	virtual IIndexBufferRef CreateIndexBuffer( void* data, uint32 size ) abstract;
 
-	virtual uint32 CreatePipelineState() abstract;
+	virtual void CreatePipelineState( const GPIPipelineStateDesc& pipelineStateDesc ) abstract;
 
 	virtual void UpdateConstantBuffer( const struct ConstantBuffer& constBuffer ) abstract;
 

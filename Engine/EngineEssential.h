@@ -17,6 +17,7 @@
 #include <cassert>
 #include <future>
 #include <iostream>
+#include <typeindex>
 
 #include <d3d12.h>
 

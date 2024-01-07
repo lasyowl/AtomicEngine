@@ -1,11 +1,23 @@
 #pragma once
 
-#include "EngineDefines.h"
+#include "EngineEssential.h"
 
 using ComponentId = int32;
 
-int32 componentTypeId = 0;
-template<typename T> const int32 component_type_id = componentTypeId++;
+static std::unordered_map<std::type_index, int> typeIndexMap;
+static int nextIndex = 0;
+
+template<typename T>
+int get_component_type_id()
+{
+	std::type_index typeIndex = typeid( T );
+	if( !typeIndexMap.contains( typeIndex ) )
+	{
+		return typeIndexMap[ typeIndex ] = nextIndex++;
+	}
+
+	return typeIndexMap[ typeIndex ];
+}
 
 ///////////////////////
 // Component

@@ -5,6 +5,9 @@
 #include "GPIResource_DX12.h"
 
 struct IDXGISwapChain;
+struct GPIPipeline_DX12;
+struct RawImage;
+struct ConstantBuffer;
 
 constexpr int32 CMD_LIST_PER_QUEUE_COUNT = 3;
 constexpr int32 SWAPCHAIN_COUNT = 3;
@@ -31,26 +34,21 @@ public:
 	virtual void BeginFrame() override;
 	virtual void EndFrame() override;
 
-	virtual void SetPipelineState( uint32 pipelineStateHash ) override;
+	virtual void SetPipelineState( const GPIPipelineStateDesc& pipelineDesc ) override;
 	virtual void Render( IVertexBuffer* positionBuffer, IVertexBuffer* uvBuffer, IVertexBuffer* normalBuffer, IIndexBuffer* indexBuffer ) override;
 	virtual void FlushPipelineState() override;
 
 	virtual IVertexBufferRef CreateVertexBuffer( void* data, uint32 stride, uint32 size ) override;
 	virtual IIndexBufferRef CreateIndexBuffer( void* data, uint32 size ) override;
 
-	virtual uint32 CreatePipelineState() override;
+	virtual void CreatePipelineState( const GPIPipelineStateDesc& pipelineStateDesc ) override;
 
-	virtual void UpdateConstantBuffer( const struct ConstantBuffer& constBuffer ) override;
+	virtual void UpdateConstantBuffer( const ConstantBuffer& constBuffer ) override;
 
 	virtual void RunCS() override;
 
 private:
-	void SetPipelineState( ID3D12PipelineState* pso, ID3D12RootSignature* rootSignature );
-
-	ID3D12RootSignature* CreateRootSignature();
-	ID3D12PipelineState* CreatePipelineState( ID3D12RootSignature* rootSignature );
-	ID3D12RootSignature* CreateRootSignature1();
-	ID3D12PipelineState* CreatePipelineState1( ID3D12RootSignature* rootSignature );
+	void SetPipelineState( const GPIPipelineStateDesc& desc, ID3D12PipelineState* pso, ID3D12RootSignature* rootSignature );
 
 private:
 	HWND _hWnd;
@@ -59,6 +57,7 @@ private:
 
 	ID3D12Device* _device;
 	IDXGISwapChain* _swapChain;
+
 	ID3D12DescriptorHeap* _rtvHeap;
 	ID3D12DescriptorHeap* _dsvHeap;
 
@@ -78,9 +77,8 @@ private:
 
 	int32 _swapChainIndex;
 
-	size_t _descSize[ D3D12_DESCRIPTOR_HEAP_TYPE_NUM_TYPES ];
-
-	std::unordered_map<uint32, std::tuple<ID3D12RootSignature*, ID3D12PipelineState*>> _pipelineStateCache;
+	std::unordered_map<uint32, std::shared_ptr<GPIPipeline_DX12>> _pipelineCache;
+	std::unordered_map<uint32, ID3DBlob*> _shaderCache;
 	//std::unordered_map<uint32, ID3D12Resource*> _constBufferCache;
 
 	ID3D12Resource* _constantBuffer;
@@ -88,6 +86,6 @@ private:
 
 	ID3D12Resource* _depthStencilBuffer;
 
-	std::shared_ptr<struct RawImage> rawImage;
+	std::shared_ptr<RawImage> rawImage;
 	ID3D12Resource* textureBuffer;
 };

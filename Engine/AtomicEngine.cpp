@@ -1,6 +1,7 @@
 #include "stdafx.h"
 #include "AtomicEngine.h"
 #include "System.h"
+#include "../PrimitiveComponent.h"
 #include "../GPI_DX12.h"
 #include "../RenderSystem.h"
 #include "../SceneViewSystem.h"

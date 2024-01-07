@@ -21,6 +21,10 @@
   <ItemGroup>
     <ClInclude Include="AssetLoader.h" />
     <ClInclude Include="DebugUtil.h" />
+    <ClInclude Include="GPIPipeline.h" />
+    <ClInclude Include="GPIPipeline_DX12.h" />
+    <ClInclude Include="GPIShader.h" />
+    <ClInclude Include="GPIShader_DX12.h" />
     <ClInclude Include="PrimitiveComponent.h" />
     <ClInclude Include="RawImage.h" />
     <ClInclude Include="SceneViewSystem.h" />
@@ -44,7 +48,6 @@
     <ClInclude Include="GPI_DX12.h" />
     <ClInclude Include="Math.h" />
     <ClInclude Include="Matrix.h" />
-    <ClInclude Include="PipelineStateObject.h" />
     <ClInclude Include="GPIResource.h" />
     <ClInclude Include="RenderSystem.h" />
     <ClInclude Include="StaticMesh.h" />
@@ -53,7 +56,10 @@
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="AssetLoader.cpp" />
+    <ClCompile Include="DebugUtil.cpp" />
     <ClCompile Include="ECS.cpp" />
+    <ClCompile Include="ECS_Component.cpp" />
+    <ClCompile Include="ECS_System.cpp" />
     <ClCompile Include="Engine\FileSystem.cpp" />
     <ClCompile Include="Engine\Main.cpp" />
     <ClCompile Include="Engine\PrimitiveTopology.cpp" />
@@ -66,6 +72,9 @@
     <ClCompile Include="Engine\System.cpp" />
     <ClCompile Include="GPIResource_DX12.cpp" />
     <ClCompile Include="GPI_DX12.cpp" />
+    <ClCompile Include="RenderSystem_PostProcess.cpp" />
+    <ClCompile Include="RenderSystem_StaticMesh.cpp" />
+    <ClCompile Include="SceneViewSystem.cpp" />
     <ClCompile Include="Vector.cpp" />
   </ItemGroup>
   <PropertyGroup Label="Globals">

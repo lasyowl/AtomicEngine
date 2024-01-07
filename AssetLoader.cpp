@@ -210,13 +210,16 @@ std::shared_ptr<RawImage> AssetLoader::LoadRawImage( const std::string& fileName
 		return nullptr;
 	}
 
+	FreeImage_FlipVertical( image );
+	image = FreeImage_ConvertTo32Bits( image );
+
 	BITMAPINFO* info = FreeImage_GetInfo( image );
 
 	std::shared_ptr<RawImage> result( new RawImage() );
 	result->width = info->bmiHeader.biWidth;
 	result->height = info->bmiHeader.biHeight;
 
-	uint32 imageSize = result->width * result->height * 3;
+	uint32 imageSize = result->width * result->height * 4;
 	result->data.resize( imageSize );
 	memcpy( result->data.data(), FreeImage_GetBits( image ), imageSize );
 	

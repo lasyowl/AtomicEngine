@@ -6,8 +6,11 @@
 #include "DebugUtil.h"
 #include "RawImage.h"
 #include "AssetLoader.h"
+#include "GPIShader_DX12.h"
+#include "GPIPipeline_DX12.h"
 
 #include <d3d12.h>
+#include <d3dcommon.h>
 #include <dxgi.h>
 #include <dxgi1_6.h>
 #include <d3dcompiler.h>
@@ -19,6 +22,8 @@
 		AEMessageBox( msg );\
 	}
 
+size_t descHeapSize[ D3D12_DESCRIPTOR_HEAP_TYPE_NUM_TYPES ];
+
 constexpr D3D12_VIEWPORT ToDX12Viewport( uint32 width, uint32 height )
 {
 	return D3D12_VIEWPORT{ 0, 0, ( float )width, ( float )height, 0, 1 };
@@ -27,6 +32,78 @@ constexpr D3D12_VIEWPORT ToDX12Viewport( uint32 width, uint32 height )
 constexpr D3D12_RECT ToDX12Rect( uint32 width, uint32 height )
 {
 	return D3D12_RECT{ 0, 0, ( int32 )width, ( int32 )height };
+}
+
+uint32 GetPipelineStateHash( const GPIPipelineStateDesc& pipelineDesc )
+{
+	return pipelineDesc.hash;
+}
+
+const char* ShaderTypeToString( EShaderType type )
+{
+	switch( type )
+	{
+		case EShaderType::ShaderType_VertexShader:	return "vs_5_0";
+		case EShaderType::ShaderType_PixelShader:	return "ps_5_0";
+		case EShaderType::ShaderType_ComputeShader:	return "cs_5_0";
+	}
+
+	return nullptr;
+}
+
+DXGI_FORMAT TranslateDataFormat( const EGPIDataFormat dataFormat )
+{
+	switch( dataFormat )
+	{
+		case GPIDataFormat_B8G8R8A8:		return DXGI_FORMAT_B8G8R8A8_UNORM;
+		case GPIDataFormat_R32G32_Float:	return DXGI_FORMAT_R32G32_FLOAT;
+		case GPIDataFormat_R32G32B32_Float:	return DXGI_FORMAT_R32G32B32_FLOAT;
+	}
+
+	return DXGI_FORMAT_UNKNOWN;
+}
+
+D3D12_INPUT_ELEMENT_DESC TranslateInputDesc( const GPIPipelineInputDesc& inputDesc )
+{
+	D3D12_INPUT_ELEMENT_DESC d3dInputDesc =
+	{
+		inputDesc.semanticName.c_str(),
+		0,
+		TranslateDataFormat( inputDesc.format ),
+		inputDesc.inputSlot,
+		0,
+		inputDesc.inputClass == GPIInputClass_PerInstance ? D3D12_INPUT_CLASSIFICATION_PER_INSTANCE_DATA : D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA,
+		0
+	};
+
+	return d3dInputDesc;
+}
+
+std::vector<D3D_SHADER_MACRO> TranslateShaderMacros( const std::vector<GPIShaderMacro>& inMacros )
+{
+	std::vector<D3D_SHADER_MACRO> macros;
+	macros.resize( inMacros.size() + 1 );
+	for( uint32 index = 0; index < inMacros.size(); ++index )
+	{
+		macros[ index ].Name = inMacros[ index ].name.c_str();
+		macros[ index ].Definition = inMacros[ index ].value.c_str();
+	}
+	macros[ inMacros.size() ] = {};
+
+	return macros;
+}
+
+void TransitionResource( ID3D12GraphicsCommandList* cmdList, ID3D12Resource* resource, D3D12_RESOURCE_STATES stateBefore, D3D12_RESOURCE_STATES stateAfter )
+{
+	D3D12_RESOURCE_BARRIER barrier;
+	barrier.Type = D3D12_RESOURCE_BARRIER_TYPE_TRANSITION;
+	barrier.Flags = D3D12_RESOURCE_BARRIER_FLAG_NONE;
+	barrier.Transition.pResource = resource;
+	barrier.Transition.StateBefore = stateBefore;
+	barrier.Transition.StateAfter = stateAfter;
+	barrier.Transition.Subresource = D3D12_RESOURCE_BARRIER_ALL_SUBRESOURCES;
+
+	cmdList->ResourceBarrier( 1, &barrier );
 }
 
 /**
@@ -81,7 +158,7 @@ constexpr D3D12_RESOURCE_DESC GetGBufferDesc( uint64 width, uint32 height )
 	bufferDesc.Height = height;
 	bufferDesc.DepthOrArraySize = 1;
 	bufferDesc.MipLevels = 1;
-	bufferDesc.Format = DXGI_FORMAT_R8G8B8A8_UNORM;
+	bufferDesc.Format = DXGI_FORMAT_B8G8R8A8_UNORM;
 	bufferDesc.SampleDesc.Count = 1;
 	bufferDesc.SampleDesc.Quality = 0;
 	bufferDesc.Layout = D3D12_TEXTURE_LAYOUT_UNKNOWN;
@@ -99,7 +176,7 @@ constexpr D3D12_RESOURCE_DESC GetTextureBufferDesc( uint64 width, uint32 height 
 	bufferDesc.Height = height;
 	bufferDesc.DepthOrArraySize = 1;
 	bufferDesc.MipLevels = 1;
-	bufferDesc.Format = DXGI_FORMAT_R8G8B8A8_UNORM;
+	bufferDesc.Format = DXGI_FORMAT_B8G8R8A8_UNORM;
 	bufferDesc.SampleDesc.Count = 1;
 	bufferDesc.SampleDesc.Quality = 0;
 	bufferDesc.Layout = D3D12_TEXTURE_LAYOUT_UNKNOWN;
@@ -138,7 +215,7 @@ ID3D12DescriptorHeap* CreateDescriptorHeap( ID3D12Device* device, int32 numDesc,
 constexpr D3D12_RENDER_TARGET_VIEW_DESC GetRTVDesc()
 {
 	D3D12_RENDER_TARGET_VIEW_DESC rtvDesc{};
-	rtvDesc.Format = DXGI_FORMAT_R8G8B8A8_UNORM_SRGB;
+	rtvDesc.Format = DXGI_FORMAT_B8G8R8A8_UNORM_SRGB;
 	rtvDesc.ViewDimension = D3D12_RTV_DIMENSION_TEXTURE2D;
 	rtvDesc.Texture2D.MipSlice = 0;
 	rtvDesc.Texture2D.PlaneSlice = 0;
@@ -233,7 +310,7 @@ ID3D12Resource* CreateGBuffer( ID3D12Device* device, uint32 width, uint32 height
 	D3D12_HEAP_PROPERTIES defaultHeapProp = HeapProperties( D3D12_HEAP_TYPE_DEFAULT );
 
 	D3D12_CLEAR_VALUE clearValue{};
-	clearValue.Format = DXGI_FORMAT_R8G8B8A8_UNORM;
+	clearValue.Format = DXGI_FORMAT_B8G8R8A8_UNORM;
 	clearValue.Color[ 0 ] = 1;
 	clearValue.Color[ 1 ] = 1;
 	clearValue.Color[ 2 ] = 1;
@@ -297,14 +374,14 @@ void UpdateBuffer( ID3D12Device* device, CommandQueueContext& cmdQueueContext, I
 	ID3D12Fence* fence = cmdQueueContext.fence;
 	HANDLE fenceEventHandle = cmdQueueContext.fenceEventHandle;
 
-	D3D12_RESOURCE_DESC uploadBufferDesc = GetVertexBufferDesc( D3D12_RESOURCE_FLAG_NONE, size );
+	D3D12_RESOURCE_DESC resourceDesc = GetVertexBufferDesc( D3D12_RESOURCE_FLAG_NONE, size );
 	D3D12_HEAP_PROPERTIES uploadHeapProp = HeapProperties( D3D12_HEAP_TYPE_UPLOAD );
 
 	// Create upload buffer on CPU
 	ID3D12Resource* uploadBuffer;
 	CHECK_HRESULT( device->CreateCommittedResource( &uploadHeapProp,
 				   D3D12_HEAP_FLAG_NONE,
-				   &uploadBufferDesc,
+				   &resourceDesc,
 				   D3D12_RESOURCE_STATE_GENERIC_READ,
 				   nullptr,
 				   IID_PPV_ARGS( &uploadBuffer ) ),
@@ -340,17 +417,66 @@ void UpdateBuffer( ID3D12Device* device, CommandQueueContext& cmdQueueContext, I
 	}
 }
 
-void TransitionResource( ID3D12GraphicsCommandList* cmdList, ID3D12Resource* resource, D3D12_RESOURCE_STATES stateBefore, D3D12_RESOURCE_STATES stateAfter )
+void UpdateTexture( ID3D12Device* device, CommandQueueContext& cmdQueueContext, ID3D12Resource* outBuffer, void* data, uint32 width, uint32 height )
 {
-	D3D12_RESOURCE_BARRIER barrier;
-	barrier.Type = D3D12_RESOURCE_BARRIER_TYPE_TRANSITION;
-	barrier.Flags = D3D12_RESOURCE_BARRIER_FLAG_NONE;
-	barrier.Transition.pResource = resource;
-	barrier.Transition.StateBefore = stateBefore;
-	barrier.Transition.StateAfter = stateAfter;
-	barrier.Transition.Subresource = D3D12_RESOURCE_BARRIER_ALL_SUBRESOURCES;
+	ID3D12GraphicsCommandList* cmdList = *cmdQueueContext.cmdListIter;
+	ID3D12CommandAllocator* cmdAllocator = cmdQueueContext.allocator;
+	ID3D12Fence* fence = cmdQueueContext.fence;
+	HANDLE fenceEventHandle = cmdQueueContext.fenceEventHandle;
 
-	cmdList->ResourceBarrier( 1, &barrier );
+	D3D12_RESOURCE_DESC resourceDesc = GetVertexBufferDesc( D3D12_RESOURCE_FLAG_NONE, width * height * sizeof( uint32 ) );// outBuffer->GetDesc();
+	D3D12_HEAP_PROPERTIES heapProp = HeapProperties( D3D12_HEAP_TYPE_UPLOAD );
+
+	// Create upload buffer on CPU
+	ID3D12Resource* uploadBuffer;
+	CHECK_HRESULT( device->CreateCommittedResource( &heapProp,
+				   D3D12_HEAP_FLAG_NONE,
+				   &resourceDesc,
+				   D3D12_RESOURCE_STATE_GENERIC_READ,
+				   nullptr,
+				   IID_PPV_ARGS( &uploadBuffer ) ),
+				   L"Failed to create upload buffer." );
+
+	CopyMemoryToBuffer( uploadBuffer, data, width * height * sizeof( uint32 ) );
+
+	CHECK_HRESULT( cmdAllocator->Reset(), L"Failed to reset command allocator." );
+	CHECK_HRESULT( cmdList->Reset( cmdAllocator, nullptr ), L"Failed to reset command list." );
+
+	TransitionResource( cmdList, outBuffer, D3D12_RESOURCE_STATE_ALL_SHADER_RESOURCE, D3D12_RESOURCE_STATE_COPY_DEST );
+
+	uint64 requiredSize = 0;
+	D3D12_PLACED_SUBRESOURCE_FOOTPRINT layout;
+	uint32 numRow;
+	uint64 rowSizesInBytes;
+
+	D3D12_RESOURCE_DESC outDesc = outBuffer->GetDesc();
+	device->GetCopyableFootprints( &outDesc, 0, 1, 0, &layout, &numRow, &rowSizesInBytes, &requiredSize );
+
+	D3D12_TEXTURE_COPY_LOCATION srcLocation{};
+	srcLocation.pResource = uploadBuffer;
+	srcLocation.Type = D3D12_TEXTURE_COPY_TYPE_PLACED_FOOTPRINT;
+	srcLocation.PlacedFootprint = layout;
+
+	D3D12_TEXTURE_COPY_LOCATION dstLocation{};
+	dstLocation.pResource = outBuffer;
+	dstLocation.Type = D3D12_TEXTURE_COPY_TYPE_SUBRESOURCE_INDEX;
+	dstLocation.SubresourceIndex = 0;
+
+	cmdList->CopyTextureRegion( &dstLocation, 0, 0, 0, &srcLocation, nullptr );
+
+	TransitionResource( cmdList, outBuffer, D3D12_RESOURCE_STATE_COPY_DEST, D3D12_RESOURCE_STATE_ALL_SHADER_RESOURCE );
+
+	CHECK_HRESULT( cmdList->Close(), L"Failed to close command list." );
+
+	ID3D12CommandList* cmdListInterface = cmdList;
+	cmdQueueContext.cmdQueue->ExecuteCommandLists( 1, &cmdListInterface );
+	CHECK_HRESULT( cmdQueueContext.cmdQueue->Signal( fence, 1 ), L"Failed to signal command queue." );
+	
+	if( fence->GetCompletedValue() != 1 )
+	{
+		fence->SetEventOnCompletion( 1, fenceEventHandle );
+		WaitForSingleObject( fenceEventHandle, INFINITE );
+	}
 }
 
 ///////////////////////////////////////
@@ -426,7 +552,7 @@ void GPI_DX12::Initialize()
 
 		DXGI_SWAP_CHAIN_DESC swapChainDesc{};
 		swapChainDesc.BufferCount = SWAPCHAIN_COUNT;
-		swapChainDesc.BufferDesc.Format = DXGI_FORMAT_R8G8B8A8_UNORM;
+		swapChainDesc.BufferDesc.Format = DXGI_FORMAT_B8G8R8A8_UNORM;
 		swapChainDesc.BufferUsage = DXGI_USAGE_RENDER_TARGET_OUTPUT;
 		swapChainDesc.BufferDesc.Width = _screenWidth;
 		swapChainDesc.BufferDesc.Height = _screenHeight;
@@ -452,7 +578,7 @@ void GPI_DX12::Initialize()
 	/* Get constant values */
 	for( uint32 index = 0; index < D3D12_DESCRIPTOR_HEAP_TYPE_NUM_TYPES; ++index )
 	{
-		_descSize[ index ] = _device->GetDescriptorHandleIncrementSize( ( D3D12_DESCRIPTOR_HEAP_TYPE )index );
+		descHeapSize[ index ] = _device->GetDescriptorHandleIncrementSize( ( D3D12_DESCRIPTOR_HEAP_TYPE )index );
 	}
 
 	/* Rendertargets */
@@ -468,7 +594,7 @@ void GPI_DX12::Initialize()
 
 			_device->CreateRenderTargetView( swapChainBuffer, &rtvDesc, rtvDescHandle );
 
-			rtvDescHandle.ptr += _descSize[ D3D12_DESCRIPTOR_HEAP_TYPE_RTV ];
+			rtvDescHandle.ptr += descHeapSize[ D3D12_DESCRIPTOR_HEAP_TYPE_RTV ];
 		}
 
 		for( ID3D12Resource*& gBuffer : _gBuffers )
@@ -477,7 +603,7 @@ void GPI_DX12::Initialize()
 
 			_device->CreateRenderTargetView( gBuffer, &rtvDesc, rtvDescHandle );
 
-			rtvDescHandle.ptr += _descSize[ D3D12_DESCRIPTOR_HEAP_TYPE_RTV ];
+			rtvDescHandle.ptr += descHeapSize[ D3D12_DESCRIPTOR_HEAP_TYPE_RTV ];
 		}
 	}
 
@@ -494,15 +620,16 @@ void GPI_DX12::Initialize()
 		D3D12_CPU_DESCRIPTOR_HANDLE rvDescHandle = _rvHeap->GetCPUDescriptorHandleForHeapStart();
 		_device->CreateConstantBufferView( &cbDesc, rvDescHandle );
 
-		rvDescHandle.ptr += _descSize[ D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV ];
+		rvDescHandle.ptr += descHeapSize[ D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV ];
 
 		/* Create shader resource buffers, !!temp!! */
 		{
 			rawImage = AssetLoader::LoadRawImage( "Resource/test.png" );
 			textureBuffer = CreateTextureBuffer( _device, rawImage->width, rawImage->height );
+			UpdateTexture( _device, _cmdQueueCtx[ D3D12_COMMAND_LIST_TYPE_DIRECT ], textureBuffer, rawImage->data.data(), rawImage->width, rawImage->height);
 
 			D3D12_SHADER_RESOURCE_VIEW_DESC srvDesc{};
-			srvDesc.Format = DXGI_FORMAT_R8G8B8A8_UNORM_SRGB;
+			srvDesc.Format = DXGI_FORMAT_B8G8R8A8_UNORM_SRGB;
 			srvDesc.ViewDimension = D3D12_SRV_DIMENSION_TEXTURE2D;
 			srvDesc.Shader4ComponentMapping = D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING;
 			srvDesc.Texture2D.MipLevels = 1;
@@ -544,7 +671,7 @@ void GPI_DX12::BeginFrame()
 	CHECK_HRESULT( cmdList->Reset( cmdAllocator, nullptr ), L"Failed to reset command list." );
 
 	D3D12_CPU_DESCRIPTOR_HANDLE rtvHandle = _rtvHeap->GetCPUDescriptorHandleForHeapStart();
-	rtvHandle.ptr += _swapChainIndex * _descSize[ D3D12_DESCRIPTOR_HEAP_TYPE_RTV ];
+	rtvHandle.ptr += _swapChainIndex * descHeapSize[ D3D12_DESCRIPTOR_HEAP_TYPE_RTV ];
 	D3D12_CPU_DESCRIPTOR_HANDLE dsvHandle = _dsvHeap->GetCPUDescriptorHandleForHeapStart();
 	cmdList->OMSetRenderTargets( 1, &rtvHandle, true, &dsvHandle );
 
@@ -554,7 +681,7 @@ void GPI_DX12::BeginFrame()
 	cmdList->RSSetScissorRects( 1, &scissorRect );
 
 	// State transition of back buffer
-	D3D12_RESOURCE_BARRIER barrier;
+	D3D12_RESOURCE_BARRIER barrier{};
 	barrier.Transition.pResource = _swapChainBuffers[ _swapChainIndex ];
 	barrier.Type = D3D12_RESOURCE_BARRIER_TYPE_TRANSITION;
 	barrier.Flags = D3D12_RESOURCE_BARRIER_FLAG_NONE;
@@ -599,7 +726,7 @@ void GPI_DX12::EndFrame()
 	CHECK_HRESULT( cmdAllocator->Reset(), L"Failed to reset command allocator." );
 	CHECK_HRESULT( cmdList->Reset( cmdAllocator, nullptr ), L"Failed to reset command list." );
 	
-	D3D12_RESOURCE_BARRIER barrier;
+	D3D12_RESOURCE_BARRIER barrier{};
 	barrier.Transition.pResource = _swapChainBuffers[ _swapChainIndex ];
 	barrier.Type = D3D12_RESOURCE_BARRIER_TYPE_TRANSITION;
 	barrier.Flags = D3D12_RESOURCE_BARRIER_FLAG_NONE;
@@ -626,7 +753,7 @@ void GPI_DX12::EndFrame()
 	}
 }
 
-void GPI_DX12::SetPipelineState( ID3D12PipelineState* pso, ID3D12RootSignature* rootSignature )
+void GPI_DX12::SetPipelineState( const GPIPipelineStateDesc& desc, ID3D12PipelineState* pso, ID3D12RootSignature* rootSignature )
 {
 	CommandQueueContext& cmdQueueCtx = _cmdQueueCtx[ D3D12_COMMAND_LIST_TYPE_DIRECT ];
 	ID3D12CommandAllocator* cmdAllocator = cmdQueueCtx.allocator;
@@ -649,10 +776,11 @@ void GPI_DX12::SetPipelineState( ID3D12PipelineState* pso, ID3D12RootSignature* 
 	cmdList->SetGraphicsRootSignature( rootSignature );
 	cmdList->IASetPrimitiveTopology( D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST );
 
-	D3D12_CPU_DESCRIPTOR_HANDLE rtvHandle = _rtvHeap->GetCPUDescriptorHandleForHeapStart();
-	rtvHandle.ptr += /*_swapChainBufferIter->gBufferHandle;*/ _swapChainIndex * _descSize[ D3D12_DESCRIPTOR_HEAP_TYPE_RTV ];
 	D3D12_CPU_DESCRIPTOR_HANDLE dsvHandle = _dsvHeap->GetCPUDescriptorHandleForHeapStart();
-	cmdList->OMSetRenderTargets( 1, &rtvHandle, true, &dsvHandle );
+	D3D12_CPU_DESCRIPTOR_HANDLE rtvHandle = _rtvHeap->GetCPUDescriptorHandleForHeapStart();
+	const size_t rtvDescSize = descHeapSize[ D3D12_DESCRIPTOR_HEAP_TYPE_RTV ];
+	rtvHandle.ptr += desc.bRenderSwapChainBuffer ? _swapChainIndex * rtvDescSize : SWAPCHAIN_COUNT * rtvDescSize;
+	cmdList->OMSetRenderTargets( desc.numRenderTargets, &rtvHandle, true, &dsvHandle );
 
 	D3D12_VIEWPORT viewport = ToDX12Viewport( _windowWidth, _windowHeight );
 	D3D12_RECT scissorRect = ToDX12Rect( _windowWidth, _windowHeight );
@@ -665,12 +793,16 @@ void GPI_DX12::SetPipelineState( ID3D12PipelineState* pso, ID3D12RootSignature* 
 	//cmdList->SetGraphicsRootDescriptorTable( 1, _srvHeap->GetGPUDescriptorHandleForHeapStart() );
 }
 
-void GPI_DX12::SetPipelineState( uint32 pipelineStateHash )
+void GPI_DX12::SetPipelineState( const GPIPipelineStateDesc& pipelineDesc )
 {
-	assert( _pipelineStateCache.end() != _pipelineStateCache.find( pipelineStateHash ) );
-	
-	auto& [rootSignature, pso] = _pipelineStateCache[ pipelineStateHash ];
-	SetPipelineState( pso, rootSignature );
+	uint32 pipelineHash = GetPipelineStateHash( pipelineDesc );
+	assert( _pipelineCache.contains( pipelineHash ) );
+
+	std::shared_ptr<GPIPipeline_DX12>& pipeline = _pipelineCache[ pipelineHash ];
+
+	ID3D12RootSignature* rootSignature = pipeline->rootSignature;
+	ID3D12PipelineState* pipelineState = pipeline->pipelineState;
+	SetPipelineState( pipelineDesc, pipelineState, rootSignature );
 }
 
 void GPI_DX12::Render( IVertexBuffer* positionBuffer, IVertexBuffer* uvBuffer, IVertexBuffer* normalBuffer, IIndexBuffer* indexBuffer )
@@ -695,7 +827,7 @@ void GPI_DX12::Render( IVertexBuffer* positionBuffer, IVertexBuffer* uvBuffer, I
 		VBViews[ 2 ].StrideInBytes = uvBuffer->GetStride();
 	}
 
-	D3D12_INDEX_BUFFER_VIEW IBView;
+	D3D12_INDEX_BUFFER_VIEW IBView{};
 	IBView.BufferLocation = indexBuffer->GetGPUVirtualAddress();
 	IBView.SizeInBytes = ( uint32 )indexBuffer->GetSize();
 	IBView.Format = DXGI_FORMAT_R32_UINT;
@@ -721,12 +853,48 @@ void GPI_DX12::FlushPipelineState()
 	CHECK_HRESULT( cmdQueue->Signal( fence, ++fenceValue ), L"Failed to signal fence." );
 }
 
-/* todo : Generate from file */
-ID3D12RootSignature* GPI_DX12::CreateRootSignature()
+IVertexBufferRef GPI_DX12::CreateVertexBuffer( void* data, uint32 stride, uint32 size )
+{
+	ID3D12Resource* buffer = CreateBuffer( _device, _cmdQueueCtx[ D3D12_COMMAND_LIST_TYPE_COPY ], data, size );
+	return std::make_shared<VertexBuffer_DX12>( buffer, size, stride );
+}
+
+IIndexBufferRef GPI_DX12::CreateIndexBuffer( void* data, uint32 size )
+{
+	ID3D12Resource* buffer = CreateBuffer( _device, _cmdQueueCtx[ D3D12_COMMAND_LIST_TYPE_COPY ], data, size );
+	return std::make_shared<IndexBuffer_DX12>( buffer, size );
+}
+
+ID3DBlob* CreateShader( const GPIShaderDesc& shaderDesc )
+{
+	std::vector<D3D_SHADER_MACRO> macros = TranslateShaderMacros( shaderDesc.macros );
+
+	std::ifstream shaderFile( shaderDesc.file, std::ios_base::in );
+	std::string parsedShader = std::string( std::istreambuf_iterator<char>( shaderFile ),
+											std::istreambuf_iterator<char>() );
+
+	ID3DBlob* compiledShader;
+	ID3DBlob* errorBlob;
+	CHECK_HRESULT( D3DCompile( parsedShader.c_str(), parsedShader.size(),
+				   "", macros.data(), nullptr,
+				   shaderDesc.entry.c_str(), ShaderTypeToString( shaderDesc.type ), 0, 0, &compiledShader, &errorBlob ),
+				   L"Shader compilation failed." );
+	if( errorBlob )
+	{
+		std::string errorMsg = ( char* )errorBlob->GetBufferPointer();
+		std::wstring wErrorMsg;
+		wErrorMsg.assign( errorMsg.begin(), errorMsg.end() );
+		AEMessageBox( wErrorMsg );
+	}
+
+	return compiledShader;
+}
+
+ID3D12RootSignature* CreateGraphicsRootSignature( ID3D12Device* device, const GPIPipelineStateDesc& pipelineDesc )
 {
 	ID3D12RootSignature* rootSignature;
 
-	D3D12_DESCRIPTOR_RANGE descRange[ 2 ] = {};
+	D3D12_DESCRIPTOR_RANGE descRange[ 2 ]{};
 	descRange[ 0 ].RangeType = D3D12_DESCRIPTOR_RANGE_TYPE_CBV;
 	descRange[ 0 ].NumDescriptors = 1;
 	descRange[ 0 ].BaseShaderRegister = 0;
@@ -770,61 +938,54 @@ ID3D12RootSignature* GPI_DX12::CreateRootSignature()
 		AEMessageBox( wErrorMsg );
 	}
 
-	CHECK_HRESULT( _device->CreateRootSignature( 0, rootBlob->GetBufferPointer(), rootBlob->GetBufferSize(), IID_PPV_ARGS( &rootSignature ) ),
+	CHECK_HRESULT( device->CreateRootSignature( 0, rootBlob->GetBufferPointer(), rootBlob->GetBufferSize(), IID_PPV_ARGS( &rootSignature ) ),
 				   L"Failed to create root signature" );
 
 	return rootSignature;
 }
 
-/* todo : Generate from file */
-ID3D12PipelineState* GPI_DX12::CreatePipelineState( ID3D12RootSignature* rootSignature )
+ID3D12RootSignature* CreateComputeRootSignature( ID3D12Device* device, const GPIPipelineStateDesc& pipelineDesc )
+{
+	ID3D12RootSignature* rootSignature;
+
+	D3D12_DESCRIPTOR_RANGE descRange{};
+	descRange.RangeType = D3D12_DESCRIPTOR_RANGE_TYPE_UAV;
+	descRange.NumDescriptors = 1;
+	descRange.BaseShaderRegister = 0;
+
+	D3D12_ROOT_PARAMETER rootParam{};
+	rootParam.ParameterType = D3D12_ROOT_PARAMETER_TYPE_DESCRIPTOR_TABLE;
+	rootParam.ShaderVisibility = D3D12_SHADER_VISIBILITY_ALL;
+	rootParam.DescriptorTable.NumDescriptorRanges = 1;
+	rootParam.DescriptorTable.pDescriptorRanges = &descRange;
+
+	D3D12_ROOT_SIGNATURE_DESC rootSignatureDesc{};
+	rootSignatureDesc.NumParameters = 1;
+	rootSignatureDesc.pParameters = &rootParam;
+	rootSignatureDesc.NumStaticSamplers = 0;
+	rootSignatureDesc.pStaticSamplers = nullptr;
+	rootSignatureDesc.Flags = D3D12_ROOT_SIGNATURE_FLAG_ALLOW_INPUT_ASSEMBLER_INPUT_LAYOUT;
+
+	ID3DBlob* rootBlob;
+	ID3DBlob* errorBlob;
+	CHECK_HRESULT( D3D12SerializeRootSignature( &rootSignatureDesc, D3D_ROOT_SIGNATURE_VERSION_1, &rootBlob, &errorBlob ),
+				   L"Failed to serialize root signature" );
+
+	CHECK_HRESULT( device->CreateRootSignature( 0, rootBlob->GetBufferPointer(), rootBlob->GetBufferSize(), IID_PPV_ARGS( &rootSignature ) ),
+				   L"Failed to create root signature" );
+
+	return rootSignature;
+}
+
+ID3D12PipelineState* CreateGraphicsPipelineState( ID3D12Device* device, const GPIPipelineStateDesc& pipelineDesc, ID3D12RootSignature* rootSignature, ID3DBlob* vertexShader, ID3DBlob* pixelShader )
 {
 	ID3D12PipelineState* pso;
 
-	const D3D12_INPUT_ELEMENT_DESC layout[] =
+	std::vector<D3D12_INPUT_ELEMENT_DESC> layout;
+	layout.resize( pipelineDesc.inputDesc.size() );
+	for( uint32 index = 0; index < layout.size(); ++index )
 	{
-		{ "POSITION", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0, 0,
-		D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0 },
-		{ "NORMAL", 0, DXGI_FORMAT_R32G32B32_FLOAT, 1, 0,
-		D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0 },
-		{ "TEXCOORD", 0, DXGI_FORMAT_R32G32_FLOAT, 2, 0,
-		D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0 }
-	};
-
-	const D3D_SHADER_MACRO macros[] = {
-		{ "D3D12_SAMPLE_CONSTANT_BUFFER", "1" },
-		{ nullptr, nullptr }
-	};
-
-	std::ifstream shaderFile( "Engine/Shader/Test.hlsl", std::ios_base::in );
-	std::string parsedShader = std::string( std::istreambuf_iterator<char>( shaderFile ),
-											std::istreambuf_iterator<char>() );
-
-	ID3DBlob* errorBlob;
-	ID3DBlob* vertexShader;
-	CHECK_HRESULT( D3DCompile( parsedShader.c_str(), parsedShader.size(),
-				   "", macros, nullptr,
-				   "VS_main", "vs_5_0", 0, 0, &vertexShader, &errorBlob ),
-				   L"Vertex shader compilation failed." );
-	if( errorBlob )
-	{
-		std::string errorMsg = ( char* )errorBlob->GetBufferPointer();
-		std::wstring wErrorMsg;
-		wErrorMsg.assign( errorMsg.begin(), errorMsg.end() );
-		AEMessageBox( wErrorMsg );
-	}
-
-	ID3DBlob* pixelShader;
-	CHECK_HRESULT( D3DCompile( parsedShader.c_str(), parsedShader.size(),
-				   "", macros, nullptr,
-				   "PS_main", "ps_5_0", 0, 0, &pixelShader, &errorBlob ),
-				   L"Pixel shader compilation failed." );
-	if( errorBlob )
-	{
-		std::string errorMsg = ( char* )errorBlob->GetBufferPointer();
-		std::wstring wErrorMsg;
-		wErrorMsg.assign( errorMsg.begin(), errorMsg.end() );
-		AEMessageBox( wErrorMsg );
+		layout[ index ] = TranslateInputDesc( pipelineDesc.inputDesc[ index ] );
 	}
 
 	D3D12_RASTERIZER_DESC rasterizerDesc{};
@@ -857,8 +1018,7 @@ ID3D12PipelineState* GPI_DX12::CreatePipelineState( ID3D12RootSignature* rootSig
 		blendState.RenderTarget[ Index ] = defaultRenderTargetBlendDesc;
 	}
 	// Simple alpha blending
-	int32 numRenderTargets = 4; // temp
-	for( uint32 index = 0; index < numRenderTargets; ++index )
+	for( uint32 index = 0; index < pipelineDesc.numRenderTargets; ++index )
 	{
 		blendState.RenderTarget[ index ].BlendEnable = true;
 		blendState.RenderTarget[ index ].SrcBlend = D3D12_BLEND_SRC_ALPHA;
@@ -878,14 +1038,14 @@ ID3D12PipelineState* GPI_DX12::CreatePipelineState( ID3D12RootSignature* rootSig
 	psoDesc.PS.BytecodeLength = pixelShader->GetBufferSize();
 	psoDesc.PS.pShaderBytecode = pixelShader->GetBufferPointer();
 	psoDesc.pRootSignature = rootSignature;
-	psoDesc.NumRenderTargets = numRenderTargets;
-	for( uint32 index = 0; index < numRenderTargets; ++index )
+	psoDesc.NumRenderTargets = pipelineDesc.numRenderTargets;
+	for( uint32 index = 0; index < pipelineDesc.numRenderTargets; ++index )
 	{
-		psoDesc.RTVFormats[ index ] = DXGI_FORMAT_R8G8B8A8_UNORM_SRGB;
+		psoDesc.RTVFormats[ index ] = DXGI_FORMAT_B8G8R8A8_UNORM_SRGB;
 	}
 	psoDesc.DSVFormat = DXGI_FORMAT_D32_FLOAT;
-	psoDesc.InputLayout.NumElements = std::extent<decltype( layout )>::value;
-	psoDesc.InputLayout.pInputElementDescs = layout;
+	psoDesc.InputLayout.NumElements = layout.size();
+	psoDesc.InputLayout.pInputElementDescs = layout.data();
 	psoDesc.SampleDesc.Count = 1;
 	psoDesc.DepthStencilState.DepthEnable = true;
 	psoDesc.DepthStencilState.DepthWriteMask = D3D12_DEPTH_WRITE_MASK_ALL;
@@ -894,105 +1054,58 @@ ID3D12PipelineState* GPI_DX12::CreatePipelineState( ID3D12RootSignature* rootSig
 	psoDesc.SampleMask = 0xFFFFFFFF;
 	psoDesc.PrimitiveTopologyType = D3D12_PRIMITIVE_TOPOLOGY_TYPE_TRIANGLE;
 
-	_device->CreateGraphicsPipelineState( &psoDesc, IID_PPV_ARGS( &pso ) );
+	device->CreateGraphicsPipelineState( &psoDesc, IID_PPV_ARGS( &pso ) );
 
 	return pso;
 }
 
-/* todo : Generate from file */
-ID3D12RootSignature* GPI_DX12::CreateRootSignature1()
-{
-	ID3D12RootSignature* rootSignature;
-
-	D3D12_DESCRIPTOR_RANGE descRange{};
-	descRange.RangeType = D3D12_DESCRIPTOR_RANGE_TYPE_UAV;
-	descRange.NumDescriptors = 1;
-	descRange.BaseShaderRegister = 0;
-
-	D3D12_ROOT_PARAMETER rootParam{};
-	rootParam.ParameterType = D3D12_ROOT_PARAMETER_TYPE_DESCRIPTOR_TABLE;
-	rootParam.ShaderVisibility = D3D12_SHADER_VISIBILITY_ALL;
-	rootParam.DescriptorTable.NumDescriptorRanges = 1;
-	rootParam.DescriptorTable.pDescriptorRanges = &descRange;
-
-	D3D12_ROOT_SIGNATURE_DESC rootSignatureDesc{};
-	rootSignatureDesc.NumParameters = 1;
-	rootSignatureDesc.pParameters = &rootParam;
-	rootSignatureDesc.NumStaticSamplers = 0;
-	rootSignatureDesc.pStaticSamplers = nullptr;
-	rootSignatureDesc.Flags = D3D12_ROOT_SIGNATURE_FLAG_ALLOW_INPUT_ASSEMBLER_INPUT_LAYOUT;
-
-	ID3DBlob* rootBlob;
-	ID3DBlob* errorBlob;
-	CHECK_HRESULT( D3D12SerializeRootSignature( &rootSignatureDesc, D3D_ROOT_SIGNATURE_VERSION_1, &rootBlob, &errorBlob ),
-				   L"Failed to serialize root signature" );
-
-	CHECK_HRESULT( _device->CreateRootSignature( 0, rootBlob->GetBufferPointer(), rootBlob->GetBufferSize(), IID_PPV_ARGS( &rootSignature ) ),
-				   L"Failed to create root signature" );
-
-	return rootSignature;
-}
-
-/* todo : Generate from file */
-ID3D12PipelineState* GPI_DX12::CreatePipelineState1( ID3D12RootSignature* rootSignature )
+ID3D12PipelineState* CreateComputePipelineState( ID3D12Device* device, ID3D12RootSignature* rootSignature, ID3DBlob* computeShader )
 {
 	ID3D12PipelineState* pso;
-
-	const D3D_SHADER_MACRO macros[] = {
-		{ "D3D12_SAMPLE_CONSTANT_BUFFER", "1" },
-		{ nullptr, nullptr }
-	};
-
-	std::ifstream shaderFile( "Engine/Shader/TestCS.hlsl", std::ios_base::in );
-	std::string parsedShader = std::string( std::istreambuf_iterator<char>( shaderFile ),
-											std::istreambuf_iterator<char>() );
-
-	ID3DBlob* computeShader;
-	ID3DBlob* errorBlob;
-	CHECK_HRESULT( D3DCompile( parsedShader.c_str(), parsedShader.size(),
-				   "", macros, nullptr,
-				   "CS_main", "cs_5_0", 0, 0, &computeShader, &errorBlob ),
-				   L"Compute shader compilation failed." );
-	if( errorBlob )
-	{
-		std::string errorMsg = ( char* )errorBlob->GetBufferPointer();
-		std::wstring wErrorMsg;
-		wErrorMsg.assign( errorMsg.begin(), errorMsg.end() );
-		AEMessageBox( wErrorMsg );
-	}
 
 	D3D12_COMPUTE_PIPELINE_STATE_DESC psoDesc{};
 	psoDesc.pRootSignature = rootSignature;
 	psoDesc.CS.BytecodeLength = computeShader->GetBufferSize();
 	psoDesc.CS.pShaderBytecode = computeShader->GetBufferPointer();
 
-	_device->CreateComputePipelineState( &psoDesc, IID_PPV_ARGS( &pso ) );
+	device->CreateComputePipelineState( &psoDesc, IID_PPV_ARGS( &pso ) );
 
 	return pso;
 }
 
-IVertexBufferRef GPI_DX12::CreateVertexBuffer( void* data, uint32 stride, uint32 size )
+void GPI_DX12::CreatePipelineState( const GPIPipelineStateDesc& pipelineDesc )
 {
-	ID3D12Resource* buffer = CreateBuffer( _device, _cmdQueueCtx[ D3D12_COMMAND_LIST_TYPE_COPY ], data, size );
-	return std::make_shared<VertexBuffer_DX12>( buffer, size, stride );
-}
+	uint32 pipelineHash = pipelineDesc.hash;
+	if( _pipelineCache.contains( pipelineHash ) )
+	{
+		return;
+	}
 
-IIndexBufferRef GPI_DX12::CreateIndexBuffer( void* data, uint32 size )
-{
-	ID3D12Resource* buffer = CreateBuffer( _device, _cmdQueueCtx[ D3D12_COMMAND_LIST_TYPE_COPY ], data, size );
-	return std::make_shared<IndexBuffer_DX12>( buffer, size );
-}
+	std::shared_ptr< GPIPipeline_DX12 > pipelineState( new GPIPipeline_DX12() );
+	_pipelineCache.emplace( pipelineHash, pipelineState );
 
-uint32 GPI_DX12::CreatePipelineState()
-{
-	// temp
-	ID3D12RootSignature* rootSignature = CreateRootSignature();
-	ID3D12PipelineState* pipelineState = CreatePipelineState( rootSignature );
-	uint32 hash = reinterpret_cast< uint32 >( rootSignature ) + reinterpret_cast< uint32 >( pipelineState );
+	if( pipelineDesc.pipelineType == PipelineType_Graphics )
+	{
+		ID3DBlob* vertexShader = CreateShader( pipelineDesc.vertexShader );
+		ID3DBlob* pixelShader = CreateShader( pipelineDesc.pixelShader );
 
-	_pipelineStateCache.emplace( hash, std::tuple( rootSignature, pipelineState ) );
+		assert( !_shaderCache.contains( pipelineDesc.vertexShader.hash ) );
+		_shaderCache.emplace( pipelineDesc.vertexShader.hash, vertexShader );
+		_shaderCache.emplace( pipelineDesc.pixelShader.hash, pixelShader );
 
-	return hash;
+		pipelineState->rootSignature = CreateGraphicsRootSignature( _device, pipelineDesc );
+		pipelineState->pipelineState = CreateGraphicsPipelineState( _device, pipelineDesc, pipelineState->rootSignature, vertexShader, pixelShader );
+	}
+	else if( pipelineDesc.pipelineType == PipelineType_Compute )
+	{
+		ID3DBlob* computeShader = CreateShader( pipelineDesc.computeShader );
+
+		assert( !_shaderCache.contains( pipelineDesc.computeShader.hash ) );
+		_shaderCache.emplace( pipelineDesc.computeShader.hash, computeShader );
+
+		pipelineState->rootSignature = CreateComputeRootSignature( _device, pipelineDesc );
+		pipelineState->pipelineState = CreateComputePipelineState( _device, pipelineState->rootSignature, computeShader );
+	}
 }
 
 void GPI_DX12::UpdateConstantBuffer( const ConstantBuffer& constBuffer )
@@ -1034,8 +1147,8 @@ void GPI_DX12::RunCS()
 	if( !rootSignature )
 	{
 		// temp
-		rootSignature = CreateRootSignature1();
-		pipelineState = CreatePipelineState1( rootSignature );
+		//rootSignature = CreateRootSignature1();
+		//pipelineState = CreatePipelineState1( rootSignature );
 	}
 
 	CommandQueueContext& cmdQueueCtx = _cmdQueueCtx[ D3D12_COMMAND_LIST_TYPE_COMPUTE ];
