@@ -25,6 +25,7 @@
     <ClInclude Include="GPIPipeline_DX12.h" />
     <ClInclude Include="GPIShader.h" />
     <ClInclude Include="GPIShader_DX12.h" />
+    <ClInclude Include="LightComponent.h" />
     <ClInclude Include="PrimitiveComponent.h" />
     <ClInclude Include="RawImage.h" />
     <ClInclude Include="SceneViewSystem.h" />
@@ -73,7 +74,7 @@
     <ClCompile Include="GPIResource_DX12.cpp" />
     <ClCompile Include="GPI_DX12.cpp" />
     <ClCompile Include="RenderSystem_PostProcess.cpp" />
-    <ClCompile Include="RenderSystem_StaticMesh.cpp" />
+    <ClCompile Include="RenderSystem_GBuffer.cpp" />
     <ClCompile Include="SceneViewSystem.cpp" />
     <ClCompile Include="Vector.cpp" />
   </ItemGroup>

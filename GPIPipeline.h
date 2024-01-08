@@ -49,5 +49,7 @@ struct GPIPipelineStateDesc
 
 struct IGPIPipeline
 {
-
+	IGPIShader vertexShader;
+	IGPIShader pixelShader;
+	IGPIShader computeShader;
 };

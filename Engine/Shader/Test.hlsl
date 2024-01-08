@@ -54,13 +54,28 @@ VertexShaderOutput VS_main(
     return output;
 }
 
-float4 PS_main (float4 position : SV_POSITION,
-                float3 normal : NORMAL,
-                float2 uv : TEXCOORD) : SV_TARGET
+struct PixelShaderOutput
+{
+    float4 rt0 : SV_TARGET0;
+    float4 rt1 : SV_TARGET1;
+    float4 rt2 : SV_TARGET2;
+    float4 rt3 : SV_TARGET3;
+};
+
+PixelShaderOutput PS_main (
+    float4 position : SV_POSITION,
+    float3 normal : NORMAL,
+    float2 uv : TEXCOORD)
 {
     float4 color = testTex.Sample(smp, uv);
-    return float4(color.rgb, 1);
-    return float4(normal, 1);
+
+    PixelShaderOutput output;
+    output.rt0 = float4(1, color.gb, 1);
+    output.rt1 = float4(normal, 1);
+    output.rt2 = float4(uv, 1, 1);
+    output.rt3 = float4(1, 1, 1, 1);
+
+    return output;
 }
 #elif D3D12_SAMPLE_TEXTURE
 cbuffer PerFrameConstants : register (b0)

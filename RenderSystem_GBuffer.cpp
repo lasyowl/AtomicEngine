@@ -6,7 +6,7 @@
 #include "GPI.h"
 #include "GPIPipeline.h"
 
-void RenderSystem::RenderStaticMesh( std::array<std::unique_ptr<struct IComponentRegistry>, NUM_COMPONENT_MAX>& componentRegistry )
+void RenderSystem::GenerateGBuffers( std::array<std::unique_ptr<struct IComponentRegistry>, NUM_COMPONENT_MAX>& componentRegistry )
 {
 	ComponentRegistry<PrimitiveComponent>* renderCompReg = GetRegistry<PrimitiveComponent>( componentRegistry );
 	if( !renderCompReg )

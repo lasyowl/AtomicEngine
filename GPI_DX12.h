@@ -66,6 +66,7 @@ private:
 
 	// todo : separate for compute shader
 	ID3D12DescriptorHeap* _uavHeap;
+	ID3D12DescriptorHeap* _guavHeap;
 	ID3D12DescriptorHeap* _srvHeap;
 
 	ID3D12Debug* _debugInterface;

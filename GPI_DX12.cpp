@@ -162,7 +162,7 @@ constexpr D3D12_RESOURCE_DESC GetGBufferDesc( uint64 width, uint32 height )
 	bufferDesc.SampleDesc.Count = 1;
 	bufferDesc.SampleDesc.Quality = 0;
 	bufferDesc.Layout = D3D12_TEXTURE_LAYOUT_UNKNOWN;
-	bufferDesc.Flags = D3D12_RESOURCE_FLAG_ALLOW_RENDER_TARGET;
+	bufferDesc.Flags = D3D12_RESOURCE_FLAG_ALLOW_RENDER_TARGET | D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS;
 
 	return bufferDesc;
 }
@@ -568,13 +568,6 @@ void GPI_DX12::Initialize()
 					   L"Failed to create swapchain." );
 	}
 
-	/* Create descriptor heaps */
-	{
-		_rtvHeap = CreateDescriptorHeap( _device, SWAPCHAIN_COUNT + 4, D3D12_DESCRIPTOR_HEAP_TYPE_RTV, D3D12_DESCRIPTOR_HEAP_FLAG_NONE );
-		_dsvHeap = CreateDescriptorHeap( _device, 1, D3D12_DESCRIPTOR_HEAP_TYPE_DSV, D3D12_DESCRIPTOR_HEAP_FLAG_NONE );
-		_rvHeap = CreateDescriptorHeap( _device, 3, D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV, D3D12_DESCRIPTOR_HEAP_FLAG_SHADER_VISIBLE );
-	}
-
 	/* Get constant values */
 	for( uint32 index = 0; index < D3D12_DESCRIPTOR_HEAP_TYPE_NUM_TYPES; ++index )
 	{
@@ -583,6 +576,8 @@ void GPI_DX12::Initialize()
 
 	/* Rendertargets */
 	{
+		_rtvHeap = CreateDescriptorHeap( _device, SWAPCHAIN_COUNT + 4, D3D12_DESCRIPTOR_HEAP_TYPE_RTV, D3D12_DESCRIPTOR_HEAP_FLAG_NONE );
+
 		constexpr D3D12_RENDER_TARGET_VIEW_DESC rtvDesc = GetRTVDesc();
 
 		D3D12_CPU_DESCRIPTOR_HANDLE rtvDescHandle = _rtvHeap->GetCPUDescriptorHandleForHeapStart();
@@ -609,8 +604,9 @@ void GPI_DX12::Initialize()
 
 	/* Constant buffers */
 	{
-		float data[ 64 ] = { 1, 1, 1, 1 };
+		_rvHeap = CreateDescriptorHeap( _device, 1 + 4/*number of GBuffers*/, D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV, D3D12_DESCRIPTOR_HEAP_FLAG_SHADER_VISIBLE);
 
+		float data[ 64 ] = { 1, 1, 1, 1 };
 		_constantBuffer = CreateBuffer( _device, _cmdQueueCtx[ D3D12_COMMAND_LIST_TYPE_COPY ], data, 256 );
 
 		D3D12_CONSTANT_BUFFER_VIEW_DESC cbDesc{};
@@ -622,24 +618,41 @@ void GPI_DX12::Initialize()
 
 		rvDescHandle.ptr += descHeapSize[ D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV ];
 
-		/* Create shader resource buffers, !!temp!! */
 		{
-			rawImage = AssetLoader::LoadRawImage( "Resource/test.png" );
-			textureBuffer = CreateTextureBuffer( _device, rawImage->width, rawImage->height );
-			UpdateTexture( _device, _cmdQueueCtx[ D3D12_COMMAND_LIST_TYPE_DIRECT ], textureBuffer, rawImage->data.data(), rawImage->width, rawImage->height);
-
 			D3D12_SHADER_RESOURCE_VIEW_DESC srvDesc{};
 			srvDesc.Format = DXGI_FORMAT_B8G8R8A8_UNORM_SRGB;
 			srvDesc.ViewDimension = D3D12_SRV_DIMENSION_TEXTURE2D;
 			srvDesc.Shader4ComponentMapping = D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING;
 			srvDesc.Texture2D.MipLevels = 1;
 
-			_device->CreateShaderResourceView( textureBuffer, &srvDesc, rvDescHandle );
+			for( ID3D12Resource*& gBuffer : _gBuffers )
+			{
+				_device->CreateShaderResourceView( gBuffer, &srvDesc, rvDescHandle );
+
+				rvDescHandle.ptr += descHeapSize[ D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV ];
+			}
 		}
+
+		///* Create shader resource buffers, !!temp!! */
+		//{
+		//	rawImage = AssetLoader::LoadRawImage( "Resource/test.png" );
+		//	textureBuffer = CreateTextureBuffer( _device, rawImage->width, rawImage->height );
+		//	UpdateTexture( _device, _cmdQueueCtx[ D3D12_COMMAND_LIST_TYPE_DIRECT ], textureBuffer, rawImage->data.data(), rawImage->width, rawImage->height);
+
+		//	D3D12_SHADER_RESOURCE_VIEW_DESC srvDesc{};
+		//	srvDesc.Format = DXGI_FORMAT_B8G8R8A8_UNORM_SRGB;
+		//	srvDesc.ViewDimension = D3D12_SRV_DIMENSION_TEXTURE2D;
+		//	srvDesc.Shader4ComponentMapping = D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING;
+		//	srvDesc.Texture2D.MipLevels = 1;
+
+		//	_device->CreateShaderResourceView( textureBuffer, &srvDesc, rvDescHandle );
+		//}
 	}
 
 	/* Create depth buffer */
 	{
+		_dsvHeap = CreateDescriptorHeap( _device, 1, D3D12_DESCRIPTOR_HEAP_TYPE_DSV, D3D12_DESCRIPTOR_HEAP_FLAG_NONE );
+
 		constexpr D3D12_DEPTH_STENCIL_VIEW_DESC dsvDesc = GetDSVDesc();
 
 		D3D12_CPU_DESCRIPTOR_HANDLE dsvDescHandle = _dsvHeap->GetCPUDescriptorHandleForHeapStart();
@@ -647,6 +660,29 @@ void GPI_DX12::Initialize()
 		_depthStencilBuffer = CreateDepthStencilBuffer( _device, 1920, 1080 );
 
 		_device->CreateDepthStencilView( _depthStencilBuffer, &dsvDesc, dsvDescHandle );
+	}
+
+	/* Unordered access view */
+	{
+		_uavHeap = CreateDescriptorHeap( _device, 4, D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV, D3D12_DESCRIPTOR_HEAP_FLAG_NONE );
+
+		D3D12_CPU_DESCRIPTOR_HANDLE uavDescHandle = _uavHeap->GetCPUDescriptorHandleForHeapStart();
+
+		D3D12_UNORDERED_ACCESS_VIEW_DESC uavDesc{};
+		uavDesc.Format = DXGI_FORMAT_R32_UINT;
+		uavDesc.ViewDimension = D3D12_UAV_DIMENSION_TEXTURE2D;
+		uavDesc.Buffer.FirstElement = 0;
+		uavDesc.Buffer.CounterOffsetInBytes = 0;
+		uavDesc.Buffer.NumElements = 1920 * 1080;
+		uavDesc.Buffer.StructureByteStride = 0;
+		uavDesc.Buffer.Flags = D3D12_BUFFER_UAV_FLAG_NONE;
+
+		for( ID3D12Resource*& gBuffer : _gBuffers )
+		{
+			_device->CreateUnorderedAccessView( gBuffer, nullptr, &uavDesc, uavDescHandle );
+
+			uavDescHandle.ptr += descHeapSize[ D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV ];
+		}
 	}
 }
 
@@ -697,6 +733,21 @@ void GPI_DX12::BeginFrame()
 
 	cmdList->ClearDepthStencilView( dsvHandle, D3D12_CLEAR_FLAG_DEPTH, 1.0f, 0, 0, nullptr );
 	cmdList->ClearRenderTargetView( rtvHandle, clearColor, 0, nullptr );
+
+	uint32 clearValue[ 4 ]{};
+	D3D12_GPU_DESCRIPTOR_HANDLE gBufferGPUHandle = _uavHeap->GetGPUDescriptorHandleForHeapStart();
+	D3D12_CPU_DESCRIPTOR_HANDLE gBufferCPUHandle = _uavHeap->GetCPUDescriptorHandleForHeapStart();
+	for( uint32 index = 0; index < 4; ++index )
+	{
+		TransitionResource( cmdList, _gBuffers[ index ], D3D12_RESOURCE_STATE_RENDER_TARGET, D3D12_RESOURCE_STATE_UNORDERED_ACCESS );
+
+		cmdList->ClearUnorderedAccessViewUint( gBufferGPUHandle, gBufferCPUHandle, _gBuffers[ index ], clearValue, 0, nullptr );
+
+		TransitionResource( cmdList, _gBuffers[ index ], D3D12_RESOURCE_STATE_UNORDERED_ACCESS, D3D12_RESOURCE_STATE_RENDER_TARGET );
+
+		gBufferGPUHandle.ptr += descHeapSize[ D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV ];
+		gBufferCPUHandle.ptr += descHeapSize[ D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV ];
+	}
 
 	CHECK_HRESULT( cmdList->Close(), L"Failed to close command list." );
 
@@ -788,9 +839,7 @@ void GPI_DX12::SetPipelineState( const GPIPipelineStateDesc& desc, ID3D12Pipelin
 	cmdList->RSSetScissorRects( 1, &scissorRect );
 
 	cmdList->SetDescriptorHeaps( 1, &_rvHeap );
-	//cmdList->SetDescriptorHeaps( 2, descHeap );
 	cmdList->SetGraphicsRootDescriptorTable( 0, _rvHeap->GetGPUDescriptorHandleForHeapStart() );
-	//cmdList->SetGraphicsRootDescriptorTable( 1, _srvHeap->GetGPUDescriptorHandleForHeapStart() );
 }
 
 void GPI_DX12::SetPipelineState( const GPIPipelineStateDesc& pipelineDesc )
@@ -899,7 +948,7 @@ ID3D12RootSignature* CreateGraphicsRootSignature( ID3D12Device* device, const GP
 	descRange[ 0 ].NumDescriptors = 1;
 	descRange[ 0 ].BaseShaderRegister = 0;
 	descRange[ 1 ].RangeType = D3D12_DESCRIPTOR_RANGE_TYPE_SRV;
-	descRange[ 1 ].NumDescriptors = 1;
+	descRange[ 1 ].NumDescriptors = 4;
 	descRange[ 1 ].BaseShaderRegister = 0;
 	descRange[ 1 ].OffsetInDescriptorsFromTableStart = 1;
 
@@ -1121,14 +1170,14 @@ void GPI_DX12::RunCS()
 	static ID3D12Resource* buffer = nullptr;
 	if( !buffer )
 	{
-		_uavHeap = CreateDescriptorHeap( _device, 1, D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV, D3D12_DESCRIPTOR_HEAP_FLAG_SHADER_VISIBLE );
+		_guavHeap = CreateDescriptorHeap( _device, 4, D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV, D3D12_DESCRIPTOR_HEAP_FLAG_SHADER_VISIBLE );
 
 		int32 data[ 64 ] = {};
 		buffer = CreateBuffer( _device, _cmdQueueCtx[ D3D12_COMMAND_LIST_TYPE_COPY ], data, 256 );
 
 		TransitionResource( *_cmdQueueCtx[ D3D12_COMMAND_LIST_TYPE_COMPUTE ].cmdListIter, buffer, D3D12_RESOURCE_STATE_COMMON, D3D12_RESOURCE_STATE_UNORDERED_ACCESS );
 
-		D3D12_CPU_DESCRIPTOR_HANDLE uavDescHandle = _uavHeap->GetCPUDescriptorHandleForHeapStart();
+		D3D12_CPU_DESCRIPTOR_HANDLE uavDescHandle = _guavHeap->GetCPUDescriptorHandleForHeapStart();
 
 		D3D12_UNORDERED_ACCESS_VIEW_DESC uavDesc{};
 		uavDesc.Format = DXGI_FORMAT_R32_UINT;
@@ -1157,8 +1206,8 @@ void GPI_DX12::RunCS()
 	cmdList->SetPipelineState( pipelineState );
 	cmdList->SetComputeRootSignature( rootSignature );
 
-	cmdList->SetDescriptorHeaps( 1, &_uavHeap );
-	cmdList->SetComputeRootDescriptorTable( 0, _uavHeap->GetGPUDescriptorHandleForHeapStart() );
+	cmdList->SetDescriptorHeaps( 1, &_guavHeap );
+	cmdList->SetComputeRootDescriptorTable( 0, _guavHeap->GetGPUDescriptorHandleForHeapStart() );
 
 	cmdList->Dispatch( 1, 1, 1 );
 
