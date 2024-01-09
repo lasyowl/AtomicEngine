@@ -1,13 +1,12 @@
-
 cbuffer PerFrameConstants : register (b0)
 {
     float4x4 viewProjection;
 }
 
-Texture2D GBuffer0 : register (t0);
-Texture2D GBuffer1 : register (t1);
-Texture2D GBuffer2 : register (t2);
-Texture2D GBuffer3 : register (t3);
+Texture2D gDiffuse : register (t0);
+Texture2D gNormal : register (t1);
+Texture2D gBuffer2 : register (t2);
+Texture2D gDepth : register (t3);
 SamplerState smp { AddressU = Wrap; AddressV = Wrap; };
 
 struct VertexShaderOutput
@@ -32,7 +31,14 @@ float4 PS_main (
     float4 position : SV_POSITION,
     float2 uv : TEXCOORD) : SV_TARGET
 {
-    float4 color = GBuffer1.Sample(smp, uv);
+    if(gNormal.Sample(smp, uv).r == 0) discard;
 
-    return float4(color.rgb, 1);
+    return float4(gDepth.Sample(smp, uv).xxx, 1);
+    
+    float3 screenNormal = float3(0, 0, -1);
+    float3 pixelNormal = 2.0f * gNormal.Sample(smp, uv).xyz - 1.0f;
+    float intensity = dot(screenNormal, pixelNormal);
+    float3 diffuse = intensity * float3(1, 1, 1);
+
+    return float4(diffuse, 1);
 }

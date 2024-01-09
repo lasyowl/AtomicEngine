@@ -120,6 +120,9 @@
     <ClInclude Include="LightComponent.h">
       <Filter>헤더 파일</Filter>
     </ClInclude>
+    <ClInclude Include="SampleMesh.h">
+      <Filter>헤더 파일</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="Engine\Main.cpp">
@@ -164,7 +167,7 @@
     <ClCompile Include="RenderSystem_PostProcess.cpp">
       <Filter>소스 파일</Filter>
     </ClCompile>
-    <ClCompile Include="RenderSystem_GBuffer.cpp">
+    <ClCompile Include="RenderSystem_GeometryPass.cpp">
       <Filter>소스 파일</Filter>
     </ClCompile>
     <ClCompile Include="ECS_System.cpp">

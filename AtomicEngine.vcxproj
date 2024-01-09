@@ -28,6 +28,7 @@
     <ClInclude Include="LightComponent.h" />
     <ClInclude Include="PrimitiveComponent.h" />
     <ClInclude Include="RawImage.h" />
+    <ClInclude Include="SampleMesh.h" />
     <ClInclude Include="SceneViewSystem.h" />
     <ClInclude Include="GPIConstantBuffer.h" />
     <ClInclude Include="DataType.h" />
@@ -74,7 +75,7 @@
     <ClCompile Include="GPIResource_DX12.cpp" />
     <ClCompile Include="GPI_DX12.cpp" />
     <ClCompile Include="RenderSystem_PostProcess.cpp" />
-    <ClCompile Include="RenderSystem_GBuffer.cpp" />
+    <ClCompile Include="RenderSystem_GeometryPass.cpp" />
     <ClCompile Include="SceneViewSystem.cpp" />
     <ClCompile Include="Vector.cpp" />
   </ItemGroup>

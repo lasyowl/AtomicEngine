@@ -6,7 +6,7 @@
 #include "GPI.h"
 #include "GPIPipeline.h"
 
-void RenderSystem::GenerateGBuffers( std::array<std::unique_ptr<struct IComponentRegistry>, NUM_COMPONENT_MAX>& componentRegistry )
+void RenderSystem::GeometryPass( std::array<std::unique_ptr<struct IComponentRegistry>, NUM_COMPONENT_MAX>& componentRegistry )
 {
 	ComponentRegistry<PrimitiveComponent>* renderCompReg = GetRegistry<PrimitiveComponent>( componentRegistry );
 	if( !renderCompReg )
@@ -18,14 +18,20 @@ void RenderSystem::GenerateGBuffers( std::array<std::unique_ptr<struct IComponen
 	if( pipelineDesc.hash == 0 )
 	{
 		pipelineDesc.hash = 1;
-		pipelineDesc.bRenderSwapChainBuffer = false;
-		pipelineDesc.numRenderTargets = 4;
 		pipelineDesc.pipelineType = PipelineType_Graphics;
+		pipelineDesc.bRenderSwapChainBuffer = false;
+		pipelineDesc.bWriteDepth = true;
+		pipelineDesc.numRenderTargets = 4;
+		pipelineDesc.renderTargetDesc.resize( pipelineDesc.numRenderTargets );
+		pipelineDesc.renderTargetDesc[ 0 ].format = GPIBufferFormat_B8G8R8A8_SRGB;
+		pipelineDesc.renderTargetDesc[ 1 ].format = GPIBufferFormat_B8G8R8A8_SRGB;
+		pipelineDesc.renderTargetDesc[ 2 ].format = GPIBufferFormat_B8G8R8A8_SRGB;
+		pipelineDesc.renderTargetDesc[ 3 ].format = GPIBufferFormat_B8G8R8A8_SRGB;
 
 		pipelineDesc.inputDesc.resize( 3 );
-		pipelineDesc.inputDesc[ 0 ] = { "POSITION", GPIDataFormat_R32G32B32_Float, GPIInputClass_PerVertex, 0 };
-		pipelineDesc.inputDesc[ 1 ] = { "NORMAL", GPIDataFormat_R32G32B32_Float, GPIInputClass_PerVertex, 1 };
-		pipelineDesc.inputDesc[ 2 ] = { "TEXCOORD", GPIDataFormat_R32G32_Float, GPIInputClass_PerVertex, 2 };
+		pipelineDesc.inputDesc[ 0 ] = { "POSITION", GPIBufferFormat_R32G32B32_Float, GPIInputClass_PerVertex, 0 };
+		pipelineDesc.inputDesc[ 1 ] = { "NORMAL", GPIBufferFormat_R32G32B32_Float, GPIInputClass_PerVertex, 1 };
+		pipelineDesc.inputDesc[ 2 ] = { "TEXCOORD", GPIBufferFormat_R32G32_Float, GPIInputClass_PerVertex, 2 };
 
 		pipelineDesc.vertexShader.hash = 1;
 		pipelineDesc.vertexShader.type = ShaderType_VertexShader;

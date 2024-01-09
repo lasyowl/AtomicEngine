@@ -9,12 +9,13 @@ enum EGPIPipelineType
 	PipelineType_Compute,
 };
 
-enum EGPIDataFormat
+enum EGPIBufferFormat
 {
-	GPIDataFormat_Unknown,
-	GPIDataFormat_B8G8R8A8,
-	GPIDataFormat_R32G32_Float,
-	GPIDataFormat_R32G32B32_Float,
+	GPIBufferFormat_Unknown,
+	GPIBufferFormat_B8G8R8A8,
+	GPIBufferFormat_B8G8R8A8_SRGB,
+	GPIBufferFormat_R32G32_Float,
+	GPIBufferFormat_R32G32B32_Float,
 };
 
 enum EGPIInputClass
@@ -26,19 +27,28 @@ enum EGPIInputClass
 struct GPIPipelineInputDesc
 {
 	std::string semanticName;
-	EGPIDataFormat format;
+	EGPIBufferFormat format;
 	EGPIInputClass inputClass;
 	uint32 inputSlot;
+};
+
+struct GPIRenderTargetDesc
+{
+	EGPIBufferFormat format;
 };
 
 struct GPIPipelineStateDesc
 {
 	uint32 hash; // temp
 
-	bool bRenderSwapChainBuffer;
-	uint32 numRenderTargets;
-
 	EGPIPipelineType pipelineType;
+
+	bool bRenderSwapChainBuffer;
+
+	bool bWriteDepth;
+
+	uint32 numRenderTargets;
+	std::vector<GPIRenderTargetDesc> renderTargetDesc;
 
 	std::vector<GPIPipelineInputDesc> inputDesc;
 

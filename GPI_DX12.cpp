@@ -51,13 +51,14 @@ const char* ShaderTypeToString( EShaderType type )
 	return nullptr;
 }
 
-DXGI_FORMAT TranslateDataFormat( const EGPIDataFormat dataFormat )
+DXGI_FORMAT TranslateBufferFormat( const EGPIBufferFormat bufferFormat )
 {
-	switch( dataFormat )
+	switch( bufferFormat )
 	{
-		case GPIDataFormat_B8G8R8A8:		return DXGI_FORMAT_B8G8R8A8_UNORM;
-		case GPIDataFormat_R32G32_Float:	return DXGI_FORMAT_R32G32_FLOAT;
-		case GPIDataFormat_R32G32B32_Float:	return DXGI_FORMAT_R32G32B32_FLOAT;
+		case GPIBufferFormat_B8G8R8A8:			return DXGI_FORMAT_B8G8R8A8_UNORM;
+		case GPIBufferFormat_B8G8R8A8_SRGB:		return DXGI_FORMAT_B8G8R8A8_UNORM_SRGB;
+		case GPIBufferFormat_R32G32_Float:		return DXGI_FORMAT_R32G32_FLOAT;
+		case GPIBufferFormat_R32G32B32_Float:	return DXGI_FORMAT_R32G32B32_FLOAT;
 	}
 
 	return DXGI_FORMAT_UNKNOWN;
@@ -69,7 +70,7 @@ D3D12_INPUT_ELEMENT_DESC TranslateInputDesc( const GPIPipelineInputDesc& inputDe
 	{
 		inputDesc.semanticName.c_str(),
 		0,
-		TranslateDataFormat( inputDesc.format ),
+		TranslateBufferFormat( inputDesc.format ),
 		inputDesc.inputSlot,
 		0,
 		inputDesc.inputClass == GPIInputClass_PerInstance ? D3D12_INPUT_CLASSIFICATION_PER_INSTANCE_DATA : D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA,
@@ -104,6 +105,22 @@ void TransitionResource( ID3D12GraphicsCommandList* cmdList, ID3D12Resource* res
 	barrier.Transition.Subresource = D3D12_RESOURCE_BARRIER_ALL_SUBRESOURCES;
 
 	cmdList->ResourceBarrier( 1, &barrier );
+}
+
+void WaitForFence( CommandQueueContext& cmdQueueCtx )
+{
+	ID3D12Fence* fence = cmdQueueCtx.fence;
+	HANDLE fenceEventHandle = cmdQueueCtx.fenceEventHandle;
+	uint64& fenceValue = cmdQueueCtx.fenceValue;
+
+	CHECK_HRESULT( cmdQueueCtx.cmdQueue->Signal( fence, ++fenceValue ), L"Failed to signal command queue." );
+
+	uint64 completeValue = fence->GetCompletedValue();
+	if( completeValue != fenceValue )
+	{
+		fence->SetEventOnCompletion( fenceValue, fenceEventHandle );
+		WaitForSingleObject( fenceEventHandle, INFINITE );
+	}
 }
 
 /**
@@ -241,12 +258,10 @@ void CopyMemoryToBuffer( ID3D12Resource* buffer, void* data, uint64 size )
 	buffer->Unmap( 0, nullptr );
 }
 
-ID3D12Resource* CreateBuffer( ID3D12Device* device, CommandQueueContext& cmdQueueContext, void* data, uint64 size )
+ID3D12Resource* CreateBuffer( ID3D12Device* device, CommandQueueContext& cmdQueueCtx, void* data, uint64 size )
 {
-	ID3D12GraphicsCommandList* cmdList = *cmdQueueContext.cmdListIter;
-	ID3D12CommandAllocator* cmdAllocator = cmdQueueContext.allocator;
-	ID3D12Fence* fence = cmdQueueContext.fence;
-	HANDLE fenceEventHandle = cmdQueueContext.fenceEventHandle;
+	ID3D12GraphicsCommandList* cmdList = *cmdQueueCtx.cmdListIter;
+	ID3D12CommandAllocator* cmdAllocator = cmdQueueCtx.allocator;
 
 	D3D12_RESOURCE_DESC uploadBufferDesc = GetVertexBufferDesc( D3D12_RESOURCE_FLAG_NONE, size );
 	D3D12_RESOURCE_DESC outbufferDesc = GetVertexBufferDesc( D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS, size );
@@ -292,14 +307,9 @@ ID3D12Resource* CreateBuffer( ID3D12Device* device, CommandQueueContext& cmdQueu
 	CHECK_HRESULT( cmdList->Close(), L"Failed to close command list." );
 
 	ID3D12CommandList* cmdListInterface = cmdList;
-	cmdQueueContext.cmdQueue->ExecuteCommandLists( 1, &cmdListInterface );
-	CHECK_HRESULT( cmdQueueContext.cmdQueue->Signal( fence, 1 ), L"Failed to signal command queue." );
+	cmdQueueCtx.cmdQueue->ExecuteCommandLists( 1, &cmdListInterface );
 
-	if( fence->GetCompletedValue() != 1 )
-	{
-		fence->SetEventOnCompletion( 1, fenceEventHandle );
-		WaitForSingleObject( fenceEventHandle, INFINITE );
-	}
+	WaitForFence( cmdQueueCtx );
 
 	return outBuffer;
 }
@@ -367,12 +377,10 @@ ID3D12Resource* CreateTextureBuffer( ID3D12Device* device, uint32 width, uint32 
 	return outBuffer;
 }
 
-void UpdateBuffer( ID3D12Device* device, CommandQueueContext& cmdQueueContext, ID3D12Resource* outBuffer, void* data, uint64 size )
+void UpdateBuffer( ID3D12Device* device, CommandQueueContext& cmdQueueCtx, ID3D12Resource* outBuffer, void* data, uint64 size )
 {
-	ID3D12GraphicsCommandList* cmdList = *cmdQueueContext.cmdListIter;
-	ID3D12CommandAllocator* cmdAllocator = cmdQueueContext.allocator;
-	ID3D12Fence* fence = cmdQueueContext.fence;
-	HANDLE fenceEventHandle = cmdQueueContext.fenceEventHandle;
+	ID3D12GraphicsCommandList* cmdList = *cmdQueueCtx.cmdListIter;
+	ID3D12CommandAllocator* cmdAllocator = cmdQueueCtx.allocator;
 
 	D3D12_RESOURCE_DESC resourceDesc = GetVertexBufferDesc( D3D12_RESOURCE_FLAG_NONE, size );
 	D3D12_HEAP_PROPERTIES uploadHeapProp = HeapProperties( D3D12_HEAP_TYPE_UPLOAD );
@@ -407,22 +415,17 @@ void UpdateBuffer( ID3D12Device* device, CommandQueueContext& cmdQueueContext, I
 	CHECK_HRESULT( cmdList->Close(), L"Failed to close command list." );
 
 	ID3D12CommandList* cmdListInterface = cmdList;
-	cmdQueueContext.cmdQueue->ExecuteCommandLists( 1, &cmdListInterface );
-	CHECK_HRESULT( cmdQueueContext.cmdQueue->Signal( fence, 1 ), L"Failed to signal command queue." );
+	cmdQueueCtx.cmdQueue->ExecuteCommandLists( 1, &cmdListInterface );
 
-	if( fence->GetCompletedValue() != 1 )
-	{
-		fence->SetEventOnCompletion( 1, fenceEventHandle );
-		WaitForSingleObject( fenceEventHandle, INFINITE );
-	}
+	WaitForFence( cmdQueueCtx );
+
+	uploadBuffer->Release();
 }
 
-void UpdateTexture( ID3D12Device* device, CommandQueueContext& cmdQueueContext, ID3D12Resource* outBuffer, void* data, uint32 width, uint32 height )
+void UpdateTexture( ID3D12Device* device, CommandQueueContext& cmdQueueCtx, ID3D12Resource* outBuffer, void* data, uint32 width, uint32 height )
 {
-	ID3D12GraphicsCommandList* cmdList = *cmdQueueContext.cmdListIter;
-	ID3D12CommandAllocator* cmdAllocator = cmdQueueContext.allocator;
-	ID3D12Fence* fence = cmdQueueContext.fence;
-	HANDLE fenceEventHandle = cmdQueueContext.fenceEventHandle;
+	ID3D12GraphicsCommandList* cmdList = *cmdQueueCtx.cmdListIter;
+	ID3D12CommandAllocator* cmdAllocator = cmdQueueCtx.allocator;
 
 	D3D12_RESOURCE_DESC resourceDesc = GetVertexBufferDesc( D3D12_RESOURCE_FLAG_NONE, width * height * sizeof( uint32 ) );// outBuffer->GetDesc();
 	D3D12_HEAP_PROPERTIES heapProp = HeapProperties( D3D12_HEAP_TYPE_UPLOAD );
@@ -469,14 +472,11 @@ void UpdateTexture( ID3D12Device* device, CommandQueueContext& cmdQueueContext, 
 	CHECK_HRESULT( cmdList->Close(), L"Failed to close command list." );
 
 	ID3D12CommandList* cmdListInterface = cmdList;
-	cmdQueueContext.cmdQueue->ExecuteCommandLists( 1, &cmdListInterface );
-	CHECK_HRESULT( cmdQueueContext.cmdQueue->Signal( fence, 1 ), L"Failed to signal command queue." );
+	cmdQueueCtx.cmdQueue->ExecuteCommandLists( 1, &cmdListInterface );
 	
-	if( fence->GetCompletedValue() != 1 )
-	{
-		fence->SetEventOnCompletion( 1, fenceEventHandle );
-		WaitForSingleObject( fenceEventHandle, INFINITE );
-	}
+	WaitForFence( cmdQueueCtx );
+
+	uploadBuffer->Release();
 }
 
 ///////////////////////////////////////
@@ -574,6 +574,19 @@ void GPI_DX12::Initialize()
 		descHeapSize[ index ] = _device->GetDescriptorHandleIncrementSize( ( D3D12_DESCRIPTOR_HEAP_TYPE )index );
 	}
 
+	/* Create depth buffer */
+	{
+		_dsvHeap = CreateDescriptorHeap( _device, 1, D3D12_DESCRIPTOR_HEAP_TYPE_DSV, D3D12_DESCRIPTOR_HEAP_FLAG_NONE );
+
+		constexpr D3D12_DEPTH_STENCIL_VIEW_DESC dsvDesc = GetDSVDesc();
+
+		D3D12_CPU_DESCRIPTOR_HANDLE dsvDescHandle = _dsvHeap->GetCPUDescriptorHandleForHeapStart();
+
+		_depthStencilBuffer = CreateDepthStencilBuffer( _device, 1920, 1080 );
+
+		_device->CreateDepthStencilView( _depthStencilBuffer, &dsvDesc, dsvDescHandle );
+	}
+
 	/* Rendertargets */
 	{
 		_rtvHeap = CreateDescriptorHeap( _device, SWAPCHAIN_COUNT + 4, D3D12_DESCRIPTOR_HEAP_TYPE_RTV, D3D12_DESCRIPTOR_HEAP_FLAG_NONE );
@@ -619,18 +632,28 @@ void GPI_DX12::Initialize()
 		rvDescHandle.ptr += descHeapSize[ D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV ];
 
 		{
-			D3D12_SHADER_RESOURCE_VIEW_DESC srvDesc{};
-			srvDesc.Format = DXGI_FORMAT_B8G8R8A8_UNORM_SRGB;
-			srvDesc.ViewDimension = D3D12_SRV_DIMENSION_TEXTURE2D;
-			srvDesc.Shader4ComponentMapping = D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING;
-			srvDesc.Texture2D.MipLevels = 1;
-
-			for( ID3D12Resource*& gBuffer : _gBuffers )
+			for( uint32 index = 0; index < 3; ++index )
 			{
+				ID3D12Resource*& gBuffer = _gBuffers[ index ];
+
+				D3D12_SHADER_RESOURCE_VIEW_DESC srvDesc{};
+				srvDesc.Format = DXGI_FORMAT_B8G8R8A8_UNORM_SRGB;
+				srvDesc.ViewDimension = D3D12_SRV_DIMENSION_TEXTURE2D;
+				srvDesc.Shader4ComponentMapping = D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING;
+				srvDesc.Texture2D.MipLevels = 1;
+
 				_device->CreateShaderResourceView( gBuffer, &srvDesc, rvDescHandle );
 
 				rvDescHandle.ptr += descHeapSize[ D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV ];
 			}
+
+			D3D12_SHADER_RESOURCE_VIEW_DESC srvDesc{};
+			srvDesc.Format = DXGI_FORMAT_R32_FLOAT;
+			srvDesc.ViewDimension = D3D12_SRV_DIMENSION_TEXTURE2D;
+			srvDesc.Shader4ComponentMapping = D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING;
+			srvDesc.Texture2D.MipLevels = 1;
+
+			_device->CreateShaderResourceView( _depthStencilBuffer, &srvDesc, rvDescHandle );
 		}
 
 		///* Create shader resource buffers, !!temp!! */
@@ -647,19 +670,6 @@ void GPI_DX12::Initialize()
 
 		//	_device->CreateShaderResourceView( textureBuffer, &srvDesc, rvDescHandle );
 		//}
-	}
-
-	/* Create depth buffer */
-	{
-		_dsvHeap = CreateDescriptorHeap( _device, 1, D3D12_DESCRIPTOR_HEAP_TYPE_DSV, D3D12_DESCRIPTOR_HEAP_FLAG_NONE );
-
-		constexpr D3D12_DEPTH_STENCIL_VIEW_DESC dsvDesc = GetDSVDesc();
-
-		D3D12_CPU_DESCRIPTOR_HANDLE dsvDescHandle = _dsvHeap->GetCPUDescriptorHandleForHeapStart();
-
-		_depthStencilBuffer = CreateDepthStencilBuffer( _device, 1920, 1080 );
-
-		_device->CreateDepthStencilView( _depthStencilBuffer, &dsvDesc, dsvDescHandle );
 	}
 
 	/* Unordered access view */
@@ -691,17 +701,6 @@ void GPI_DX12::BeginFrame()
 	CommandQueueContext& cmdQueueCtx = _cmdQueueCtx[ D3D12_COMMAND_LIST_TYPE_DIRECT ];
 	ID3D12CommandAllocator* cmdAllocator = cmdQueueCtx.allocator;
 	ID3D12GraphicsCommandList* cmdList = *cmdQueueCtx.cmdListIter;
-	ID3D12CommandQueue* cmdQueue = cmdQueueCtx.cmdQueue;
-	ID3D12Fence* fence = cmdQueueCtx.fence;
-	uint64& fenceValue = cmdQueueCtx.fenceValue;
-	HANDLE fenceEventHandle = cmdQueueCtx.fenceEventHandle;
-
-	if( fence->GetCompletedValue() < fenceValue )
-	{
-		CHECK_HRESULT( fence->SetEventOnCompletion( fenceValue, fenceEventHandle ),
-					   L"Failed to set fence." );
-		WaitForSingleObject( fenceEventHandle, INFINITE );
-	}
 
 	CHECK_HRESULT( cmdAllocator->Reset(), L"Failed to reset command allocator." );
 	CHECK_HRESULT( cmdList->Reset( cmdAllocator, nullptr ), L"Failed to reset command list." );
@@ -752,9 +751,9 @@ void GPI_DX12::BeginFrame()
 	CHECK_HRESULT( cmdList->Close(), L"Failed to close command list." );
 
 	ID3D12CommandList* cmdListInterface = cmdList;
-	cmdQueue->ExecuteCommandLists( 1, &cmdListInterface );
+	cmdQueueCtx.cmdQueue->ExecuteCommandLists( 1, &cmdListInterface );
 
-	cmdQueue->Signal( fence, ++fenceValue );
+	WaitForFence( cmdQueueCtx );
 }
 
 void GPI_DX12::EndFrame()
@@ -762,17 +761,6 @@ void GPI_DX12::EndFrame()
 	CommandQueueContext& cmdQueueCtx = _cmdQueueCtx[ D3D12_COMMAND_LIST_TYPE_DIRECT ];
 	ID3D12CommandAllocator* cmdAllocator = cmdQueueCtx.allocator;
 	ID3D12GraphicsCommandList* cmdList = *cmdQueueCtx.cmdListIter;
-	ID3D12CommandQueue* cmdQueue = cmdQueueCtx.cmdQueue;
-	ID3D12Fence* fence = cmdQueueCtx.fence;
-	uint64& fenceValue = cmdQueueCtx.fenceValue;
-	HANDLE fenceEventHandle = cmdQueueCtx.fenceEventHandle;
-
-	if( fence->GetCompletedValue() < fenceValue )
-	{
-		CHECK_HRESULT( fence->SetEventOnCompletion( fenceValue, fenceEventHandle ),
-					   L"Failed to set fence." );
-		WaitForSingleObject( fenceEventHandle, INFINITE );
-	}
 
 	CHECK_HRESULT( cmdAllocator->Reset(), L"Failed to reset command allocator." );
 	CHECK_HRESULT( cmdList->Reset( cmdAllocator, nullptr ), L"Failed to reset command list." );
@@ -790,11 +778,11 @@ void GPI_DX12::EndFrame()
 	CHECK_HRESULT( cmdList->Close(), L"Failed to close command list." );
 	
 	ID3D12CommandList* cmdListInterface = cmdList;
-	cmdQueue->ExecuteCommandLists( 1, &cmdListInterface );
+	cmdQueueCtx.cmdQueue->ExecuteCommandLists( 1, &cmdListInterface );
 
 	CHECK_HRESULT( _swapChain->Present( 1, 0 ), L"Failed to present swapchain." );
 
-	CHECK_HRESULT( cmdQueue->Signal( fence, ++fenceValue ), L"Failed to signal command queue." );
+	WaitForFence( cmdQueueCtx );
 
 	_swapChainIndex = ( _swapChainIndex + 1 ) % SWAPCHAIN_COUNT;
 
@@ -809,16 +797,6 @@ void GPI_DX12::SetPipelineState( const GPIPipelineStateDesc& desc, ID3D12Pipelin
 	CommandQueueContext& cmdQueueCtx = _cmdQueueCtx[ D3D12_COMMAND_LIST_TYPE_DIRECT ];
 	ID3D12CommandAllocator* cmdAllocator = cmdQueueCtx.allocator;
 	ID3D12GraphicsCommandList* cmdList = *cmdQueueCtx.cmdListIter;
-	ID3D12Fence* fence = cmdQueueCtx.fence;
-	uint64& fenceValue = cmdQueueCtx.fenceValue;
-	HANDLE fenceEventHandle = cmdQueueCtx.fenceEventHandle;
-
-	if( fence->GetCompletedValue() < fenceValue )
-	{
-		CHECK_HRESULT( fence->SetEventOnCompletion( fenceValue, fenceEventHandle ),
-					   L"Failed to set fence." );
-		WaitForSingleObject( fenceEventHandle, INFINITE );
-	}
 
 	CHECK_HRESULT( cmdAllocator->Reset(), L"Failed to reset allocator." );
 	CHECK_HRESULT( cmdList->Reset( cmdAllocator, nullptr ), L"Failed to reset command list." );
@@ -890,16 +868,13 @@ void GPI_DX12::FlushPipelineState()
 {
 	CommandQueueContext& cmdQueueCtx = _cmdQueueCtx[ D3D12_COMMAND_LIST_TYPE_DIRECT ];
 	ID3D12GraphicsCommandList* cmdList = *cmdQueueCtx.cmdListIter;
-	ID3D12CommandQueue* cmdQueue = cmdQueueCtx.cmdQueue;
-	ID3D12Fence* fence = cmdQueueCtx.fence;
-	uint64& fenceValue = cmdQueueCtx.fenceValue;
 
 	CHECK_HRESULT( cmdList->Close(), L"Failed to close command list." );
 
 	ID3D12CommandList* cmdListInterface = cmdList;
-	cmdQueue->ExecuteCommandLists( 1, &cmdListInterface );
+	cmdQueueCtx.cmdQueue->ExecuteCommandLists( 1, &cmdListInterface );
 
-	CHECK_HRESULT( cmdQueue->Signal( fence, ++fenceValue ), L"Failed to signal fence." );
+	WaitForFence( cmdQueueCtx );
 }
 
 IVertexBufferRef GPI_DX12::CreateVertexBuffer( void* data, uint32 stride, uint32 size )
@@ -1090,14 +1065,14 @@ ID3D12PipelineState* CreateGraphicsPipelineState( ID3D12Device* device, const GP
 	psoDesc.NumRenderTargets = pipelineDesc.numRenderTargets;
 	for( uint32 index = 0; index < pipelineDesc.numRenderTargets; ++index )
 	{
-		psoDesc.RTVFormats[ index ] = DXGI_FORMAT_B8G8R8A8_UNORM_SRGB;
+		psoDesc.RTVFormats[ index ] = TranslateBufferFormat( pipelineDesc.renderTargetDesc[ index ].format );
 	}
 	psoDesc.DSVFormat = DXGI_FORMAT_D32_FLOAT;
 	psoDesc.InputLayout.NumElements = layout.size();
 	psoDesc.InputLayout.pInputElementDescs = layout.data();
 	psoDesc.SampleDesc.Count = 1;
-	psoDesc.DepthStencilState.DepthEnable = true;
-	psoDesc.DepthStencilState.DepthWriteMask = D3D12_DEPTH_WRITE_MASK_ALL;
+	psoDesc.DepthStencilState.DepthEnable = pipelineDesc.bWriteDepth;
+	psoDesc.DepthStencilState.DepthWriteMask = pipelineDesc.bWriteDepth ? D3D12_DEPTH_WRITE_MASK_ALL : D3D12_DEPTH_WRITE_MASK_ZERO;
 	psoDesc.DepthStencilState.DepthFunc = D3D12_COMPARISON_FUNC_LESS;
 	psoDesc.DepthStencilState.StencilEnable = false;
 	psoDesc.SampleMask = 0xFFFFFFFF;
@@ -1213,15 +1188,10 @@ void GPI_DX12::RunCS()
 
 	CHECK_HRESULT( cmdList->Close(), L"Failed to close command list." );
 
-	ID3D12Fence* fence = _cmdQueueCtx[ D3D12_COMMAND_LIST_TYPE_COMPUTE ].fence;
-	HANDLE fenceEventHandle = _cmdQueueCtx[ D3D12_COMMAND_LIST_TYPE_COMPUTE ].fenceEventHandle;
+	ID3D12Fence* fence = cmdQueueCtx.fence;
+	HANDLE fenceEventHandle = cmdQueueCtx.fenceEventHandle;
 	ID3D12CommandList* cmdListInterface = cmdList;
-	_cmdQueueCtx[ D3D12_COMMAND_LIST_TYPE_COMPUTE ].cmdQueue->ExecuteCommandLists( 1, &cmdListInterface );
-	CHECK_HRESULT( _cmdQueueCtx[ D3D12_COMMAND_LIST_TYPE_COMPUTE ].cmdQueue->Signal( fence, 1 ), L"Failed to signal command queue." );
+	cmdQueueCtx.cmdQueue->ExecuteCommandLists( 1, &cmdListInterface );
 
-	if( fence->GetCompletedValue() != 1 )
-	{
-		fence->SetEventOnCompletion( 1, fenceEventHandle );
-		WaitForSingleObject( fenceEventHandle, INFINITE );
-	}
+	WaitForFence( cmdQueueCtx );
 }

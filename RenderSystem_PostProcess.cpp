@@ -5,32 +5,7 @@
 #include "Vector.h"
 #include "StaticMesh.h"
 #include "GPIPipeline.h"
-
-std::vector<Vec3> position = {
-	// Upper Left
-	{ -1.0f, 1.0f, 0 },
-	// Upper Right
-	{ 1.0f, 1.0f, 0 },
-	// Bottom right
-	{ 1.0f, -1.0f, 0 },
-	// Bottom left
-	{ -1.0f, -1.0f, 0 }
-};
-
-std::vector<Vec2> uv = {
-	// Upper Left
-	{ 0, 0 },
-	// Upper Right
-	{ 1, 0 },
-	// Bottom right
-	{ 1, 1 },
-	// Bottom left
-	{ 0, 1 }
-};
-
-std::vector<std::vector<uint32>> indices = {
-	{ 0, 1, 2, 2, 3, 0 }
-};
+#include "SampleMesh.h"
 
 void RenderSystem::PostProcess( std::array<std::unique_ptr<struct IComponentRegistry>, NUM_COMPONENT_MAX>& componentRegistry )
 {
@@ -38,13 +13,16 @@ void RenderSystem::PostProcess( std::array<std::unique_ptr<struct IComponentRegi
 	if( pipelineDesc.hash == 0 )
 	{
 		pipelineDesc.hash = 2;
-		pipelineDesc.bRenderSwapChainBuffer = true;
-		pipelineDesc.numRenderTargets = 1;
 		pipelineDesc.pipelineType = PipelineType_Graphics;
+		pipelineDesc.bRenderSwapChainBuffer = true;
+		pipelineDesc.bWriteDepth = false;
+		pipelineDesc.numRenderTargets = 1;
+		pipelineDesc.renderTargetDesc.resize( pipelineDesc.numRenderTargets );
+		pipelineDesc.renderTargetDesc[ 0 ].format = GPIBufferFormat_B8G8R8A8_SRGB;
 
 		pipelineDesc.inputDesc.resize( 2 );
-		pipelineDesc.inputDesc[ 0 ] = { "POSITION", GPIDataFormat_R32G32B32_Float, GPIInputClass_PerVertex, 0 };
-		pipelineDesc.inputDesc[ 1 ] = { "TEXCOORD", GPIDataFormat_R32G32_Float, GPIInputClass_PerVertex, 2 };
+		pipelineDesc.inputDesc[ 0 ] = { "POSITION", GPIBufferFormat_R32G32B32_Float, GPIInputClass_PerVertex, 0 };
+		pipelineDesc.inputDesc[ 1 ] = { "TEXCOORD", GPIBufferFormat_R32G32_Float, GPIInputClass_PerVertex, 2 };
 
 		pipelineDesc.vertexShader.hash = 3;
 		pipelineDesc.vertexShader.type = ShaderType_VertexShader;
@@ -66,10 +44,7 @@ void RenderSystem::PostProcess( std::array<std::unique_ptr<struct IComponentRegi
 
 	if( !positionBuffer )
 	{
-		static StaticMesh staticMesh;
-		staticMesh.position = position;
-		staticMesh.uv = uv;
-		staticMesh.indices = indices;
+		static StaticMesh staticMesh = SampleMesh::GetQuad();
 
 		positionBuffer = AtomicEngine::GetGPI()->CreateVertexBuffer( staticMesh.GetPositionPtr(), staticMesh.GetPositionStride(), staticMesh.GetPositionByteSize() );
 		uvBuffer = AtomicEngine::GetGPI()->CreateVertexBuffer( staticMesh.GetUVPtr(), staticMesh.GetUVStride(), staticMesh.GetUVByteSize() );
