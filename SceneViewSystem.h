@@ -20,6 +20,7 @@ struct SceneViewConstantBuffer
 {
 	Mat4x4 matViewProjection;
 	Mat4x4 matViewProjectionInv;
+	Vec3 viewPosition;
 };
 
 class SceneViewSystem : public ISystem

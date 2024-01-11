@@ -29,27 +29,27 @@ void SceneViewSystem::RunSystem( std::array<std::unique_ptr<struct IComponentReg
 
 		if( keyInputComp.keyPressed[ KeyType_A ] )
 		{
-			sceneView.position.x -= 1;
+			sceneView.position.x -= 0.1;
 		}
 		if( keyInputComp.keyPressed[ KeyType_D ] )
 		{
-			sceneView.position.x += 1;
+			sceneView.position.x += 0.1;
 		}
 		if( keyInputComp.keyPressed[ KeyType_S ] )
 		{
-			sceneView.position.y -= 1;
+			sceneView.position.y -= 0.1;
 		}
 		if( keyInputComp.keyPressed[ KeyType_W ] )
 		{
-			sceneView.position.y += 1;
+			sceneView.position.y += 0.1;
 		}
 		if( keyInputComp.keyPressed[ KeyType_Q ] )
 		{
-			sceneView.position.z -= 1;
+			sceneView.position.z -= 0.1;
 		}
 		if( keyInputComp.keyPressed[ KeyType_E ] )
 		{
-			sceneView.position.z += 1;
+			sceneView.position.z += 0.1;
 		}
 		sceneView.direction = Vec3{ 0, 0, 1 };
 
@@ -58,6 +58,7 @@ void SceneViewSystem::RunSystem( std::array<std::unique_ptr<struct IComponentReg
 
 		constBuffer.matViewProjection = sceneView.matProjection * sceneView.matView;
 		constBuffer.matViewProjectionInv = Mat4x4::Inverse( constBuffer.matViewProjection );
+		constBuffer.viewPosition = sceneView.position;
 		AtomicEngine::GetGPI()->UpdateConstantBuffer( 0, &constBuffer, sizeof( SceneViewConstantBuffer ) );
 	}
 }

@@ -43,14 +43,14 @@ void RenderSystem::GeometryPass( std::array<std::unique_ptr<IComponentRegistry>,
 
 		pipelineDesc.vertexShader.hash = 1;
 		pipelineDesc.vertexShader.type = ShaderType_VertexShader;
-		pipelineDesc.vertexShader.file = "Engine/Shader/Test.hlsl";
+		pipelineDesc.vertexShader.file = "Engine/Shader/GeometryPass.hlsl";
 		pipelineDesc.vertexShader.entry = "VS_main";
 		pipelineDesc.vertexShader.macros.resize( 1 );
 		pipelineDesc.vertexShader.macros[ 0 ] = { "D3D12_SAMPLE_CONSTANT_BUFFER", "1" };
 
 		pipelineDesc.pixelShader.hash = 2;
 		pipelineDesc.pixelShader.type = ShaderType_PixelShader;
-		pipelineDesc.pixelShader.file = "Engine/Shader/Test.hlsl";
+		pipelineDesc.pixelShader.file = "Engine/Shader/GeometryPass.hlsl";
 		pipelineDesc.pixelShader.entry = "PS_main";
 		pipelineDesc.pixelShader.macros.resize( 1 );
 		pipelineDesc.pixelShader.macros[ 0 ] = { "D3D12_SAMPLE_CONSTANT_BUFFER", "1" };

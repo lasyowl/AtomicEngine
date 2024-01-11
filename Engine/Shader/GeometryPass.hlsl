@@ -51,7 +51,7 @@ PixelShaderOutput PS_main (
 
     PixelShaderOutput output;
     output.rt0 = float4(1, 1, 1, 1);
-    output.rt1 = float4(normal * 0.5f + 0.5f, 1);
+    output.rt1 = float4(normalize(normal) * 0.5f + 0.5f, 1);
     output.rt2 = float4(uv, 1, 1);
     output.rt3 = float4(1, 1, 1, 1);
 
