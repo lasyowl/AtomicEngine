@@ -1,6 +1,7 @@
 cbuffer PerFrameConstants : register (b0)
 {
     float4x4 viewProjection;
+    float4x4 viewProjectionInv;
 }
 
 Texture2D gDiffuse : register (t0);
@@ -31,14 +32,29 @@ float4 PS_main (
     float4 position : SV_POSITION,
     float2 uv : TEXCOORD) : SV_TARGET
 {
+    float depth = gDepth.Sample(smp, uv).r;
+    float2 screenPos = float2(position.x / 1920.0f, position.y / 1080.0f);
+    float4 clipPos = float4(screenPos * 2.0f - 1.0f, depth, 1.0f);
+    float4 worldPosPerspective = mul(clipPos, viewProjectionInv);
+    float3 worldPos = worldPosPerspective.xyz / worldPosPerspective.w;
+
     if(gNormal.Sample(smp, uv).r == 0) discard;
 
-    return float4(gDepth.Sample(smp, uv).xxx, 1);
-    
-    float3 screenNormal = float3(0, 0, -1);
-    float3 pixelNormal = 2.0f * gNormal.Sample(smp, uv).xyz - 1.0f;
-    float intensity = dot(screenNormal, pixelNormal);
-    float3 diffuse = intensity * float3(1, 1, 1);
+    /* Directional light */
+    float3 dirLightColor = float3(0.5, 0.5, 0.7);
+    float3 dirLightNormal = float3(0, 0, 1);
 
-    return float4(diffuse, 1);
+    float3 surfaceNormal = normalize(2.0f * gNormal.Sample(smp, uv).xyz - 1.0f);
+    float3 diffuse = dirLightColor * dot(-dirLightNormal, surfaceNormal);
+
+    float3 reflectNormal = reflect(dirLightNormal, surfaceNormal);
+    float3 screenNormal = float3(0, 0, -1);
+    float3 specular = dirLightColor * pow(max(0, dot(reflectNormal, screenNormal)), 10);
+
+    float3 lightPos = float3(0, 0, -2);
+    float lightDistance = 1 - distance(lightPos, worldPos) / 3.0f;
+    //float lightDistance = 1 - distance(lightPos, clipPos.xyz);
+
+    //return float4(lightDistance, lightDistance, lightDistance/* * diffuse*/, 1);
+    return float4(diffuse + specular, 1);
 }

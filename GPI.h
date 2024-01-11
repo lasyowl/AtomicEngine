@@ -5,6 +5,7 @@
 struct GPIPipelineStateDesc;
 
 /* GPU Interface */
+/* GAI Graphics Adaptor Interface? */
 class IGPI
 {
 public:
@@ -24,7 +25,8 @@ public:
 
 	virtual void CreatePipelineState( const GPIPipelineStateDesc& pipelineStateDesc ) abstract;
 
-	virtual void UpdateConstantBuffer( const struct ConstantBuffer& constBuffer ) abstract;
+	virtual void UpdateConstantBuffer( uint32 bufferHash, void* data, uint32 size ) abstract;
+	virtual void UpdateConstantBuffer1( const GPIPipelineStateDesc& pipelineDesc, void* data ) abstract;
 
 	virtual void RunCS() abstract;
 

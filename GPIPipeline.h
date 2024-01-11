@@ -55,6 +55,8 @@ struct GPIPipelineStateDesc
 	GPIShaderDesc vertexShader;
 	GPIShaderDesc pixelShader;
 	GPIShaderDesc computeShader;
+
+	uint32 constBufferSize;
 };
 
 struct IGPIPipeline

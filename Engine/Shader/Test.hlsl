@@ -2,6 +2,12 @@
 cbuffer PerFrameConstants : register (b0)
 {
     float4x4 viewProjection;
+    float4x4 viewProjectionInv;
+}
+
+cbuffer PerDrawConstants : register (b1)
+{
+    float4x4 model;
 }
 
 Texture2D testTex : register (t0);
@@ -21,8 +27,8 @@ VertexShaderOutput VS_main(
 {
     VertexShaderOutput output;
 
-    output.position = mul(float4(position, 1.0f), viewProjection);
-    output.normal = normal;
+    output.position = mul(mul(float4(position, 1.0f), model), viewProjection);
+    output.normal = mul(float4(normal, 1.0f), model).xyz;
     output.uv = uv;
 
     return output;
@@ -44,7 +50,7 @@ PixelShaderOutput PS_main (
     float4 color = testTex.Sample(smp, uv);
 
     PixelShaderOutput output;
-    output.rt0 = float4(1, color.gb, 1);
+    output.rt0 = float4(1, 1, 1, 1);
     output.rt1 = float4(normal * 0.5f + 0.5f, 1);
     output.rt2 = float4(uv, 1, 1);
     output.rt3 = float4(1, 1, 1, 1);

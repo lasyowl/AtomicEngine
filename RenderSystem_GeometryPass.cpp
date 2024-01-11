@@ -5,14 +5,22 @@
 #include "PrimitiveComponent.h"
 #include "GPI.h"
 #include "GPIPipeline.h"
+#include "Matrix.h"
+#include "Math.h"
 
-void RenderSystem::GeometryPass( std::array<std::unique_ptr<struct IComponentRegistry>, NUM_COMPONENT_MAX>& componentRegistry )
+void RenderSystem::GeometryPass( std::array<std::unique_ptr<IComponentRegistry>, NUM_COMPONENT_MAX>& componentRegistry )
 {
 	ComponentRegistry<PrimitiveComponent>* renderCompReg = GetRegistry<PrimitiveComponent>( componentRegistry );
 	if( !renderCompReg )
 	{
 		return;
 	}
+
+	__declspec( align( 256 ) )
+		struct PrimitiveConstantBuffer
+	{
+		Mat4x4 matModel;
+	};
 
 	static GPIPipelineStateDesc pipelineDesc{};
 	if( pipelineDesc.hash == 0 )
@@ -47,6 +55,8 @@ void RenderSystem::GeometryPass( std::array<std::unique_ptr<struct IComponentReg
 		pipelineDesc.pixelShader.macros.resize( 1 );
 		pipelineDesc.pixelShader.macros[ 0 ] = { "D3D12_SAMPLE_CONSTANT_BUFFER", "1" };
 		
+		pipelineDesc.constBufferSize = sizeof( PrimitiveConstantBuffer );
+
 		AtomicEngine::GetGPI()->CreatePipelineState( pipelineDesc );
 	}
 	AtomicEngine::GetGPI()->SetPipelineState( pipelineDesc );
@@ -61,9 +71,6 @@ void RenderSystem::GeometryPass( std::array<std::unique_ptr<struct IComponentReg
 		PrimitiveComponent& component = renderCompReg->GetComponent( entity );
 		if( !component.positionBuffer )
 		{
-			//component.staticMesh = AssetLoader::LoadStaticMesh( "Resource/Sponza-master/sponza.obj" );
-			component.staticMesh = AssetLoader::LoadStaticMesh( "Resource/teapot.obj" );
-			//component.staticMesh = AssetLoader::LoadStaticMesh( "Resource/teapot.obj" );
 			std::shared_ptr<StaticMesh>& staticMesh = component.staticMesh;
 
 			component.positionBuffer = AtomicEngine::GetGPI()->CreateVertexBuffer( staticMesh->GetPositionPtr(), staticMesh->GetPositionStride(), staticMesh->GetPositionByteSize() );
@@ -90,6 +97,16 @@ void RenderSystem::GeometryPass( std::array<std::unique_ptr<struct IComponentReg
 				component.indexBuffer.emplace_back( indexBuffer );
 			}
 		}
+		static float aa = 0;
+		aa += 0.001f;
+		component.scale = Vec3( 1, 1, 1 );
+		component.rotation = Vec3( 0, aa, 0 );
+		component.translate = Vec3( 0, 0, 0 );
+
+		PrimitiveConstantBuffer constBuffer;
+		constBuffer.matModel = AEMath::GetScaleMatrix( component.scale ) * AEMath::GetRotationMatrix( component.rotation ) * AEMath::GetTranslateMatrix( component.translate );
+		AtomicEngine::GetGPI()->UpdateConstantBuffer1( pipelineDesc, &constBuffer );
+
 		for( uint32 index = 0; index < component.staticMesh->GetNumMeshes(); ++index )
 		{
 			AtomicEngine::GetGPI()->Render( component.positionBuffer.get(), component.uvBuffer.get(), component.normalBuffer.get(), component.indexBuffer[ index ].get() );

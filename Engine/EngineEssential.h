@@ -22,4 +22,4 @@
 #include <d3d12.h>
 
 #include "../DataType.h"
-#include "EngineDefines.h"
+#include "EngineDefine.h"

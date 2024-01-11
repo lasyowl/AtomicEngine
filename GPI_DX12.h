@@ -43,12 +43,16 @@ public:
 
 	virtual void CreatePipelineState( const GPIPipelineStateDesc& pipelineStateDesc ) override;
 
-	virtual void UpdateConstantBuffer( const ConstantBuffer& constBuffer ) override;
+	// todo : integrate with UpdateConstBuffer1
+	virtual void UpdateConstantBuffer( uint32 bufferHash, void* data, uint32 size ) override;
+	virtual void UpdateConstantBuffer1( const GPIPipelineStateDesc& pipelineDesc, void* data ) override;
 
 	virtual void RunCS() override;
 
 private:
-	void SetPipelineState( const GPIPipelineStateDesc& desc, ID3D12PipelineState* pso, ID3D12RootSignature* rootSignature );
+	ID3D12Resource* CreateConstantBuffer( void* data, uint32 size );
+
+	void SetPipelineState( const GPIPipelineStateDesc& desc, ID3D12PipelineState* pso, ID3D12RootSignature* rootSignature, ID3D12Resource* constBuffer );
 
 private:
 	HWND _hWnd;
@@ -68,6 +72,7 @@ private:
 	ID3D12DescriptorHeap* _uavHeap;
 	ID3D12DescriptorHeap* _guavHeap;
 	ID3D12DescriptorHeap* _srvHeap;
+	ID3D12DescriptorHeap* _cbvHeap;
 
 	ID3D12Debug* _debugInterface;
 	ID3D12InfoQueue* _debugInfoQueue;
@@ -80,9 +85,9 @@ private:
 
 	std::unordered_map<uint32, std::shared_ptr<GPIPipeline_DX12>> _pipelineCache;
 	std::unordered_map<uint32, ID3DBlob*> _shaderCache;
-	//std::unordered_map<uint32, ID3D12Resource*> _constBufferCache;
+	std::unordered_map<uint32, ID3D12Resource*> _constBufferCache;
 
-	ID3D12Resource* _constantBuffer;
+	ID3D12Resource* _constBuffer; // temp
 	ID3D12Resource* _gBuffers[ 4 ];
 
 	ID3D12Resource* _depthStencilBuffer;

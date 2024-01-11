@@ -3,7 +3,9 @@
 #include "System.h"
 #include "../PrimitiveComponent.h"
 #include "../GPI_DX12.h"
+#include "../EntityInitializeSystem.h"
 #include "../RenderSystem.h"
+#include "../KeyInputSystem.h"
 #include "../SceneViewSystem.h"
 
 namespace
@@ -26,29 +28,11 @@ namespace
 	{
 		switch( msg )
 		{
-			case WM_KEYDOWN:
-				wchar_t buffer[ 32 ];
-				swprintf_s( buffer, L"%c\n", wParam );
-				OutputDebugStringW( buffer );
-				return 0;
 			case WM_DESTROY:
 			{
 				PostQuitMessage( 0 );
 				return 0;
 			}
-			//case WM_PAINT:
-			//{
-			//	PAINTSTRUCT ps;
-			//	HDC hdc = BeginPaint( HWnd, &ps );
-
-			//	// All painting occurs here, between BeginPaint and EndPaint.
-
-			//	FillRect( hdc, &ps.rcPaint, (HBRUSH) (COLOR_WINDOW + 2) );
-
-			//	EndPaint( HWnd, &ps );
-
-			//	return 0;
-			//}
 		}
 		return DefWindowProc( hWnd, msg, wParam, lParam );
 	}
@@ -94,13 +78,20 @@ namespace
 
 		InitGPI( hWnd );
 
-		Entity entity = ECSCreateEntity();
+		ECSAddSystem<EntityInitializeSystem>();
+		ECSAddSystem<KeyInputSystem>();
+
+		Entity rootEntity = ECSCreateEntity();
+		ECSAddComponent<KeyInputComponent>( rootEntity );
+		ECSAddComponent<SceneViewComponent>( rootEntity );
+		ECSAddSystem<SceneViewSystem>();
+
+		Entity entity0 = ECSCreateEntityWithMetaData( 0 );
+		ECSAddComponent<PrimitiveComponent>( entity0 );
+
+		Entity entity = ECSCreateEntityWithMetaData( 1 );
 		ECSAddComponent<PrimitiveComponent>( entity );
 		ECSAddSystem<RenderSystem>();
-
-		Entity camEntity = ECSCreateEntity();
-		ECSAddComponent<SceneViewComponent>( camEntity );
-		ECSAddSystem<SceneViewSystem>();
 
 		bool ShutOff = false;
 

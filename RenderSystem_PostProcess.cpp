@@ -7,7 +7,7 @@
 #include "GPIPipeline.h"
 #include "SampleMesh.h"
 
-void RenderSystem::PostProcess( std::array<std::unique_ptr<struct IComponentRegistry>, NUM_COMPONENT_MAX>& componentRegistry )
+void RenderSystem::PostProcess( std::array<std::unique_ptr<IComponentRegistry>, NUM_COMPONENT_MAX>& componentRegistry )
 {
 	static GPIPipelineStateDesc pipelineDesc{};
 	if( pipelineDesc.hash == 0 )

@@ -1,6 +1,6 @@
 #pragma once
 
-#include "EngineDefines.h"
+#include "EngineDefine.h"
 
 enum
 {

@@ -1,6 +1,7 @@
 #pragma once
 
 #include "EngineEssential.h"
+#include "ECSDefine.h"
 #include "ECS_Component.h"
 #include "ECS_System.h"
 #include "Singleton.h"
@@ -21,15 +22,8 @@ public:
 		ECSInitSystems();
 	}
 
-	Entity CreateEntity()
-	{
-		assert( !_entities.empty() );
-
-		Entity entity = _entities.front();
-		_entities.pop();
-
-		return entity;
-	}
+	Entity CreateEntity();
+	Entity CreateEntityWithMetaData( uint64 metaDataHash );
 
 	void DestroyEntity( Entity entity )
 	{
@@ -39,7 +33,7 @@ public:
 	template<typename T>
 	void AddComponent( Entity entity )
 	{
-		std::unique_ptr<IComponentRegistry>& componentRegistry = _componentRegistry[ get_component_type_id<T>() ];
+		std::unique_ptr<IComponentRegistry>& componentRegistry = _componentRegistry[ T::type ];
 		if( !componentRegistry )
 		{
 			componentRegistry = std::make_unique<ComponentRegistry<T>>();
@@ -50,7 +44,7 @@ public:
 	template<typename T>
 	void AddSystem()
 	{
-		std::unique_ptr<ISystem>& system = _systemRegistry[ get_system_type_id<T>() ];
+		std::unique_ptr<ISystem>& system = _systemRegistry[ T::type ];
 		if( !system )
 		{
 			system = std::make_unique<T>();
@@ -79,6 +73,7 @@ private:
 ///////////////////////
 
 Entity ECSCreateEntity();
+Entity ECSCreateEntityWithMetaData( uint64 assetHash );
 
 template<typename T>
 void ECSAddComponent( Entity entity )

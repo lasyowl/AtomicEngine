@@ -5,6 +5,8 @@
 class RenderSystem : public ISystem
 {
 public:
+	DEFINE_ECS_SYSTEM( Render );
+public:
 	virtual void RunSystem( std::array<std::unique_ptr<struct IComponentRegistry>, NUM_COMPONENT_MAX>& componentRegistry ) override
 	{
 		GeometryPass( componentRegistry );

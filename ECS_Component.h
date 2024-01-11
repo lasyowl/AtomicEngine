@@ -1,23 +1,7 @@
 #pragma once
 
 #include "EngineEssential.h"
-
-using ComponentId = int32;
-
-static std::unordered_map<std::type_index, int> typeIndexMap;
-static int nextIndex = 0;
-
-template<typename T>
-int get_component_type_id()
-{
-	std::type_index typeIndex = typeid( T );
-	if( !typeIndexMap.contains( typeIndex ) )
-	{
-		return typeIndexMap[ typeIndex ] = nextIndex++;
-	}
-
-	return typeIndexMap[ typeIndex ];
-}
+#include "ECSDefine.h"
 
 ///////////////////////
 // Component
@@ -32,9 +16,14 @@ struct IComponentRegistry
 template <typename T>
 struct ComponentRegistry : public IComponentRegistry
 {
+	ComponentRegistry()
+	{
+		memset( _registry.data(), 0, _registry.size() * sizeof( T ) );
+	}
+
 	virtual void AddComponent( Entity entity ) override
 	{
-		_registry[ entity ] = {};
+		//_registry[ entity ] = {};
 
 		_signature[ entity ] = true;
 	}

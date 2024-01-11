@@ -21,11 +21,15 @@
   <ItemGroup>
     <ClInclude Include="AssetLoader.h" />
     <ClInclude Include="DebugUtil.h" />
+    <ClInclude Include="ECSDefine.h" />
+    <ClInclude Include="EntityInitializeSystem.h" />
     <ClInclude Include="GPIPipeline.h" />
     <ClInclude Include="GPIPipeline_DX12.h" />
     <ClInclude Include="GPIShader.h" />
     <ClInclude Include="GPIShader_DX12.h" />
+    <ClInclude Include="KeyInputSystem.h" />
     <ClInclude Include="LightComponent.h" />
+    <ClInclude Include="MetaDataComponent.h" />
     <ClInclude Include="PrimitiveComponent.h" />
     <ClInclude Include="RawImage.h" />
     <ClInclude Include="SampleMesh.h" />
@@ -34,7 +38,7 @@
     <ClInclude Include="DataType.h" />
     <ClInclude Include="ECS_Component.h" />
     <ClInclude Include="ECS_System.h" />
-    <ClInclude Include="Engine\EngineDefines.h" />
+    <ClInclude Include="Engine\EngineDefine.h" />
     <ClInclude Include="Engine\EngineEssential.h" />
     <ClInclude Include="Engine\FileSystem.h" />
     <ClInclude Include="Engine\PrimitiveTopology.h" />
@@ -72,10 +76,14 @@
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">Create</PrecompiledHeader>
     </ClCompile>
     <ClCompile Include="Engine\System.cpp" />
+    <ClCompile Include="EntityInitializeSystem.cpp" />
     <ClCompile Include="GPIResource_DX12.cpp" />
     <ClCompile Include="GPI_DX12.cpp" />
+    <ClCompile Include="KeyInputSystem.cpp" />
+    <ClCompile Include="Math.cpp" />
     <ClCompile Include="RenderSystem_PostProcess.cpp" />
     <ClCompile Include="RenderSystem_GeometryPass.cpp" />
+    <ClCompile Include="SampleMesh.cpp" />
     <ClCompile Include="SceneViewSystem.cpp" />
     <ClCompile Include="Vector.cpp" />
   </ItemGroup>
