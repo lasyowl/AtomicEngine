@@ -159,41 +159,6 @@ std::shared_ptr<StaticMesh> AssetLoader::LoadStaticMesh( const std::string& file
 	file.close();
 
 	return staticMesh;
-
-	//std::vector<Vec3> position = {
-	//	// Upper Left
-	//	{ -1.0f, 1.0f, 0 },
-	//	// Upper Right
-	//	{ 1.0f, 1.0f, 0 },
-	//	// Bottom right
-	//	{ 1.0f, -1.0f, 0 },
-	//	// Bottom left
-	//	{ -1.0f, -1.0f, 0 }
-	//};
-
-	//std::vector<Vec2> uv = {
-	//	// Upper Left
-	//	{ 0, 0 },
-	//	// Upper Right
-	//	{ 1, 0 },
-	//	// Bottom right
-	//	{ 1, 1 },
-	//	// Bottom left
-	//	{ 0, 1 }
-	//};
-
-	//std::vector<uint32> indices = {
-	//	0, 1, 2, 2, 3, 0
-	//};
-	//std::vector<std::vector<uint32>> meshes;
-	//meshes.emplace_back( indices );
-
-	//std::shared_ptr<StaticMesh> staticMesh( new StaticMesh() );
-	//staticMesh->position = position;
-	//staticMesh->uv = uv;
-	//staticMesh->indices = meshes;
-
-	//return staticMesh;
 }
 
 std::shared_ptr<RawImage> AssetLoader::LoadRawImage( const std::string& fileName )

@@ -5,6 +5,5 @@
 namespace SampleMesh
 {
 StaticMesh GetQuad();
-
-//StaticMesh GetCube();
+StaticMesh GetCube();
 }

@@ -90,7 +90,10 @@ namespace
 		ECSAddComponent<PrimitiveComponent>( entity0 );
 
 		Entity entity = ECSCreateEntityWithMetaData( 1 );
-		ECSAddComponent<PrimitiveComponent>( entity );
+		//ECSAddComponent<PrimitiveComponent>( entity );
+
+		Entity entityCube = ECSCreateEntityWithMetaData( 2 );
+		ECSAddComponent<PrimitiveComponent>( entityCube );
 		ECSAddSystem<RenderSystem>();
 
 		bool ShutOff = false;
