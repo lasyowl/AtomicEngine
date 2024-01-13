@@ -114,10 +114,10 @@ void RenderSystem::GeometryPass( std::array<std::unique_ptr<IComponentRegistry>,
 			{
 				sign = -sign;
 			}
-			//aa += sign * 0.04f;
+			aa += sign * 0.04f;
 			transformComp.position = Vec3( aa, 0, 0 );
 			transformComp.rotation = Vec3( 0, 0, 0 );
-			transformComp.scale = Vec3( 1, 1, 1 );
+			transformComp.scale = Vec3( 0.5f, 0.5f, 0.5f );
 		}
 		else
 		{

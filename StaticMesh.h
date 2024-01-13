@@ -2,6 +2,7 @@
 
 #include "EngineEssential.h"
 #include "Vector.h"
+#include "IntVector.h"
 
 struct StaticMesh
 {
@@ -11,7 +12,7 @@ public:
 	Vec3* GetPositionPtr() { return position.data(); }
 	Vec3* GetNormalPtr() { return normal.data(); }
 	Vec2* GetUVPtr() { return uv.data(); }
-	uint32* GetIndexPtr( uint32 meshIndex ) { return indices[ meshIndex ].data(); }
+	IVec3* GetIndexPtr( uint32 meshIndex ) { return indices[ meshIndex ].data(); }
 
 	uint32 GetNumPosition() { return position.size(); }
 	uint32 GetNumNormal() { return normal.size(); }
@@ -26,12 +27,12 @@ public:
 	uint32 GetPositionByteSize() { return GetNumPosition() * sizeof( Vec3 ); }
 	uint32 GetNormalByteSize() { return GetNumNormal() * sizeof( Vec3 ); }
 	uint32 GetUVByteSize() { return GetNumUV() * sizeof( Vec2 ); }
-	uint32 GetIndexByteSize( uint32 meshIndex ) { return GetNumIndices( meshIndex ) * sizeof( uint32 ); }
+	uint32 GetIndexByteSize( uint32 meshIndex ) { return GetNumIndices( meshIndex ) * sizeof( IVec3 ); }
 
 public:
 	std::string name;
 	std::vector<Vec3> position;
 	std::vector<Vec3> normal;
 	std::vector<Vec2> uv;
-	std::vector<std::vector<uint32>> indices;
+	std::vector<std::vector<IVec3>> indices;
 };

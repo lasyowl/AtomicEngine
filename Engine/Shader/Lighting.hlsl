@@ -53,7 +53,7 @@ float4 PS_main (
     float3 diffuse = dirLightColor * dot(-dirLightNormal, surfaceNormal);
 
     float3 reflectNormal = reflect(dirLightNormal, surfaceNormal);
-    float3 screenNormal = normalize(viewPosition - worldPos);//float3(0, 0, -1);
+    float3 screenNormal = normalize(viewPosition - worldPos);
     float3 specular = dirLightColor * pow(max(0, dot(reflectNormal, screenNormal)), 30);
 
     float3 lightPos = float3(0, 0, -2);

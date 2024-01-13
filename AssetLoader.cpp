@@ -1,5 +1,6 @@
 #include "stdafx.h"
 #include "AssetLoader.h"
+#include "IntVector.h"
 
 #include <assimp/Importer.hpp>
 #include <assimp/scene.h>
@@ -10,90 +11,90 @@ std::shared_ptr<StaticMesh> LoadStaticMesh_WavefrontObj( std::ifstream& file )
 {
 	std::shared_ptr<StaticMesh> staticMesh = std::make_shared<StaticMesh>();
 
-	std::vector<Vec3>& position = staticMesh->position;
-	std::vector<Vec2>& uv = staticMesh->uv;
-	std::vector<std::vector<uint32>>& index = staticMesh->indices;
-	std::vector<uint32>& currentIndex = index.emplace_back();
+	//std::vector<Vec3>& position = staticMesh->position;
+	//std::vector<Vec2>& uv = staticMesh->uv;
+	//std::vector<std::vector<IVec3>>& index = staticMesh->indices;
+	//std::vector<IVec3>& currentIndex = index.emplace_back();
 
-	std::string line;
-	while( std::getline( file, line ) )
-	{
-		std::stringstream stream( line );
-		std::string header;
-		stream >> header;
+	//std::string line;
+	//while( std::getline( file, line ) )
+	//{
+	//	std::stringstream stream( line );
+	//	std::string header;
+	//	stream >> header;
 
-		constexpr uint32 NUM_VERTEX = 3;
-		constexpr uint32 NUM_UV = 2;
+	//	constexpr uint32 NUM_VERTEX = 3;
+	//	constexpr uint32 NUM_UV = 2;
 
-		if( header.compare( "o" ) == 0 )
-		{
-			if( !staticMesh->name.empty() ) break; // temp
-			stream >> staticMesh->name;
-		}
-		else if( header.compare( "v" ) == 0 )
-		{
-			float buffer[ 3 ];
-			for( uint32 iter = 0; iter < NUM_VERTEX; ++iter )
-			{
-				stream >> buffer[ iter ];
-			}
-			Vec3 buffer1 = { buffer[ 0 ], buffer[ 1 ], buffer[ 2 ] };
-			position.emplace_back( buffer1 );
-		}
-		else if( header.compare( "vt" ) == 0 )
-		{
-			float buffer[ 2 ];
-			for( uint32 iter = 0; iter < NUM_UV; ++iter )
-			{
-				stream >> buffer[ iter ];
-			}
-			Vec2 buffer1 = { buffer[ 0 ], buffer[ 1 ] };
-			uv.emplace_back( buffer1 );
-		}
-		else if( header.compare( "vn" ) == 0 )
-		{
-		}
-		else if( header.compare( "g" ) == 0 )
-		{
+	//	if( header.compare( "o" ) == 0 )
+	//	{
+	//		if( !staticMesh->name.empty() ) break; // temp
+	//		stream >> staticMesh->name;
+	//	}
+	//	else if( header.compare( "v" ) == 0 )
+	//	{
+	//		float buffer[ 3 ];
+	//		for( uint32 iter = 0; iter < NUM_VERTEX; ++iter )
+	//		{
+	//			stream >> buffer[ iter ];
+	//		}
+	//		Vec3 buffer1 = { buffer[ 0 ], buffer[ 1 ], buffer[ 2 ] };
+	//		position.emplace_back( buffer1 );
+	//	}
+	//	else if( header.compare( "vt" ) == 0 )
+	//	{
+	//		float buffer[ 2 ];
+	//		for( uint32 iter = 0; iter < NUM_UV; ++iter )
+	//		{
+	//			stream >> buffer[ iter ];
+	//		}
+	//		Vec2 buffer1 = { buffer[ 0 ], buffer[ 1 ] };
+	//		uv.emplace_back( buffer1 );
+	//	}
+	//	else if( header.compare( "vn" ) == 0 )
+	//	{
+	//	}
+	//	else if( header.compare( "g" ) == 0 )
+	//	{
 
-		}
-		else if( header.compare( "f" ) == 0 )
-		{
-			for( uint32 iter = 0; iter < NUM_VERTEX; ++iter )
-			{
-				std::string lineBuffer;
-				stream >> lineBuffer;
+	//	}
+	//	else if( header.compare( "f" ) == 0 )
+	//	{
+	//		for( uint32 iter = 0; iter < NUM_VERTEX; ++iter )
+	//		{
+	//			std::string lineBuffer;
+	//			stream >> lineBuffer;
 
-				uint32 vertexIndex = 0;
-				uint32 uvIndex = 0;
+	//			uint32 vertexIndex = 0;
+	//			uint32 uvIndex = 0;
 
-				std::stringstream vertexStream( lineBuffer );
-				std::string buffer;
-				if( std::getline( vertexStream, buffer, '/' ) )
-				{
-					vertexIndex = std::stoi( buffer ) - 1;
-					uvIndex = vertexIndex;
-				}
-				if( std::getline( vertexStream, buffer, '/' ) )
-				{
-					uvIndex = std::stoi( buffer ) - 1;
-				}
+	//			std::stringstream vertexStream( lineBuffer );
+	//			std::string buffer;
+	//			if( std::getline( vertexStream, buffer, '/' ) )
+	//			{
+	//				vertexIndex = std::stoi( buffer ) - 1;
+	//				uvIndex = vertexIndex;
+	//			}
+	//			if( std::getline( vertexStream, buffer, '/' ) )
+	//			{
+	//				uvIndex = std::stoi( buffer ) - 1;
+	//			}
 
-				uint32 indexMax = max( vertexIndex, uvIndex );
-				if( position.size() <= indexMax )
-				{
-					position.resize( indexMax + 1 );
-				}
+	//			uint32 indexMax = max( vertexIndex, uvIndex );
+	//			if( position.size() <= indexMax )
+	//			{
+	//				position.resize( indexMax + 1 );
+	//			}
 
-				if( vertexIndex != uvIndex )
-				{
-					position[ uvIndex ] = position[ vertexIndex ];
-				}
+	//			if( vertexIndex != uvIndex )
+	//			{
+	//				position[ uvIndex ] = position[ vertexIndex ];
+	//			}
 
-				currentIndex.emplace_back( uvIndex );
-			}
-		}
-	}
+	//			currentIndex.emplace_back( uvIndex );
+	//		}
+	//	}
+	//}
 
 	return staticMesh;
 }
@@ -108,16 +109,16 @@ std::shared_ptr<StaticMesh> LoadStaticMesh_Assimp( const aiScene* scene )
 	staticMesh->normal.resize( mesh->mNumVertices );
 	//staticMesh->uv.resize( mesh->mNumVertices );
 	staticMesh->indices.resize( 1 );
-	std::vector<uint32>& indices = staticMesh->indices[ 0 ];
-	indices.resize( 3 * mesh->mNumFaces );
+	std::vector<IVec3>& indices = staticMesh->indices[ 0 ];
+	indices.resize( mesh->mNumFaces );
 
 	for( int32 index = 0; index < mesh->mNumFaces; ++index )
 	{
 		const aiFace& face = mesh->mFaces[ index ];
 
-		indices[ index * 3 ] = face.mIndices[ 0 ];
-		indices[ index * 3 + 1 ] = face.mIndices[ 1 ];
-		indices[ index * 3 + 2 ] = face.mIndices[ 2 ];
+		indices[ index ].x = face.mIndices[ 0 ];
+		indices[ index ].y = face.mIndices[ 1 ];
+		indices[ index ].z = face.mIndices[ 2 ];
 	}
 
 	memcpy( staticMesh->position.data(), mesh->mVertices, mesh->mNumVertices * sizeof( aiVector3D ) );

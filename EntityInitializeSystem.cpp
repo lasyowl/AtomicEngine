@@ -46,7 +46,7 @@ void EntityInitializeSystem::RunSystem( std::array<std::unique_ptr<struct ICompo
 			}
 			else if( metaDataComp.hash == 2 )
 			{
-				primitiveComp.staticMesh = std::make_shared<StaticMesh>( SampleMesh::GetCube() );
+				primitiveComp.staticMesh = std::make_shared<StaticMesh>( SampleMesh::GetSphere() );
 				transformComp.position = Vec3( 1, 0, 0 );
 			}
 			else if( metaDataComp.hash == 3 )

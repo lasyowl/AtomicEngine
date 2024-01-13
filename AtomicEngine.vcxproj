@@ -27,6 +27,7 @@
     <ClInclude Include="GPIPipeline_DX12.h" />
     <ClInclude Include="GPIShader.h" />
     <ClInclude Include="GPIShader_DX12.h" />
+    <ClInclude Include="IntVector.h" />
     <ClInclude Include="KeyInputSystem.h" />
     <ClInclude Include="LightComponent.h" />
     <ClInclude Include="LightSystem.h" />
@@ -81,6 +82,7 @@
     <ClCompile Include="EntityInitializeSystem.cpp" />
     <ClCompile Include="GPIResource_DX12.cpp" />
     <ClCompile Include="GPI_DX12.cpp" />
+    <ClCompile Include="IntVector.cpp" />
     <ClCompile Include="KeyInputSystem.cpp" />
     <ClCompile Include="LightSystem.cpp" />
     <ClCompile Include="Math.cpp" />
