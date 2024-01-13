@@ -22,6 +22,7 @@ void RenderSystem::GeometryPass( std::array<std::unique_ptr<IComponentRegistry>,
 		struct PrimitiveConstantBuffer
 	{
 		Mat4x4 matModel;
+		Mat4x4 matRotation;
 	};
 
 	static GPIPipelineStateDesc pipelineDesc{};
@@ -113,7 +114,7 @@ void RenderSystem::GeometryPass( std::array<std::unique_ptr<IComponentRegistry>,
 			{
 				sign = -sign;
 			}
-			aa += sign * 0.04f;
+			//aa += sign * 0.04f;
 			transformComp.position = Vec3( aa, 0, 0 );
 			transformComp.rotation = Vec3( 0, 0, 0 );
 			transformComp.scale = Vec3( 1, 1, 1 );
@@ -131,6 +132,7 @@ void RenderSystem::GeometryPass( std::array<std::unique_ptr<IComponentRegistry>,
 
 		PrimitiveConstantBuffer constBuffer;
 		constBuffer.matModel = AEMath::GetTransposedMatrix( AEMath::GetScaleMatrix( transformComp.scale ) * AEMath::GetTranslateMatrix( earlyTransform ) * AEMath::GetRotationMatrix( transformComp.rotation ) * AEMath::GetTranslateMatrix( transformComp.position ) );
+		constBuffer.matRotation = AEMath::GetTransposedMatrix( AEMath::GetRotationMatrix( transformComp.rotation ) );
 		AtomicEngine::GetGPI()->UpdateConstantBuffer1( pipelineDesc, &constBuffer );
 
 		for( uint32 index = 0; index < component.staticMesh->GetNumMeshes(); ++index )

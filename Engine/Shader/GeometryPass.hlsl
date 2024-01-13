@@ -3,11 +3,13 @@ cbuffer PerFrameConstants : register (b0)
 {
     float4x4 viewProjection;
     float4x4 viewProjectionInv;
+    float3 viewPosition;
 }
 
 cbuffer PerDrawConstants : register (b1)
 {
     float4x4 model;
+    float4x4 rotation;
 }
 
 Texture2D testTex : register (t0);
@@ -28,7 +30,7 @@ VertexShaderOutput VS_main(
     VertexShaderOutput output;
 
     output.position = mul(mul(float4(position, 1.0f), model), viewProjection);
-    output.normal = mul(float4(normal, 1.0f), model).xyz;
+    output.normal = mul(float4(normal, 1.0f), rotation).xyz;
     output.uv = uv;
 
     return output;
