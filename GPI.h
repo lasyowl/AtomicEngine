@@ -23,7 +23,11 @@ public:
 	virtual IVertexBufferRef CreateVertexBuffer( void* data, uint32 stride, uint32 size ) abstract;
 	virtual IIndexBufferRef CreateIndexBuffer( void* data, uint32 size ) abstract;
 
-	virtual void CreatePipelineState( const GPIPipelineStateDesc& pipelineStateDesc ) abstract;
+	virtual IVertexBufferRef CreateResourceBuffer( void* data, uint32 size ) abstract;
+
+	virtual void CreatePipelineState( const GPIPipelineStateDesc& pipelineDesc ) abstract;
+
+	virtual void BindResourceBuffer( const GPIPipelineStateDesc& pipelineDesc, IVertexBuffer* resourceBuffer, uint32 index ) abstract;
 
 	virtual void UpdateConstantBuffer( uint32 bufferHash, void* data, uint32 size ) abstract;
 	virtual void UpdateConstantBuffer1( const GPIPipelineStateDesc& pipelineDesc, void* data ) abstract;

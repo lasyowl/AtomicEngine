@@ -5,6 +5,7 @@
 
 namespace AEMath
 {
+Mat4x4 GetTransposedMatrix( const Mat4x4& mat );
 Mat4x4 GetScaleMatrix( const Vec3& scale );
 Mat4x4 GetRotationMatrix( const Vec3& rotation );
 Mat4x4 GetTranslateMatrix( const Vec3& translate );

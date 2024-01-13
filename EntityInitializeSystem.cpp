@@ -2,14 +2,18 @@
 #include "EntityInitializeSystem.h"
 #include "AssetLoader.h"
 #include "MetaDataComponent.h"
+#include "TransformComponent.h"
 #include "PrimitiveComponent.h"
+#include "LightComponent.h"
 #include "SampleMesh.h"
 
 void EntityInitializeSystem::RunSystem( std::array<std::unique_ptr<struct IComponentRegistry>, NUM_COMPONENT_MAX>& componentRegistry )
 {
 	ComponentRegistry<MetaDataComponent>* metaDataCompReg = GetRegistry<MetaDataComponent>( componentRegistry );
+	ComponentRegistry<TransformComponent>* transformCompReg = GetRegistry<TransformComponent>( componentRegistry );
 	ComponentRegistry<PrimitiveComponent>* primitiveCompReg = GetRegistry<PrimitiveComponent>( componentRegistry );
-	if( !metaDataCompReg || !primitiveCompReg )
+	ComponentRegistry<LightComponent>* lightCompReg = GetRegistry<LightComponent>( componentRegistry );
+	if( !metaDataCompReg || !transformCompReg || !primitiveCompReg || !lightCompReg )
 	{
 		return;
 	}
@@ -29,6 +33,7 @@ void EntityInitializeSystem::RunSystem( std::array<std::unique_ptr<struct ICompo
 
 		if( primitiveCompReg->HasComponent( entity ) )
 		{
+			TransformComponent& transformComp = transformCompReg->GetComponent( entity );
 			PrimitiveComponent& primitiveComp = primitiveCompReg->GetComponent( entity );
 			if( metaDataComp.hash == 0 )
 			{
@@ -37,11 +42,12 @@ void EntityInitializeSystem::RunSystem( std::array<std::unique_ptr<struct ICompo
 			else if( metaDataComp.hash == 1 )
 			{
 				primitiveComp.staticMesh = std::make_shared<StaticMesh>( SampleMesh::GetQuad() );
-				primitiveComp.scale = Vec3( 2.0f, 2.0f, 2.0f );
+				transformComp.scale = Vec3( 2.0f, 2.0f, 2.0f );
 			}
 			else if( metaDataComp.hash == 2 )
 			{
 				primitiveComp.staticMesh = std::make_shared<StaticMesh>( SampleMesh::GetCube() );
+				transformComp.position = Vec3( 1, 0, 0 );
 			}
 			else if( metaDataComp.hash == 3 )
 			{
@@ -50,6 +56,15 @@ void EntityInitializeSystem::RunSystem( std::array<std::unique_ptr<struct ICompo
 			else if( metaDataComp.hash == 4 )
 			{
 				primitiveComp.staticMesh = std::make_shared<StaticMesh>( SampleMesh::GetQuad() );
+			}
+		}
+
+		if( lightCompReg->HasComponent( entity ) )
+		{
+			LightComponent& lightComp = lightCompReg->GetComponent( entity );
+			if( metaDataComp.hash == 2 )
+			{
+				lightComp.intensity = 1.0f;
 			}
 		}
 

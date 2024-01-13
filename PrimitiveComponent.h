@@ -10,10 +10,6 @@ struct PrimitiveComponent
 
 	std::shared_ptr<StaticMesh> staticMesh;
 
-	Vec3 translate;
-	Vec3 rotation;
-	Vec3 scale;
-
 	IVertexBufferRef positionBuffer;
 	IVertexBufferRef normalBuffer;
 	IVertexBufferRef uvBuffer;

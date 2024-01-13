@@ -677,6 +677,7 @@ void GPI_DX12::Initialize()
 		//}
 
 		_cbvHeap = CreateDescriptorHeap( _device, 10, D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV, D3D12_DESCRIPTOR_HEAP_FLAG_SHADER_VISIBLE );
+		_srvHeap = CreateDescriptorHeap( _device, 10, D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV, D3D12_DESCRIPTOR_HEAP_FLAG_SHADER_VISIBLE );
 	}
 
 	/* Unordered access view */
@@ -799,7 +800,7 @@ void GPI_DX12::EndFrame()
 	}
 }
 
-void GPI_DX12::SetPipelineState( const GPIPipelineStateDesc& desc, ID3D12PipelineState* pso, ID3D12RootSignature* rootSignature, ID3D12Resource* constBuffer )
+void GPI_DX12::SetPipelineState( const GPIPipelineStateDesc& desc, const GPIPipeline_DX12& pipeline )
 {
 	CommandQueueContext& cmdQueueCtx = _cmdQueueCtx[ D3D12_COMMAND_LIST_TYPE_DIRECT ];
 	ID3D12CommandAllocator* cmdAllocator = cmdQueueCtx.allocator;
@@ -808,8 +809,8 @@ void GPI_DX12::SetPipelineState( const GPIPipelineStateDesc& desc, ID3D12Pipelin
 	CHECK_HRESULT( cmdAllocator->Reset(), L"Failed to reset allocator." );
 	CHECK_HRESULT( cmdList->Reset( cmdAllocator, nullptr ), L"Failed to reset command list." );
 
-	cmdList->SetPipelineState( pso );
-	cmdList->SetGraphicsRootSignature( rootSignature );
+	cmdList->SetPipelineState( pipeline.pipelineState );
+	cmdList->SetGraphicsRootSignature( pipeline.rootSignature );
 	cmdList->IASetPrimitiveTopology( D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST );
 
 	D3D12_CPU_DESCRIPTOR_HANDLE dsvHandle = _dsvHeap->GetCPUDescriptorHandleForHeapStart();
@@ -825,9 +826,15 @@ void GPI_DX12::SetPipelineState( const GPIPipelineStateDesc& desc, ID3D12Pipelin
 
 	cmdList->SetDescriptorHeaps( 1, &_rvHeap );
 	cmdList->SetGraphicsRootDescriptorTable( 0, _rvHeap->GetGPUDescriptorHandleForHeapStart() );
-	if( constBuffer )
+	if( pipeline.constBuffer )
 	{
-		cmdList->SetGraphicsRootConstantBufferView( 1, constBuffer->GetGPUVirtualAddress() );
+		cmdList->SetGraphicsRootConstantBufferView( 1, pipeline.constBuffer->GetGPUVirtualAddress() );
+	}
+	for( uint32 index = 0; index < min(1, pipeline.resourceBuffers.size()); ++index )
+	{
+		assert( pipeline.resourceBuffers[ index ] );
+
+		cmdList->SetGraphicsRootShaderResourceView( 2 + index, pipeline.resourceBuffers[ index ]->GetGPUVirtualAddress() );
 	}
 }
 
@@ -838,9 +845,7 @@ void GPI_DX12::SetPipelineState( const GPIPipelineStateDesc& pipelineDesc )
 
 	std::shared_ptr<GPIPipeline_DX12>& pipeline = _pipelineCache[ pipelineHash ];
 
-	ID3D12RootSignature* rootSignature = pipeline->rootSignature;
-	ID3D12PipelineState* pipelineState = pipeline->pipelineState;
-	SetPipelineState( pipelineDesc, pipelineState, rootSignature, pipeline->constBuffer );
+	SetPipelineState( pipelineDesc, *pipeline.get() );
 }
 
 void GPI_DX12::Render( IVertexBuffer* positionBuffer, IVertexBuffer* uvBuffer, IVertexBuffer* normalBuffer, IIndexBuffer* indexBuffer )
@@ -900,6 +905,31 @@ IIndexBufferRef GPI_DX12::CreateIndexBuffer( void* data, uint32 size )
 	return std::make_shared<IndexBuffer_DX12>( buffer, size );
 }
 
+IVertexBufferRef GPI_DX12::CreateResourceBuffer( void* data, uint32 size )
+{
+	assert( _resourceBufferCache.size() < 10 );
+
+	ID3D12Resource* resourceBuffer = CreateBuffer( _device, _cmdQueueCtx[ D3D12_COMMAND_LIST_TYPE_COPY ], data, size );
+	uint32 bufferHash = _resourceBufferCache.size();
+	_resourceBufferCache[ bufferHash ] = resourceBuffer;
+
+	D3D12_SHADER_RESOURCE_VIEW_DESC srvDesc{};
+	srvDesc.Format = DXGI_FORMAT_UNKNOWN;
+	srvDesc.ViewDimension = D3D12_SRV_DIMENSION_BUFFER;
+	srvDesc.Shader4ComponentMapping = D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING;
+	srvDesc.Buffer.FirstElement = 0;
+	srvDesc.Buffer.NumElements = 1;
+	//srvDesc.Buffer.StructureByteStride = 0;
+	//srvDesc.Buffer.Flags = D3D12_BUFFER_SRV_FLAG_NONE;
+	srvDesc.Buffer.StructureByteStride = 12;
+
+	D3D12_CPU_DESCRIPTOR_HANDLE srvDescHandle = _srvHeap->GetCPUDescriptorHandleForHeapStart();
+	srvDescHandle.ptr += ( _resourceBufferCache.size() - 1 ) * descHeapSize[ D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV ];
+	_device->CreateShaderResourceView( resourceBuffer, &srvDesc, srvDescHandle );
+
+	return std::make_shared<VertexBuffer_DX12>( resourceBuffer, size, 0 );
+}
+
 ID3D12Resource* GPI_DX12::CreateConstantBuffer( void* data, uint32 size )
 {
 	assert( _constBufferCache.size() < 10 );
@@ -913,7 +943,7 @@ ID3D12Resource* GPI_DX12::CreateConstantBuffer( void* data, uint32 size )
 	cbDesc.SizeInBytes = size;
 
 	D3D12_CPU_DESCRIPTOR_HANDLE cbvDescHandle = _cbvHeap->GetCPUDescriptorHandleForHeapStart();
-	cbvDescHandle.ptr += _constBufferCache.size() * descHeapSize[ D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV ];
+	cbvDescHandle.ptr += ( _constBufferCache.size() - 1 ) * descHeapSize[ D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV ];
 	_device->CreateConstantBufferView( &cbDesc, cbvDescHandle );
 
 	return constBuffer;
@@ -957,19 +987,35 @@ ID3D12RootSignature* CreateGraphicsRootSignature( ID3D12Device* device, const GP
 	descRange[ 1 ].BaseShaderRegister = 0;
 	descRange[ 1 ].OffsetInDescriptorsFromTableStart = 1;
 
-	D3D12_ROOT_DESCRIPTOR rootDesc;
-	rootDesc.ShaderRegister = 1;
-	rootDesc.RegisterSpace = 0;
+	std::vector<D3D12_ROOT_PARAMETER> rootParams;
+	rootParams.resize( 1 + pipelineDesc.numConstantBuffers + pipelineDesc.numResources );
+	rootParams[ 0 ].ParameterType = D3D12_ROOT_PARAMETER_TYPE_DESCRIPTOR_TABLE;
+	rootParams[ 0 ].ShaderVisibility = D3D12_SHADER_VISIBILITY_ALL;
+	rootParams[ 0 ].DescriptorTable.NumDescriptorRanges = 2;
+	rootParams[ 0 ].DescriptorTable.pDescriptorRanges = descRange;
 
-	D3D12_ROOT_PARAMETER rootParam[ 2 ]{};
-	rootParam[ 0 ].ParameterType = D3D12_ROOT_PARAMETER_TYPE_DESCRIPTOR_TABLE;
-	rootParam[ 0 ].ShaderVisibility = D3D12_SHADER_VISIBILITY_ALL;
-	rootParam[ 0 ].DescriptorTable.NumDescriptorRanges = 2;
-	rootParam[ 0 ].DescriptorTable.pDescriptorRanges = descRange;
-	rootParam[ 1 ].ParameterType = D3D12_ROOT_PARAMETER_TYPE_CBV;
-	rootParam[ 1 ].ShaderVisibility = D3D12_SHADER_VISIBILITY_ALL;
-	rootParam[ 1 ].Descriptor = rootDesc;
-	rootParam[ 1 ].DescriptorTable.pDescriptorRanges = descRange;
+	uint32 rootParamIndex = 1;
+	for( uint32 iter = 0; iter < pipelineDesc.numConstantBuffers; ++iter, ++rootParamIndex )
+	{
+		D3D12_ROOT_DESCRIPTOR rootDesc;
+		rootDesc.ShaderRegister = 1 + iter;
+		rootDesc.RegisterSpace = 0;
+
+		rootParams[ rootParamIndex ].ParameterType = D3D12_ROOT_PARAMETER_TYPE_CBV;
+		rootParams[ rootParamIndex ].ShaderVisibility = D3D12_SHADER_VISIBILITY_ALL;
+		rootParams[ rootParamIndex ].Descriptor = rootDesc;
+	}
+
+	for( uint32 iter = 0; iter < pipelineDesc.numResources; ++iter, ++rootParamIndex )
+	{
+		D3D12_ROOT_DESCRIPTOR rootDesc;
+		rootDesc.ShaderRegister = 4 + iter;
+		rootDesc.RegisterSpace = 0;
+
+		rootParams[ rootParamIndex ].ParameterType = D3D12_ROOT_PARAMETER_TYPE_SRV;
+		rootParams[ rootParamIndex ].ShaderVisibility = D3D12_SHADER_VISIBILITY_ALL;
+		rootParams[ rootParamIndex ].Descriptor = rootDesc;
+	}
 
 	D3D12_STATIC_SAMPLER_DESC samplerDesc{};
 	samplerDesc.Filter = D3D12_FILTER_MIN_MAG_MIP_LINEAR;
@@ -982,8 +1028,8 @@ ID3D12RootSignature* CreateGraphicsRootSignature( ID3D12Device* device, const GP
 	samplerDesc.RegisterSpace = 0;
 
 	D3D12_ROOT_SIGNATURE_DESC rootSignatureDesc{};
-	rootSignatureDesc.NumParameters = 2;
-	rootSignatureDesc.pParameters = rootParam;
+	rootSignatureDesc.NumParameters = rootParams.size();
+	rootSignatureDesc.pParameters = rootParams.data();
 	rootSignatureDesc.NumStaticSamplers = 1;
 	rootSignatureDesc.pStaticSamplers = &samplerDesc;
 	rootSignatureDesc.Flags = D3D12_ROOT_SIGNATURE_FLAG_ALLOW_INPUT_ASSEMBLER_INPUT_LAYOUT;
@@ -1162,6 +1208,10 @@ void GPI_DX12::CreatePipelineState( const GPIPipelineStateDesc& pipelineDesc )
 		{
 			pipelineState->constBuffer = CreateConstantBuffer( nullptr, pipelineDesc.constBufferSize );
 		}
+		if( pipelineDesc.numResources > 0 )
+		{
+			pipelineState->resourceBuffers.resize( pipelineDesc.numResources );
+		}
 	}
 	else if( pipelineDesc.pipelineType == PipelineType_Compute )
 	{
@@ -1178,6 +1228,15 @@ void GPI_DX12::CreatePipelineState( const GPIPipelineStateDesc& pipelineDesc )
 			pipelineState->constBuffer = CreateConstantBuffer( nullptr, pipelineDesc.constBufferSize );
 		}
 	}
+}
+
+void GPI_DX12::BindResourceBuffer( const GPIPipelineStateDesc& pipelineDesc, IVertexBuffer* resourceBuffer, uint32 index )
+{
+	uint32 pipelineHash = GetPipelineStateHash( pipelineDesc );
+	assert( _pipelineCache.contains( pipelineHash ) );
+
+	std::shared_ptr<GPIPipeline_DX12>& pipelineState = _pipelineCache[ pipelineHash ];
+	pipelineState->resourceBuffers[ index ] = resourceBuffer;
 }
 
 void GPI_DX12::UpdateConstantBuffer( uint32 bufferHash, void* data, uint32 size )

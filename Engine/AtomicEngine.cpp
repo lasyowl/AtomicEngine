@@ -2,8 +2,11 @@
 #include "AtomicEngine.h"
 #include "System.h"
 #include "../PrimitiveComponent.h"
+#include "../TransformComponent.h"
+#include "../LightComponent.h"
 #include "../GPI_DX12.h"
 #include "../EntityInitializeSystem.h"
+#include "../LightSystem.h"
 #include "../RenderSystem.h"
 #include "../KeyInputSystem.h"
 #include "../SceneViewSystem.h"
@@ -86,14 +89,20 @@ namespace
 		ECSAddComponent<SceneViewComponent>( rootEntity );
 		ECSAddSystem<SceneViewSystem>();
 
+		ECSAddSystem<LightSystem>();
+
 		Entity entity0 = ECSCreateEntityWithMetaData( 0 );
+		ECSAddComponent<TransformComponent>( entity0 );
 		ECSAddComponent<PrimitiveComponent>( entity0 );
 
 		Entity entity = ECSCreateEntityWithMetaData( 1 );
+		//ECSAddComponent<TransformComponent>( entity );
 		//ECSAddComponent<PrimitiveComponent>( entity );
 
 		Entity entityCube = ECSCreateEntityWithMetaData( 2 );
+		ECSAddComponent<TransformComponent>( entityCube );
 		ECSAddComponent<PrimitiveComponent>( entityCube );
+		ECSAddComponent<LightComponent>( entityCube );
 		ECSAddSystem<RenderSystem>();
 
 		bool ShutOff = false;

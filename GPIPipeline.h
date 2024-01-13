@@ -56,7 +56,11 @@ struct GPIPipelineStateDesc
 	GPIShaderDesc pixelShader;
 	GPIShaderDesc computeShader;
 
+	uint32 numConstantBuffers;
 	uint32 constBufferSize;
+
+	uint32 numResources;
+	std::vector<uint32> resourceBufferSizes;
 };
 
 struct IGPIPipeline

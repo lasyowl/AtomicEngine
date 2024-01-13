@@ -2,6 +2,7 @@
 #include "RenderSystem.h"
 #include "AtomicEngine.h"
 #include "AssetLoader.h"
+#include "TransformComponent.h"
 #include "PrimitiveComponent.h"
 #include "GPI.h"
 #include "GPIPipeline.h"
@@ -10,8 +11,9 @@
 
 void RenderSystem::GeometryPass( std::array<std::unique_ptr<IComponentRegistry>, NUM_COMPONENT_MAX>& componentRegistry )
 {
+	ComponentRegistry<TransformComponent>* transformCompReg = GetRegistry<TransformComponent>( componentRegistry );
 	ComponentRegistry<PrimitiveComponent>* renderCompReg = GetRegistry<PrimitiveComponent>( componentRegistry );
-	if( !renderCompReg )
+	if( !transformCompReg || !renderCompReg )
 	{
 		return;
 	}
@@ -55,11 +57,13 @@ void RenderSystem::GeometryPass( std::array<std::unique_ptr<IComponentRegistry>,
 		pipelineDesc.pixelShader.macros.resize( 1 );
 		pipelineDesc.pixelShader.macros[ 0 ] = { "D3D12_SAMPLE_CONSTANT_BUFFER", "1" };
 		
+		pipelineDesc.numConstantBuffers = 1;
 		pipelineDesc.constBufferSize = sizeof( PrimitiveConstantBuffer );
+
+		pipelineDesc.numResources = 0;
 
 		AtomicEngine::GetGPI()->CreatePipelineState( pipelineDesc );
 	}
-	AtomicEngine::GetGPI()->SetPipelineState( pipelineDesc );
 
 	for( Entity entity = 0; entity < NUM_ENTITY_MAX; ++entity )
 	{
@@ -97,21 +101,43 @@ void RenderSystem::GeometryPass( std::array<std::unique_ptr<IComponentRegistry>,
 				component.indexBuffer.emplace_back( indexBuffer );
 			}
 		}
-		static float aa = 0;
-		aa += 0.001f;
-		component.scale = Vec3( 1, 1, 1 );
-		component.rotation = Vec3( 0, aa, 0 );
-		component.translate = Vec3( 0, 0, 0 );
+
+		TransformComponent& transformComp = transformCompReg->GetComponent( entity );
+
+		Vec3 earlyTransform = Vec3( 0, 0, 0 );
+		if( entity == 3 )
+		{
+			static float aa = 0;
+			static float sign = 1;
+			if( aa > 10 || aa < -10 )
+			{
+				sign = -sign;
+			}
+			aa += sign * 0.04f;
+			transformComp.position = Vec3( aa, 0, 0 );
+			transformComp.rotation = Vec3( 0, 0, 0 );
+			transformComp.scale = Vec3( 1, 1, 1 );
+		}
+		else
+		{
+			static float aa = 0;
+			aa += 0.001f;
+			transformComp.position = Vec3( 0, 0, 0 );
+			transformComp.rotation = Vec3( 0, aa, 0 );
+			transformComp.scale = Vec3( 1, 1, 1 );
+		}
+
+		AtomicEngine::GetGPI()->SetPipelineState( pipelineDesc );
 
 		PrimitiveConstantBuffer constBuffer;
-		constBuffer.matModel = AEMath::GetScaleMatrix( component.scale ) * AEMath::GetRotationMatrix( component.rotation ) * AEMath::GetTranslateMatrix( component.translate );
+		constBuffer.matModel = AEMath::GetTransposedMatrix( AEMath::GetScaleMatrix( transformComp.scale ) * AEMath::GetTranslateMatrix( earlyTransform ) * AEMath::GetRotationMatrix( transformComp.rotation ) * AEMath::GetTranslateMatrix( transformComp.position ) );
 		AtomicEngine::GetGPI()->UpdateConstantBuffer1( pipelineDesc, &constBuffer );
 
 		for( uint32 index = 0; index < component.staticMesh->GetNumMeshes(); ++index )
 		{
 			AtomicEngine::GetGPI()->Render( component.positionBuffer.get(), component.uvBuffer.get(), component.normalBuffer.get(), component.indexBuffer[ index ].get() );
 		}
-	}
 
-	AtomicEngine::GetGPI()->FlushPipelineState();
+		AtomicEngine::GetGPI()->FlushPipelineState();
+	}
 }

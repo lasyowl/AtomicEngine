@@ -1,10 +1,11 @@
 #pragma once
 
-#include "EngineEssential.h"
+#include "ECS.h"
 #include "Vector.h"
 
 struct LightComponent
 {
-	Vec3 position;
-	Vec3 radius;
+	DEFINE_ECS_COMPONENT( Light );
+
+	float intensity;
 };

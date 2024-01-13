@@ -29,6 +29,7 @@
     <ClInclude Include="GPIShader_DX12.h" />
     <ClInclude Include="KeyInputSystem.h" />
     <ClInclude Include="LightComponent.h" />
+    <ClInclude Include="LightSystem.h" />
     <ClInclude Include="MetaDataComponent.h" />
     <ClInclude Include="PrimitiveComponent.h" />
     <ClInclude Include="RawImage.h" />
@@ -58,6 +59,7 @@
     <ClInclude Include="RenderSystem.h" />
     <ClInclude Include="StaticMesh.h" />
     <ClInclude Include="TestSystem.h" />
+    <ClInclude Include="TransformComponent.h" />
     <ClInclude Include="Vector.h" />
   </ItemGroup>
   <ItemGroup>
@@ -80,7 +82,9 @@
     <ClCompile Include="GPIResource_DX12.cpp" />
     <ClCompile Include="GPI_DX12.cpp" />
     <ClCompile Include="KeyInputSystem.cpp" />
+    <ClCompile Include="LightSystem.cpp" />
     <ClCompile Include="Math.cpp" />
+    <ClCompile Include="RenderSystem_Lighting.cpp" />
     <ClCompile Include="RenderSystem_PostProcess.cpp" />
     <ClCompile Include="RenderSystem_GeometryPass.cpp" />
     <ClCompile Include="SampleMesh.cpp" />

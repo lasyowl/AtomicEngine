@@ -14,7 +14,7 @@ public:
 	virtual uint64 GetGPUVirtualAddress() const override;
 
 	//virtual void Initialize( void* data, uint32 stride, uint32 size );
-private:
+public:
 	ID3D12Resource* _resource;
 };
 
@@ -29,6 +29,6 @@ public:
 	virtual uint64 GetGPUVirtualAddress() const override;
 
 	//virtual void Initialize( void* data, uint32 stride, uint32 size );
-private:
+public:
 	struct ID3D12Resource* _resource;
 };

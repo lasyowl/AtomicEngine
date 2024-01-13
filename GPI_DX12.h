@@ -41,7 +41,11 @@ public:
 	virtual IVertexBufferRef CreateVertexBuffer( void* data, uint32 stride, uint32 size ) override;
 	virtual IIndexBufferRef CreateIndexBuffer( void* data, uint32 size ) override;
 
-	virtual void CreatePipelineState( const GPIPipelineStateDesc& pipelineStateDesc ) override;
+	virtual IVertexBufferRef CreateResourceBuffer( void* data, uint32 size ) override;
+
+	virtual void CreatePipelineState( const GPIPipelineStateDesc& pipelineDesc ) override;
+
+	virtual void BindResourceBuffer( const GPIPipelineStateDesc& pipelineDesc, IVertexBuffer* resourceBuffer, uint32 index ) override;
 
 	// todo : integrate with UpdateConstBuffer1
 	virtual void UpdateConstantBuffer( uint32 bufferHash, void* data, uint32 size ) override;
@@ -52,7 +56,7 @@ public:
 private:
 	ID3D12Resource* CreateConstantBuffer( void* data, uint32 size );
 
-	void SetPipelineState( const GPIPipelineStateDesc& desc, ID3D12PipelineState* pso, ID3D12RootSignature* rootSignature, ID3D12Resource* constBuffer );
+	void SetPipelineState( const GPIPipelineStateDesc& desc, const GPIPipeline_DX12& pipeline );
 
 private:
 	HWND _hWnd;
@@ -86,6 +90,7 @@ private:
 	std::unordered_map<uint32, std::shared_ptr<GPIPipeline_DX12>> _pipelineCache;
 	std::unordered_map<uint32, ID3DBlob*> _shaderCache;
 	std::unordered_map<uint32, ID3D12Resource*> _constBufferCache;
+	std::unordered_map<uint32, ID3D12Resource*> _resourceBufferCache;
 
 	ID3D12Resource* _constBuffer; // temp
 	ID3D12Resource* _gBuffers[ 4 ];

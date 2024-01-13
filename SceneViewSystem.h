@@ -28,7 +28,7 @@ class SceneViewSystem : public ISystem
 public:
 	DEFINE_ECS_SYSTEM( SceneView );
 public:
-	virtual void RunSystem( std::array<std::unique_ptr<struct IComponentRegistry>, NUM_COMPONENT_MAX>& componentRegistry ) override;
+	virtual void RunSystem( std::array<std::unique_ptr<IComponentRegistry>, NUM_COMPONENT_MAX>& componentRegistry ) override;
 
 private:
 	SceneViewConstantBuffer constBuffer;
