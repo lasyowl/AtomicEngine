@@ -4,6 +4,7 @@
 #include "AssetLoader.h"
 #include "TransformComponent.h"
 #include "PrimitiveComponent.h"
+#include "KeyInputSystem.h"
 #include "GPI.h"
 #include "GPIPipeline.h"
 #include "Matrix.h"
@@ -13,6 +14,15 @@ void RenderSystem::GeometryPass( std::array<std::unique_ptr<IComponentRegistry>,
 {
 	ComponentRegistry<TransformComponent>* transformCompReg = GetRegistry<TransformComponent>( componentRegistry );
 	ComponentRegistry<PrimitiveComponent>* renderCompReg = GetRegistry<PrimitiveComponent>( componentRegistry );
+	ComponentRegistry<KeyInputComponent>* keyInputCompReg = GetRegistry<KeyInputComponent>( componentRegistry );
+
+	KeyInputComponent& keyInputComp = keyInputCompReg->GetComponent( 0 );
+	static bool bMove = true;
+	if( keyInputComp.keyDown[ KeyType_P ] )
+	{
+		bMove = !bMove;
+	}
+
 	if( !transformCompReg || !renderCompReg )
 	{
 		return;
@@ -114,8 +124,8 @@ void RenderSystem::GeometryPass( std::array<std::unique_ptr<IComponentRegistry>,
 			{
 				sign = -sign;
 			}
-			aa += sign * 0.04f;
-			transformComp.position = Vec3( aa, 0, 0 );
+			if( bMove )	aa += sign * 0.04f;
+			transformComp.position = Vec3( aa, 0, -5 );
 			transformComp.rotation = Vec3( 0, 0, 0 );
 			transformComp.scale = Vec3( 0.5f, 0.5f, 0.5f );
 		}

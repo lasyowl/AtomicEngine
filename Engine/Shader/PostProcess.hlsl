@@ -33,7 +33,7 @@ float4 PS_main (
     float2 uv : TEXCOORD) : SV_TARGET
 {
     float depth = gDepth.Sample(smp, uv).r;
-    float2 screenPos = float2(position.x / 1920.0f, position.y / 1080.0f);
+    float2 screenPos = float2(position.x / 1920.0f, 1.0f - position.y / 1080.0f);
     float4 clipPos = float4(screenPos * 2.0f - 1.0f, depth, 1.0f);
     float4 worldPosPerspective = mul(clipPos, viewProjectionInv);
     float3 worldPos = worldPosPerspective.xyz / worldPosPerspective.w;
