@@ -3,7 +3,6 @@
 #include "KeyInputSystem.h"
 #include "GPIResource_DX12.h"
 #include "AtomicEngine.h"
-#include "GPIConstantBuffer.h"
 #include "GPI.h"
 #include "Math.h"
 
@@ -55,10 +54,5 @@ void SceneViewSystem::RunSystem( std::array<std::unique_ptr<struct IComponentReg
 
 		sceneView.matView = AEMath::GetViewMatrix( sceneView.position, sceneView.position + sceneView.direction, Vec3::up );
 		sceneView.matProjection = AEMath::GetPerspectiveMatrixFOV( 0.25f * 3.14f, 1920.0f / 1080.0f, 0.1f, 1000.0f );
-
-		constBuffer.matViewProjection = AEMath::GetTransposedMatrix( sceneView.matView * sceneView.matProjection );
-		constBuffer.matViewProjectionInv = AEMath::GetTransposedMatrix( Mat4x4::Inverse( constBuffer.matViewProjection ) );
-		constBuffer.viewPosition = sceneView.position;
-		AtomicEngine::GetGPI()->UpdateConstantBuffer( 0, &constBuffer, sizeof( SceneViewConstantBuffer ) );
 	}
 }

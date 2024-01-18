@@ -4,31 +4,95 @@
 
 struct ID3D12Resource;
 
-struct VertexBuffer_DX12 : public IVertexBuffer
+struct GPIDescriptorHeapHandle_DX12
 {
-public:
-	VertexBuffer_DX12( ID3D12Resource* resource, uint32 size, uint32 stride ) 
-		: IVertexBuffer( size, stride )
-		, _resource( resource ) {}
+	GPIDescriptorHeapHandle_DX12() : cpu( {} ), gpu( {} ) {}
+	GPIDescriptorHeapHandle_DX12(const GPIDescriptorHeapHandle_DX12& other) : cpu( other.cpu ), gpu( other.gpu ) {}
 
-	virtual uint64 GetGPUVirtualAddress() const override;
+	GPIDescriptorHeapHandle_DX12& operator = ( const GPIDescriptorHeapHandle_DX12& other )
+	{
+		cpu = other.cpu;
+		gpu = other.gpu;
 
-	//virtual void Initialize( void* data, uint32 stride, uint32 size );
+		return *this;
+	}
+
+	friend static bool operator == ( const GPIDescriptorHeapHandle_DX12& lhs, const GPIDescriptorHeapHandle_DX12& rhs )
+	{
+		return lhs.cpu.ptr == rhs.cpu.ptr && lhs.gpu.ptr == rhs.gpu.ptr;
+	}
+
 public:
-	ID3D12Resource* _resource;
+	D3D12_CPU_DESCRIPTOR_HANDLE cpu;
+	D3D12_GPU_DESCRIPTOR_HANDLE gpu;
 };
 
-struct IndexBuffer_DX12 : public IIndexBuffer
+namespace std
+{
+template<> 
+struct hash<GPIDescriptorHeapHandle_DX12>
+{
+	std::size_t operator()( const GPIDescriptorHeapHandle_DX12& handle ) const noexcept
+	{
+		return handle.cpu.ptr;
+	}
+};
+}
+
+struct GPIResource_DX12 : public IGPIResource
 {
 public:
-	IndexBuffer_DX12( ID3D12Resource* resource, uint32 size )
-		: IIndexBuffer( size )
-		, _resource( resource )
-	{}
+	GPIResource_DX12( ID3D12Resource* inResource ) : resource( inResource ) {}
 
-	virtual uint64 GetGPUVirtualAddress() const override;
-
-	//virtual void Initialize( void* data, uint32 stride, uint32 size );
 public:
-	struct ID3D12Resource* _resource;
+	ID3D12Resource* resource;
+};
+
+struct GPIRenderTargetView_DX12 : public IGPIRenderTargetView
+{
+	ID3D12Resource* resource;
+	GPIDescriptorHeapHandle_DX12 handle;
+};
+
+struct GPIDepthStencilView_DX12 : public IGPIDepthStencilView
+{
+	ID3D12Resource* resource;
+	GPIDescriptorHeapHandle_DX12 handle;
+};
+
+struct GPIConstantBufferView_DX12 : public IGPIConstantBufferView
+{
+	ID3D12Resource* resource;
+	GPIDescriptorHeapHandle_DX12 handle;
+	D3D12_GPU_VIRTUAL_ADDRESS gpuAddress;
+};
+
+struct GPIShaderResourceView_DX12 : public IGPIShaderResourceView
+{
+	ID3D12Resource* resource;
+	GPIDescriptorHeapHandle_DX12 handle;
+	D3D12_GPU_VIRTUAL_ADDRESS gpuAddress;
+};
+
+struct GPIUnorderedAccessView_DX12 : public IGPIUnorderedAccessView
+{
+	ID3D12Resource* resource;
+	GPIDescriptorHeapHandle_DX12 handle;
+	D3D12_GPU_VIRTUAL_ADDRESS gpuAddress;
+};
+
+struct GPISampler_DX12 : public IGPISampler
+{
+	ID3D12Resource* resource;
+	GPIDescriptorHeapHandle_DX12 handle;
+};
+
+struct GPIVertexBufferView_DX12 : public IGPIVertexBufferView
+{
+	D3D12_GPU_VIRTUAL_ADDRESS gpuAddress;
+};
+
+struct GPIIndexBufferView_DX12 : public IGPIIndexBufferView
+{
+	D3D12_GPU_VIRTUAL_ADDRESS gpuAddress;
 };

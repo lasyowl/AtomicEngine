@@ -89,13 +89,13 @@ namespace
 		ECSAddComponent<SceneViewComponent>( rootEntity );
 		ECSAddSystem<SceneViewSystem>();
 
-		ECSAddSystem<LightSystem>();
+		//ECSAddSystem<LightSystem>();
 
 		Entity entity0 = ECSCreateEntityWithMetaData( 0 );
 		ECSAddComponent<TransformComponent>( entity0 );
 		ECSAddComponent<PrimitiveComponent>( entity0 );
 
-		Entity entity = ECSCreateEntityWithMetaData( 1 );
+		//Entity entity = ECSCreateEntityWithMetaData( 1 );
 		//ECSAddComponent<TransformComponent>( entity );
 		//ECSAddComponent<PrimitiveComponent>( entity );
 
@@ -112,11 +112,7 @@ namespace
 			{
 				while( !ShutOff )
 				{
-					_gpi->BeginFrame();
-
 					ECSRunSystems();
-
-					_gpi->EndFrame();
 				}
 			} );
 

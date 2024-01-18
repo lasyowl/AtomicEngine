@@ -15,11 +15,6 @@ struct IVec3
 
 	static const IVec3 up;
 
-	int32 Magnitude()
-	{
-		return sqrt( x * x + y * y + z * z );
-	}
-
 	IVec3& operator *= ( const int32 coef )
 	{
 		x *= coef;

@@ -13,6 +13,8 @@ struct SceneViewComponent
 
 	Mat4x4 matView;
 	Mat4x4 matProjection;
+
+	uint32 constBufferID;
 };
 
 __declspec( align( 256 ) )

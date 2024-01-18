@@ -11,20 +11,19 @@ void RenderSystem::PostProcess( std::array<std::unique_ptr<IComponentRegistry>, 
 {
 	return;
 
-	static GPIPipelineStateDesc pipelineDesc{};
-	if( pipelineDesc.hash == 0 )
+	/*static GPIPipelineStateDesc pipelineDesc{};
+	if( pipelineDesc.id == 0 )
 	{
-		pipelineDesc.hash = 2;
+		pipelineDesc.id = 2;
 		pipelineDesc.pipelineType = PipelineType_Graphics;
 		pipelineDesc.bRenderSwapChainBuffer = true;
 		pipelineDesc.bWriteDepth = false;
-		pipelineDesc.numRenderTargets = 1;
-		pipelineDesc.renderTargetDesc.resize( pipelineDesc.numRenderTargets );
-		pipelineDesc.renderTargetDesc[ 0 ].format = GPIBufferFormat_B8G8R8A8_SRGB;
+
+		pipelineDesc.rtvFormats = { EGPIResourceFormat::B8G8R8A8_SRGB, };
 
 		pipelineDesc.inputDesc.resize( 2 );
-		pipelineDesc.inputDesc[ 0 ] = { "POSITION", GPIBufferFormat_R32G32B32_Float, GPIInputClass_PerVertex, 0 };
-		pipelineDesc.inputDesc[ 1 ] = { "TEXCOORD", GPIBufferFormat_R32G32_Float, GPIInputClass_PerVertex, 2 };
+		pipelineDesc.inputDesc[ 0 ] = { "POSITION", EGPIResourceFormat::R32G32B32_Float, GPIInputClass_PerVertex, 0 };
+		pipelineDesc.inputDesc[ 1 ] = { "TEXCOORD", EGPIResourceFormat::R32G32_Float, GPIInputClass_PerVertex, 2 };
 
 		pipelineDesc.vertexShader.hash = 3;
 		pipelineDesc.vertexShader.type = ShaderType_VertexShader;
@@ -55,5 +54,5 @@ void RenderSystem::PostProcess( std::array<std::unique_ptr<IComponentRegistry>, 
 
 	AtomicEngine::GetGPI()->Render( positionBuffer.get(), uvBuffer.get(), nullptr, indexBuffer.get() );
 
-	AtomicEngine::GetGPI()->FlushPipelineState();
+	AtomicEngine::GetGPI()->ExecuteCommandList();*/
 }

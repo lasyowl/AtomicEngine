@@ -1,21 +1,14 @@
 #pragma once
 
 #include "EngineEssential.h"
+#include "GPIDefine.h"
 #include "GPIShader.h"
+#include "GPIResource.h"
 
 enum EGPIPipelineType
 {
 	PipelineType_Graphics,
 	PipelineType_Compute,
-};
-
-enum EGPIBufferFormat
-{
-	GPIBufferFormat_Unknown,
-	GPIBufferFormat_B8G8R8A8,
-	GPIBufferFormat_B8G8R8A8_SRGB,
-	GPIBufferFormat_R32G32_Float,
-	GPIBufferFormat_R32G32B32_Float,
 };
 
 enum EGPIInputClass
@@ -27,19 +20,20 @@ enum EGPIInputClass
 struct GPIPipelineInputDesc
 {
 	std::string semanticName;
-	EGPIBufferFormat format;
+	EGPIResourceFormat format;
 	EGPIInputClass inputClass;
 	uint32 inputSlot;
 };
 
-struct GPIRenderTargetDesc
+struct GPIPipelineInput
 {
-	EGPIBufferFormat format;
+	std::vector<IGPIVertexBufferViewRef> vbv;
+	std::vector<IGPIIndexBufferViewRef> ibv;
 };
 
 struct GPIPipelineStateDesc
 {
-	uint32 hash; // temp
+	uint32 id; // temp
 
 	EGPIPipelineType pipelineType;
 
@@ -47,20 +41,17 @@ struct GPIPipelineStateDesc
 
 	bool bWriteDepth;
 
-	uint32 numRenderTargets;
-	std::vector<GPIRenderTargetDesc> renderTargetDesc;
-
 	std::vector<GPIPipelineInputDesc> inputDesc;
 
 	GPIShaderDesc vertexShader;
 	GPIShaderDesc pixelShader;
 	GPIShaderDesc computeShader;
 
-	uint32 numConstantBuffers;
-	uint32 constBufferSize;
+	std::vector<EGPIResourceFormat> rtvFormats;
 
-	uint32 numResources;
-	std::vector<uint32> resourceBufferSizes;
+	uint32 numCBVs;
+	uint32 numSRVs;
+	uint32 numUAVs;
 };
 
 struct IGPIPipeline
@@ -69,3 +60,5 @@ struct IGPIPipeline
 	IGPIShader pixelShader;
 	IGPIShader computeShader;
 };
+
+typedef std::shared_ptr<IGPIPipeline> IGPIPipelineRef;

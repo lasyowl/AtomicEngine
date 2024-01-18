@@ -2,6 +2,7 @@
 
 #include "ECSDefine.h"
 #include "GPIResource.h"
+#include "GPIPipeline.h"
 #include "StaticMesh.h"
 
 struct PrimitiveComponent
@@ -10,8 +11,10 @@ struct PrimitiveComponent
 
 	std::shared_ptr<StaticMesh> staticMesh;
 
-	IVertexBufferRef positionBuffer;
-	IVertexBufferRef normalBuffer;
-	IVertexBufferRef uvBuffer;
-	std::vector<IIndexBufferRef> indexBuffer;
+	IGPIResourceRef positionResource;
+	IGPIResourceRef normalResource;
+	IGPIResourceRef uvResource;
+	std::vector<IGPIResourceRef> indexResource;
+
+	GPIPipelineInput pipelineInput;
 };

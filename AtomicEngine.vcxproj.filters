@@ -87,9 +87,6 @@
     <ClInclude Include="Math.h">
       <Filter>헤더 파일</Filter>
     </ClInclude>
-    <ClInclude Include="GPIConstantBuffer.h">
-      <Filter>헤더 파일</Filter>
-    </ClInclude>
     <ClInclude Include="DebugUtil.h">
       <Filter>헤더 파일</Filter>
     </ClInclude>
@@ -142,6 +139,12 @@
       <Filter>헤더 파일</Filter>
     </ClInclude>
     <ClInclude Include="IntVector.h">
+      <Filter>헤더 파일</Filter>
+    </ClInclude>
+    <ClInclude Include="GPIDefine.h">
+      <Filter>헤더 파일</Filter>
+    </ClInclude>
+    <ClInclude Include="GPIUtility_DX12.h">
       <Filter>헤더 파일</Filter>
     </ClInclude>
   </ItemGroup>
@@ -222,6 +225,15 @@
       <Filter>소스 파일</Filter>
     </ClCompile>
     <ClCompile Include="IntVector.cpp">
+      <Filter>소스 파일</Filter>
+    </ClCompile>
+    <ClCompile Include="GPIHeapAllocator_DX12.cpp">
+      <Filter>소스 파일</Filter>
+    </ClCompile>
+    <ClCompile Include="RenderSystem_BeginFrame.cpp">
+      <Filter>소스 파일</Filter>
+    </ClCompile>
+    <ClCompile Include="RenderSystem_EndFrame.cpp">
       <Filter>소스 파일</Filter>
     </ClCompile>
   </ItemGroup>

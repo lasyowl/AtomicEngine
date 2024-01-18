@@ -23,10 +23,12 @@
     <ClInclude Include="DebugUtil.h" />
     <ClInclude Include="ECSDefine.h" />
     <ClInclude Include="EntityInitializeSystem.h" />
+    <ClInclude Include="GPIDefine.h" />
     <ClInclude Include="GPIPipeline.h" />
     <ClInclude Include="GPIPipeline_DX12.h" />
     <ClInclude Include="GPIShader.h" />
     <ClInclude Include="GPIShader_DX12.h" />
+    <ClInclude Include="GPIUtility_DX12.h" />
     <ClInclude Include="IntVector.h" />
     <ClInclude Include="KeyInputSystem.h" />
     <ClInclude Include="LightComponent.h" />
@@ -36,7 +38,6 @@
     <ClInclude Include="RawImage.h" />
     <ClInclude Include="SampleMesh.h" />
     <ClInclude Include="SceneViewSystem.h" />
-    <ClInclude Include="GPIConstantBuffer.h" />
     <ClInclude Include="DataType.h" />
     <ClInclude Include="ECS_Component.h" />
     <ClInclude Include="ECS_System.h" />
@@ -80,12 +81,15 @@
     </ClCompile>
     <ClCompile Include="Engine\System.cpp" />
     <ClCompile Include="EntityInitializeSystem.cpp" />
+    <ClCompile Include="GPIHeapAllocator_DX12.cpp" />
     <ClCompile Include="GPIResource_DX12.cpp" />
     <ClCompile Include="GPI_DX12.cpp" />
     <ClCompile Include="IntVector.cpp" />
     <ClCompile Include="KeyInputSystem.cpp" />
     <ClCompile Include="LightSystem.cpp" />
     <ClCompile Include="Math.cpp" />
+    <ClCompile Include="RenderSystem_BeginFrame.cpp" />
+    <ClCompile Include="RenderSystem_EndFrame.cpp" />
     <ClCompile Include="RenderSystem_Lighting.cpp" />
     <ClCompile Include="RenderSystem_PostProcess.cpp" />
     <ClCompile Include="RenderSystem_GeometryPass.cpp" />
