@@ -60,6 +60,8 @@ public:
 	GPIDescriptorHeapHandle_DX12 Allocate( const EGPIResourceViewType type );
 	void Release( const EGPIResourceViewType type, const GPIDescriptorHeapHandle_DX12& handle );
 
+	ID3D12DescriptorHeap* GetHeap( const EGPIResourceViewType type );
+
 private:
 	std::array<GPIDescriptorHeap_DX12, GPIResourceViewTypeSize> _heapContexts;
 };
@@ -73,8 +75,9 @@ public:
 	virtual void BeginFrame( const IGPIResource& inSwapChainResource, const IGPIRenderTargetView& inSwapChainRTV, const IGPIDepthStencilView& inSwapChainDSV ) override;
 	virtual void EndFrame( const IGPIResource& inSwapChainResource ) override;
 
-	virtual void ClearSwapChain( IGPIRenderTargetView* inRTV ) override;
-	virtual void ClearRenderTarget( IGPIRenderTargetView* inRTV ) override;
+	virtual void ClearSwapChain( const IGPIRenderTargetView& inRTV ) override;
+	virtual void ClearRenderTarget( const IGPIRenderTargetView& inRTV ) override;
+	virtual void ClearRenderTarget( const IGPIUnorderedAccessView& inUAV ) override;
 
 	virtual void SetPipelineState( const GPIPipelineStateDesc& pipelineDesc ) override;
 	virtual void Render( const GPIPipelineInput& pipelineInput ) override;
@@ -92,7 +95,8 @@ public:
 	virtual IGPIDepthStencilViewRef CreateDepthStencilView( const IGPIResource& inResource, const GPIDepthStencilViewDesc& dsvDesc ) override;
 	virtual IGPIConstantBufferViewRef CreateConstantBufferView( const IGPIResource& inResource, const GPIConstantBufferViewDesc& cbvDesc ) override;
 	virtual IGPIShaderResourceViewRef CreateShaderResourceView( const IGPIResource& inResource, const GPIShaderResourceViewDesc& srvDesc ) override;
-	virtual IGPIUnorderedAccessViewRef CreateUnorderedAccessView( const IGPIResource& inResource, const GPIUnorderedAccessViewDesc& uavDesc ) override;
+	virtual IGPIUnorderedAccessViewRef CreateUnorderedAccessView( const IGPIResource& inResource, const GPIUnorderedAccessViewDesc& uavDesc, const bool bShaderHidden ) override;
+	virtual IGPITextureViewTableRef CreateTextureViewTable( const std::vector<const IGPIResource*> inResources, const std::vector<GPIShaderResourceViewDesc> inDescs ) override;
 	virtual IGPISamplerRef CreateSampler( const IGPIResource& inResource, const GPISamplerDesc& samplerDesc ) override;
 	virtual IGPIVertexBufferViewRef CreateVertexBufferView( const IGPIResource& inResource, const uint32 size, const uint32 stride ) override;
 	virtual IGPIIndexBufferViewRef CreateIndexBufferView( const IGPIResource& inResource, const uint32 size ) override;
@@ -102,6 +106,7 @@ public:
 	virtual void BindShaderResourceView( IGPIPipeline& inPipeline, const IGPIShaderResourceView& inSRV, uint32 index ) override;
 	virtual void BindUnorderedAccessView( IGPIPipeline& inPipeline, const IGPIUnorderedAccessView& inUAV, uint32 index ) override;
 	virtual void BindDepthStencilView( IGPIPipeline& inPipeline, const IGPIDepthStencilView& inDSV ) override;
+	virtual void BindTextureViewTable( IGPIPipeline& inPipeline, const IGPITextureViewTable& inTable, const uint32 index ) override;
 
 	virtual void UpdateResourceData( const IGPIResource& inResource, void* data, uint32 sizeInBytes ) override;
 

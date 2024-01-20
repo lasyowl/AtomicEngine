@@ -14,4 +14,6 @@ struct GPIPipeline_DX12 : public IGPIPipeline
 	std::vector<D3D12_GPU_VIRTUAL_ADDRESS> uav;
 	std::vector<GPISampler_DX12*> sampler;
 	D3D12_CPU_DESCRIPTOR_HANDLE dsv;
+
+	std::vector<D3D12_GPU_DESCRIPTOR_HANDLE> textureTables;
 };

@@ -46,7 +46,7 @@ void RenderSystem::BeginFrame( std::array<std::unique_ptr<IComponentRegistry>, N
 			dsDesc.depth = 1;
 			dsDesc.numMips = 1;
 			dsDesc.flags = GPIResourceFlag_AllowDepthStencil;
-			dsDesc.usage = GPIResourceUsage_DepthStencil;
+			dsDesc.initialState = GPIResourceState_DepthWrite;
 			dsDesc.clearValue.type = EGPIResourceClearValueType::DepthStencil;
 			dsDesc.clearValue.depthStencil = Vec2( 1.0f, 0.0f );
 
@@ -55,9 +55,15 @@ void RenderSystem::BeginFrame( std::array<std::unique_ptr<IComponentRegistry>, N
 			GPIDepthStencilViewDesc dsvDesc{};
 			dsvDesc.format = EGPIResourceFormat::D32_Float;
 			dsvDesc.dimension = EGPIResourceDimension::Texture2D;
-			dsvDesc.flag = GPIDepthStencilViewFlag_ReadonlyDepth;
+			dsvDesc.flag = GPIDepthStencilViewFlag_None;
 
-			_swapChainDSV = AtomicEngine::GetGPI()->CreateDepthStencilView( *_swapChainDepthResource, dsvDesc );
+			_swapChainDepthDSV = AtomicEngine::GetGPI()->CreateDepthStencilView( *_swapChainDepthResource, dsvDesc );
+
+			GPIShaderResourceViewDesc srvDesc{};
+			srvDesc.format = EGPIResourceFormat::R32_Float;
+			srvDesc.dimension = EGPIResourceDimension::Texture2D;
+
+			_swapChainDepthSRV = AtomicEngine::GetGPI()->CreateShaderResourceView( *_swapChainDepthResource, srvDesc );
 		}
 
 		{
@@ -79,12 +85,77 @@ void RenderSystem::BeginFrame( std::array<std::unique_ptr<IComponentRegistry>, N
 		}
 	}
 
+	if( !_gBufferDiffuseResource )
+	{
+		GPIResourceDesc gBufferDesc{};
+		gBufferDesc.dimension = EGPIResourceDimension::Texture2D;
+		gBufferDesc.format = EGPIResourceFormat::B8G8R8A8;
+		gBufferDesc.width = 1920;
+		gBufferDesc.height = 1080;
+		gBufferDesc.depth = 1;
+		gBufferDesc.numMips = 1;
+		gBufferDesc.flags = GPIResourceFlag_AllowRenderTarget | GPIResourceFlag_AllowUnorderedAccess;
+		gBufferDesc.initialState = GPIResourceState_RenderTarget;
+		gBufferDesc.clearValue.type = EGPIResourceClearValueType::Color;
+		gBufferDesc.clearValue.color = Vec4( 0.0f, 0.0f, 0.0f, 0.0f );
+
+		_gBufferDiffuseResource = AtomicEngine::GetGPI()->CreateResource( gBufferDesc );
+		_gBufferNormalResource = AtomicEngine::GetGPI()->CreateResource( gBufferDesc );
+		_gBufferUnknown0Resource = AtomicEngine::GetGPI()->CreateResource( gBufferDesc );
+		_gBufferUnknown1Resource = AtomicEngine::GetGPI()->CreateResource( gBufferDesc );
+
+		GPIRenderTargetViewDesc rtvDesc{};
+		rtvDesc.format = EGPIResourceFormat::B8G8R8A8_SRGB;
+		rtvDesc.dimension = EGPIResourceDimension::Texture2D;
+
+		_gBufferDiffuseRTV = AtomicEngine::GetGPI()->CreateRenderTargetView( *_gBufferDiffuseResource, rtvDesc );
+		_gBufferNormalRTV = AtomicEngine::GetGPI()->CreateRenderTargetView( *_gBufferNormalResource, rtvDesc );
+		_gBufferUnknown0RTV = AtomicEngine::GetGPI()->CreateRenderTargetView( *_gBufferUnknown0Resource, rtvDesc );
+		_gBufferUnknown1RTV = AtomicEngine::GetGPI()->CreateRenderTargetView( *_gBufferUnknown1Resource, rtvDesc );
+
+		GPIShaderResourceViewDesc srvDesc{};
+		srvDesc.format = EGPIResourceFormat::B8G8R8A8_SRGB;
+		srvDesc.dimension = EGPIResourceDimension::Texture2D;
+
+		GPIShaderResourceViewDesc textureDesc{};
+		textureDesc.format = EGPIResourceFormat::R32_Float;
+		textureDesc.dimension = EGPIResourceDimension::Texture2D;
+
+		std::vector<const IGPIResource*> textureResources = {
+			_gBufferDiffuseResource.get(),
+			_gBufferNormalResource.get(),
+			_gBufferUnknown0Resource.get(),
+			_swapChainDepthResource.get()
+		};
+		std::vector<GPIShaderResourceViewDesc> textureDescs = {
+			srvDesc,
+			srvDesc,
+			srvDesc,
+			textureDesc
+		};
+		_gBufferTextureViewTable = AtomicEngine::GetGPI()->CreateTextureViewTable( textureResources, textureDescs );
+
+		GPIUnorderedAccessViewDesc uavDesc{};
+		uavDesc.format = EGPIResourceFormat::R32_Uint;
+		uavDesc.dimension = EGPIResourceDimension::Texture2D;
+
+		_gBufferDiffuseUAV = AtomicEngine::GetGPI()->CreateUnorderedAccessView( *_gBufferDiffuseResource, uavDesc, true );
+		_gBufferNormalUAV = AtomicEngine::GetGPI()->CreateUnorderedAccessView( *_gBufferNormalResource, uavDesc, true );
+		_gBufferUnknown0UAV = AtomicEngine::GetGPI()->CreateUnorderedAccessView( *_gBufferUnknown0Resource, uavDesc, true );
+		_gBufferUnknown1UAV = AtomicEngine::GetGPI()->CreateUnorderedAccessView( *_gBufferUnknown1Resource, uavDesc, true );
+	}
+
 	SceneViewConstantBuffer viewBuffer{};
 	viewBuffer.matViewProjection = AEMath::GetTransposedMatrix( sceneViewComp.matView * sceneViewComp.matProjection );
 	viewBuffer.matViewProjectionInv = AEMath::GetTransposedMatrix( Mat4x4::Inverse( viewBuffer.matViewProjection ) );
 	viewBuffer.viewPosition = sceneViewComp.position;
 	
+	AtomicEngine::GetGPI()->BeginFrame( *swapChainResource, *swapChainRTV, *_swapChainDepthDSV );
+
 	AtomicEngine::GetGPI()->UpdateResourceData( *_viewCBResource, &viewBuffer, sizeof( viewBuffer ) );
 
-	AtomicEngine::GetGPI()->BeginFrame( *swapChainResource, *swapChainRTV, *_swapChainDSV );
+	AtomicEngine::GetGPI()->ClearRenderTarget( *_gBufferDiffuseUAV );
+	AtomicEngine::GetGPI()->ClearRenderTarget( *_gBufferNormalUAV );
+	AtomicEngine::GetGPI()->ClearRenderTarget( *_gBufferUnknown0UAV );
+	AtomicEngine::GetGPI()->ClearRenderTarget( *_gBufferUnknown1UAV );
 }

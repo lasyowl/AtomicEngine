@@ -37,8 +37,6 @@ struct GPIPipelineStateDesc
 
 	EGPIPipelineType pipelineType;
 
-	bool bRenderSwapChainBuffer;
-
 	bool bWriteDepth;
 
 	std::vector<GPIPipelineInputDesc> inputDesc;
@@ -52,6 +50,7 @@ struct GPIPipelineStateDesc
 	uint32 numCBVs;
 	uint32 numSRVs;
 	uint32 numUAVs;
+	std::vector<uint32> numTextures;
 };
 
 struct IGPIPipeline

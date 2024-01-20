@@ -45,14 +45,13 @@ void RenderSystem::GeometryPass( std::array<std::unique_ptr<IComponentRegistry>,
 	{
 		pipelineDesc.id = 0;
 		pipelineDesc.pipelineType = PipelineType_Graphics;
-		pipelineDesc.bRenderSwapChainBuffer = false;
 		pipelineDesc.bWriteDepth = true;
 
 		pipelineDesc.rtvFormats = {
-			EGPIResourceFormat::B8G8R8A8_SRGB/*,
 			EGPIResourceFormat::B8G8R8A8_SRGB,
 			EGPIResourceFormat::B8G8R8A8_SRGB,
-			EGPIResourceFormat::B8G8R8A8_SRGB*/
+			EGPIResourceFormat::B8G8R8A8_SRGB,
+			EGPIResourceFormat::B8G8R8A8_SRGB
 		};
 
 		pipelineDesc.inputDesc.resize( 3 );
@@ -60,14 +59,14 @@ void RenderSystem::GeometryPass( std::array<std::unique_ptr<IComponentRegistry>,
 		pipelineDesc.inputDesc[ 1 ] = { "NORMAL", EGPIResourceFormat::R32G32B32_Float, GPIInputClass_PerVertex, 1 };
 		pipelineDesc.inputDesc[ 2 ] = { "TEXCOORD", EGPIResourceFormat::R32G32_Float, GPIInputClass_PerVertex, 2 };
 
-		pipelineDesc.vertexShader.hash = 1;
+		pipelineDesc.vertexShader.hash = 0;
 		pipelineDesc.vertexShader.type = ShaderType_VertexShader;
 		pipelineDesc.vertexShader.file = "Engine/Shader/GeometryPass.hlsl";
 		pipelineDesc.vertexShader.entry = "VS_main";
 		pipelineDesc.vertexShader.macros.resize( 1 );
 		pipelineDesc.vertexShader.macros[ 0 ] = { "D3D12_SAMPLE_CONSTANT_BUFFER", "1" };
 
-		pipelineDesc.pixelShader.hash = 2;
+		pipelineDesc.pixelShader.hash = 1;
 		pipelineDesc.pixelShader.type = ShaderType_PixelShader;
 		pipelineDesc.pixelShader.file = "Engine/Shader/GeometryPass.hlsl";
 		pipelineDesc.pixelShader.entry = "PS_main";
@@ -80,10 +79,14 @@ void RenderSystem::GeometryPass( std::array<std::unique_ptr<IComponentRegistry>,
 	}
 
 	{// @TODO: move to somewhere makes sense
-		uint32 swapChainIndex = AtomicEngine::GetGPI()->GetSwapChainCurrentIndex();
+		/*uint32 swapChainIndex = AtomicEngine::GetGPI()->GetSwapChainCurrentIndex();
 		IGPIRenderTargetViewRef& swapChainRTV = _swapChainRTV[ swapChainIndex ];
-		AtomicEngine::GetGPI()->BindRenderTargetView( *pipeline, *_swapChainRTV[ swapChainIndex ], 0 );
-		AtomicEngine::GetGPI()->BindDepthStencilView( *pipeline, *_swapChainDSV );
+		AtomicEngine::GetGPI()->BindRenderTargetView( *pipeline, *_swapChainRTV[ swapChainIndex ], 0 );*/
+		AtomicEngine::GetGPI()->BindRenderTargetView( *pipeline, *_gBufferDiffuseRTV, 0 );
+		AtomicEngine::GetGPI()->BindRenderTargetView( *pipeline, *_gBufferNormalRTV, 1 );
+		AtomicEngine::GetGPI()->BindRenderTargetView( *pipeline, *_gBufferUnknown0RTV, 2 );
+		AtomicEngine::GetGPI()->BindRenderTargetView( *pipeline, *_gBufferUnknown1RTV, 3 );
+		AtomicEngine::GetGPI()->BindDepthStencilView( *pipeline, *_swapChainDepthDSV );
 	}
 
 	static IGPIResourceRef modelCBResource = nullptr;

@@ -25,8 +25,9 @@ public:
 	virtual void BeginFrame( const IGPIResource& inSwapChainResource, const IGPIRenderTargetView& inSwapChainRTV, const IGPIDepthStencilView& inSwapChainDSV ) abstract;
 	virtual void EndFrame( const IGPIResource& inSwapChainResource ) abstract;
 
-	virtual void ClearSwapChain( IGPIRenderTargetView* inRTV ) abstract;
-	virtual void ClearRenderTarget( IGPIRenderTargetView* inRTV ) abstract;
+	virtual void ClearSwapChain( const IGPIRenderTargetView& inRTV ) abstract;
+	virtual void ClearRenderTarget( const IGPIRenderTargetView& inRTV ) abstract;
+	virtual void ClearRenderTarget( const IGPIUnorderedAccessView& inUAV ) abstract;
 
 	virtual void SetPipelineState( const GPIPipelineStateDesc& pipelineDesc ) abstract;
 	virtual void Render( const GPIPipelineInput& pipelineInput ) abstract;
@@ -44,7 +45,8 @@ public:
 	virtual IGPIDepthStencilViewRef CreateDepthStencilView( const IGPIResource& inResource, const GPIDepthStencilViewDesc& dsvDesc ) abstract;
 	virtual IGPIConstantBufferViewRef CreateConstantBufferView( const IGPIResource& inResource, const GPIConstantBufferViewDesc& cbvDesc ) abstract;
 	virtual IGPIShaderResourceViewRef CreateShaderResourceView( const IGPIResource& inResource, const GPIShaderResourceViewDesc& srvDesc ) abstract;
-	virtual IGPIUnorderedAccessViewRef CreateUnorderedAccessView( const IGPIResource& inResource, const GPIUnorderedAccessViewDesc& uavDesc ) abstract;
+	virtual IGPIUnorderedAccessViewRef CreateUnorderedAccessView( const IGPIResource& inResource, const GPIUnorderedAccessViewDesc& uavDesc, const bool bShaderHidden ) abstract;
+	virtual IGPITextureViewTableRef CreateTextureViewTable( const std::vector<const IGPIResource*> inResources, const std::vector<GPIShaderResourceViewDesc> inDescs ) abstract;
 	virtual IGPISamplerRef CreateSampler( const IGPIResource& inResource, const GPISamplerDesc& samplerDesc ) abstract;
 	virtual IGPIVertexBufferViewRef CreateVertexBufferView( const IGPIResource& inResource, const uint32 size, const uint32 stride ) abstract;
 	virtual IGPIIndexBufferViewRef CreateIndexBufferView( const IGPIResource& inResource, const uint32 size ) abstract;
@@ -54,6 +56,7 @@ public:
 	virtual void BindShaderResourceView( IGPIPipeline& inPipeline, const IGPIShaderResourceView& inSRV, uint32 index ) abstract;
 	virtual void BindUnorderedAccessView( IGPIPipeline& inPipeline, const IGPIUnorderedAccessView& inUAV, uint32 index ) abstract;
 	virtual void BindDepthStencilView( IGPIPipeline& inPipeline, const IGPIDepthStencilView& inDSV ) abstract;
+	virtual void BindTextureViewTable( IGPIPipeline& inPipeline, const IGPITextureViewTable& inTable, const uint32 index ) abstract;
 
 	virtual void UpdateResourceData( const IGPIResource& inResource, void* data, uint32 sizeInBytes ) abstract;
 

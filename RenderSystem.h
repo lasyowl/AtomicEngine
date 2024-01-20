@@ -13,7 +13,7 @@ public:
 	{
 		BeginFrame( componentRegistry );
 		GeometryPass( componentRegistry );
-		//DirectionalLight( componentRegistry );
+		DirectionalLight( componentRegistry );
 		//PointLight( componentRegistry );
 		//LightCombine( componentRegistry );
 		//PostProcess( componentRegistry );
@@ -33,8 +33,28 @@ private:
 	IGPIResourceRef _swapChainResource[ 3 ];
 	IGPIRenderTargetViewRef _swapChainRTV[ 3 ];
 	IGPIResourceRef _swapChainDepthResource;
-	IGPIDepthStencilViewRef _swapChainDSV;
+	IGPIDepthStencilViewRef _swapChainDepthDSV;
+	IGPIShaderResourceViewRef _swapChainDepthSRV;
 
 	IGPIResourceRef _viewCBResource;
 	IGPIConstantBufferViewRef _viewCBV;
+
+	IGPIResourceRef _gBufferDiffuseResource;
+	IGPIResourceRef _gBufferNormalResource;
+	IGPIResourceRef _gBufferUnknown0Resource;
+	IGPIResourceRef _gBufferUnknown1Resource;
+	IGPIRenderTargetViewRef _gBufferDiffuseRTV;
+	IGPIRenderTargetViewRef _gBufferNormalRTV;
+	IGPIRenderTargetViewRef _gBufferUnknown0RTV;
+	IGPIRenderTargetViewRef _gBufferUnknown1RTV;
+	IGPIUnorderedAccessViewRef _gBufferDiffuseUAV;
+	IGPIUnorderedAccessViewRef _gBufferNormalUAV;
+	IGPIUnorderedAccessViewRef _gBufferUnknown0UAV;
+	IGPIUnorderedAccessViewRef _gBufferUnknown1UAV;
+	IGPITextureViewTableRef _gBufferTextureViewTable;
+
+	IGPIResourceRef _sceneLightResource;
+	IGPIRenderTargetViewRef _sceneLightRTV;
+	IGPIUnorderedAccessViewRef _sceneLightUAV;
+	IGPITextureViewTableRef _sceneLightTextureViewTable;
 };

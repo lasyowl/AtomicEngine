@@ -48,6 +48,32 @@ constexpr D3D12_DSV_DIMENSION TranslateDSVDimension( const EGPIResourceDimension
 	return D3D12_DSV_DIMENSION_UNKNOWN;
 }
 
+constexpr D3D12_SRV_DIMENSION TranslateSRVDimension( const EGPIResourceDimension dimension )
+{
+	switch( dimension )
+	{
+		case EGPIResourceDimension::Buffer:		return D3D12_SRV_DIMENSION_BUFFER;
+		case EGPIResourceDimension::Texture1D:	return D3D12_SRV_DIMENSION_TEXTURE1D;
+		case EGPIResourceDimension::Texture2D:	return D3D12_SRV_DIMENSION_TEXTURE2D;
+		case EGPIResourceDimension::Texture3D:	return D3D12_SRV_DIMENSION_TEXTURE3D;
+	}
+
+	return D3D12_SRV_DIMENSION_UNKNOWN;
+}
+
+constexpr D3D12_UAV_DIMENSION TranslateUAVDimension( const EGPIResourceDimension dimension )
+{
+	switch( dimension )
+	{
+		case EGPIResourceDimension::Buffer:		return D3D12_UAV_DIMENSION_BUFFER;
+		case EGPIResourceDimension::Texture1D:	return D3D12_UAV_DIMENSION_TEXTURE1D;
+		case EGPIResourceDimension::Texture2D:	return D3D12_UAV_DIMENSION_TEXTURE2D;
+		case EGPIResourceDimension::Texture3D:	return D3D12_UAV_DIMENSION_TEXTURE3D;
+	}
+
+	return D3D12_UAV_DIMENSION_UNKNOWN;
+}
+
 constexpr DXGI_FORMAT TranslateResourceFormat( const EGPIResourceFormat format )
 {
 	switch( format )
@@ -55,6 +81,8 @@ constexpr DXGI_FORMAT TranslateResourceFormat( const EGPIResourceFormat format )
 		case EGPIResourceFormat::B8G8R8A8:			return DXGI_FORMAT_B8G8R8A8_UNORM;
 		case EGPIResourceFormat::B8G8R8A8_SRGB:		return DXGI_FORMAT_B8G8R8A8_UNORM_SRGB;
 		case EGPIResourceFormat::D32_Float:			return DXGI_FORMAT_D32_FLOAT;
+		case EGPIResourceFormat::R32_Float:			return DXGI_FORMAT_R32_FLOAT;
+		case EGPIResourceFormat::R32_Uint:			return DXGI_FORMAT_R32_UINT;
 		case EGPIResourceFormat::R32G32_Float:		return DXGI_FORMAT_R32G32_FLOAT;
 		case EGPIResourceFormat::R32G32B32_Float:	return DXGI_FORMAT_R32G32B32_FLOAT;
 	}
@@ -64,36 +92,36 @@ constexpr DXGI_FORMAT TranslateResourceFormat( const EGPIResourceFormat format )
 
 constexpr D3D12_RESOURCE_FLAGS TranslateResourceFlag( const EGPIResourceFlag flag )
 {
+#define TRANSLATE_FLAG( target, source, checkFlag, translatedFlag )\
+	if( source & checkFlag ) target |= translatedFlag;
+
 	D3D12_RESOURCE_FLAGS translatedFlag = D3D12_RESOURCE_FLAG_NONE;
-	if( flag & GPIResourceFlag_AllowRenderTarget )
-	{
-		translatedFlag |= D3D12_RESOURCE_FLAG_ALLOW_RENDER_TARGET;
-	}
-	if( flag & GPIResourceFlag_AllowDepthStencil )
-	{
-		translatedFlag |= D3D12_RESOURCE_FLAG_ALLOW_DEPTH_STENCIL;
-	}
-	if( flag & GPIResourceFlag_AllowUnorderedAccess )
-	{
-		translatedFlag |= D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS;
-	}
+	TRANSLATE_FLAG( translatedFlag, flag, GPIResourceFlag_AllowRenderTarget, D3D12_RESOURCE_FLAG_ALLOW_RENDER_TARGET );
+	TRANSLATE_FLAG( translatedFlag, flag, GPIResourceFlag_AllowDepthStencil, D3D12_RESOURCE_FLAG_ALLOW_DEPTH_STENCIL );
+	TRANSLATE_FLAG( translatedFlag, flag, GPIResourceFlag_AllowUnorderedAccess, D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS );
 
 	return translatedFlag;
+#undef TRANSLATE_FLAG
 }
 
-constexpr D3D12_RESOURCE_STATES TranslateResourceState( const EGPIResourceUsage usage )
+constexpr D3D12_RESOURCE_STATES TranslateResourceState( const EGPIResourceStates states )
 {
-	D3D12_RESOURCE_STATES states = D3D12_RESOURCE_STATE_COMMON;
-	if( usage & GPIResourceUsage_RenderTarget )
-	{
-		states |= D3D12_RESOURCE_STATE_RENDER_TARGET;
-	}
-	if( usage & GPIResourceUsage_DepthStencil )
-	{
-		states |= D3D12_RESOURCE_STATE_DEPTH_WRITE;
-	}
+#define TRANSLATE_STATE( target, source, checkState, translatedState )\
+	if( source & checkState ) target |= translatedState;
 
-	return states;
+	D3D12_RESOURCE_STATES translatedStates = D3D12_RESOURCE_STATE_COMMON;
+	TRANSLATE_STATE( translatedStates, states, GPIResourceState_VertexConstantBuffer, D3D12_RESOURCE_STATE_VERTEX_AND_CONSTANT_BUFFER );
+	TRANSLATE_STATE( translatedStates, states, GPIResourceState_IndexBuffer, D3D12_RESOURCE_STATE_INDEX_BUFFER );
+	TRANSLATE_STATE( translatedStates, states, GPIResourceState_RenderTarget, D3D12_RESOURCE_STATE_RENDER_TARGET );
+	TRANSLATE_STATE( translatedStates, states, GPIResourceState_UnorderedAccess, D3D12_RESOURCE_STATE_UNORDERED_ACCESS );
+	TRANSLATE_STATE( translatedStates, states, GPIResourceState_DepthWrite, D3D12_RESOURCE_STATE_DEPTH_WRITE );
+	TRANSLATE_STATE( translatedStates, states, GPIResourceState_DepthRead, D3D12_RESOURCE_STATE_DEPTH_READ );
+	TRANSLATE_STATE( translatedStates, states, GPIResourceState_NonPixelShaderResource, D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE );
+	TRANSLATE_STATE( translatedStates, states, GPIResourceState_PixelShaderResource, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE );
+	TRANSLATE_STATE( translatedStates, states, GPIResourceState_IndirectArgument, D3D12_RESOURCE_STATE_INDIRECT_ARGUMENT );
+
+	return translatedStates;
+#undef TRANSLATE_STATE
 }
 
 constexpr D3D12_DSV_FLAGS TranslateDSVFlag( const EGPIDepthStencilViewFlag flag )
@@ -187,7 +215,10 @@ constexpr D3D12_SHADER_RESOURCE_VIEW_DESC TranslateSRVDesc( const IGPIResource& 
 	const GPIResource_DX12& resource = static_cast< const GPIResource_DX12& > ( inResource );
 
 	D3D12_SHADER_RESOURCE_VIEW_DESC srvDesc{};
-	// @TODO: fill in desc
+	srvDesc.Format = TranslateResourceFormat( desc.format );
+	srvDesc.ViewDimension = TranslateSRVDimension( desc.dimension );
+	srvDesc.Shader4ComponentMapping = D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING;
+	srvDesc.Texture2D.MipLevels = 1;
 
 	return srvDesc;
 }
@@ -197,7 +228,13 @@ constexpr D3D12_UNORDERED_ACCESS_VIEW_DESC TranslateUAVDesc( const IGPIResource&
 	const GPIResource_DX12& resource = static_cast< const GPIResource_DX12& > ( inResource );
 
 	D3D12_UNORDERED_ACCESS_VIEW_DESC uavDesc{};
-	// @TODO: fill in desc
+	uavDesc.Format = TranslateResourceFormat( desc.format );
+	uavDesc.ViewDimension = TranslateUAVDimension( desc.dimension );
+	uavDesc.Buffer.FirstElement = 0;
+	uavDesc.Buffer.CounterOffsetInBytes = 0;
+	uavDesc.Buffer.NumElements = 1920 * 1080;
+	uavDesc.Buffer.StructureByteStride = 0;
+	uavDesc.Buffer.Flags = D3D12_BUFFER_UAV_FLAG_NONE;
 
 	return uavDesc;
 }

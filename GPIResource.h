@@ -4,8 +4,6 @@
 #include "GPIDefine.h"
 #include "Vector.h"
 
-enum EGPIResourceFlag;
-enum EGPIResourceUsage;
 enum class EGPIResourceFormat;
 enum class EGPIResourceDimension;
 
@@ -36,7 +34,7 @@ struct GPIResourceDesc
 	GPIResourceClearValue clearValue;
 
 	EGPIResourceFlag flags;
-	EGPIResourceUsage usage;
+	EGPIResourceStates initialState;
 };
 
 struct GPIRenderTargetViewDesc
@@ -59,12 +57,14 @@ struct GPIConstantBufferViewDesc
 
 struct GPIShaderResourceViewDesc
 {
-
+	EGPIResourceFormat format;
+	EGPIResourceDimension dimension;
 };
 
 struct GPIUnorderedAccessViewDesc
 {
-
+	EGPIResourceFormat format;
+	EGPIResourceDimension dimension;
 };
 
 struct GPISamplerDesc
@@ -77,7 +77,7 @@ struct GPISamplerDesc
 ///////////////////////////////
 struct IGPIResource
 {
-
+	virtual ~IGPIResource() {}
 };
 
 struct IGPIRenderTargetView
@@ -104,6 +104,11 @@ struct IGPIUnorderedAccessView
 
 };
 
+struct IGPITextureViewTable
+{
+	
+};
+
 struct IGPISampler
 {
 
@@ -126,6 +131,7 @@ using IGPIDepthStencilViewRef = std::shared_ptr<IGPIDepthStencilView>;
 using IGPIConstantBufferViewRef = std::shared_ptr<IGPIConstantBufferView>;
 using IGPIShaderResourceViewRef = std::shared_ptr<IGPIShaderResourceView>;
 using IGPIUnorderedAccessViewRef = std::shared_ptr<IGPIUnorderedAccessView>;
+using IGPITextureViewTableRef = std::shared_ptr<IGPITextureViewTable>;
 using IGPISamplerRef = std::shared_ptr<IGPISampler>;
 using IGPIVertexBufferViewRef = std::shared_ptr<IGPIVertexBufferView>;
 using IGPIIndexBufferViewRef = std::shared_ptr<IGPIIndexBufferView>;

@@ -45,7 +45,9 @@ void GPIDescriptorHeapAllocator_DX12::Initialize( ID3D12Device* device )
 	CreateDescriptorHeap( device, _heapContexts[ GPIResourceViewType_DSV ], 128, D3D12_DESCRIPTOR_HEAP_TYPE_DSV, D3D12_DESCRIPTOR_HEAP_FLAG_NONE );
 	CreateDescriptorHeap( device, _heapContexts[ GPIResourceViewType_CBV ], 2048, D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV, D3D12_DESCRIPTOR_HEAP_FLAG_SHADER_VISIBLE );
 	CreateDescriptorHeap( device, _heapContexts[ GPIResourceViewType_SRV ], 2048, D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV, D3D12_DESCRIPTOR_HEAP_FLAG_SHADER_VISIBLE );
+	CreateDescriptorHeap( device, _heapContexts[ GPIResourceViewType_SRV_TEXTURE ], 2048, D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV, D3D12_DESCRIPTOR_HEAP_FLAG_SHADER_VISIBLE );
 	CreateDescriptorHeap( device, _heapContexts[ GPIResourceViewType_UAV ], 1024, D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV, D3D12_DESCRIPTOR_HEAP_FLAG_SHADER_VISIBLE );
+	CreateDescriptorHeap( device, _heapContexts[ GPIResourceViewType_UAV_SHADERHIDDEN ], 1024, D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV, D3D12_DESCRIPTOR_HEAP_FLAG_NONE );
 	CreateDescriptorHeap( device, _heapContexts[ GPIResourceViewType_SAMPLER ], 256, D3D12_DESCRIPTOR_HEAP_TYPE_SAMPLER, D3D12_DESCRIPTOR_HEAP_FLAG_SHADER_VISIBLE );
 }
 
@@ -64,4 +66,9 @@ void GPIDescriptorHeapAllocator_DX12::Release( const EGPIResourceViewType type, 
 	GPIDescriptorHeap_DX12& heapContext = _heapContexts[ type ];
 	heapContext.free.push( handle );
 	heapContext.used.erase( handle );
+}
+
+ID3D12DescriptorHeap* GPIDescriptorHeapAllocator_DX12::GetHeap( const EGPIResourceViewType type )
+{
+	return _heapContexts[ type ].heap;
 }

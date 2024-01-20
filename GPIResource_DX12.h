@@ -43,6 +43,7 @@ struct GPIResource_DX12 : public IGPIResource
 {
 public:
 	GPIResource_DX12( ID3D12Resource* inResource ) : resource( inResource ) {}
+	virtual ~GPIResource_DX12() { resource->Release(); }
 
 public:
 	ID3D12Resource* resource;
@@ -79,6 +80,11 @@ struct GPIUnorderedAccessView_DX12 : public IGPIUnorderedAccessView
 	ID3D12Resource* resource;
 	GPIDescriptorHeapHandle_DX12 handle;
 	D3D12_GPU_VIRTUAL_ADDRESS gpuAddress;
+};
+
+struct GPITextureViewTable_DX12 : public IGPITextureViewTable
+{
+	GPIDescriptorHeapHandle_DX12 handle;
 };
 
 struct GPISampler_DX12 : public IGPISampler
