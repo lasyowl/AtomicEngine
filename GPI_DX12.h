@@ -19,7 +19,7 @@ struct CommandQueueContext
 	ID3D12CommandAllocator* allocator;
 
 	std::array<ID3D12GraphicsCommandList*, CMD_LIST_PER_QUEUE_COUNT> cmdLists;
-	std::array<ID3D12GraphicsCommandList*, CMD_LIST_PER_QUEUE_COUNT>::iterator cmdListIter;
+	std::array<ID3D12GraphicsCommandList*, CMD_LIST_PER_QUEUE_COUNT>::iterator iCmdList;
 
 	ID3D12Fence* fence;
 	HANDLE fenceEventHandle;
@@ -110,12 +110,14 @@ public:
 
 	virtual void UpdateResourceData( const IGPIResource& inResource, void* data, uint32 sizeInBytes ) override;
 
-	//virtual void UpdateConstantBuffer( uint32 bufferID, void* data, uint32 size ) override;
+	virtual void TransitionResource( const IGPIResource& inResource, const EGPIResourceStates statesBefore, const EGPIResourceStates statesAfter ) override;
 
 	virtual void RunCS() override;
 
 private:
 	void SetPipelineState( const GPIPipelineStateDesc& desc, const GPIPipeline_DX12& pipeline );
+
+	void TransitionResource( ID3D12GraphicsCommandList* cmdList, ID3D12Resource* resource, D3D12_RESOURCE_STATES stateBefore, D3D12_RESOURCE_STATES stateAfter );
 
 private:
 	HWND _hWnd;
@@ -128,6 +130,8 @@ private:
 
 	ID3D12Debug* _debugInterface;
 	ID3D12InfoQueue* _debugInfoQueue;
+
+	ID3D12DeviceRemovedExtendedDataSettings* _debugInterfaceEx;
 
 	std::unordered_map<D3D12_COMMAND_LIST_TYPE, CommandQueueContext> _cmdQueueCtx;
 

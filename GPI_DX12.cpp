@@ -77,19 +77,6 @@ std::vector<D3D_SHADER_MACRO> TranslateShaderMacros( const std::vector<GPIShader
 	return macros;
 }
 
-void TransitionResource( ID3D12GraphicsCommandList* cmdList, ID3D12Resource* resource, D3D12_RESOURCE_STATES stateBefore, D3D12_RESOURCE_STATES stateAfter )
-{
-	D3D12_RESOURCE_BARRIER barrier;
-	barrier.Type = D3D12_RESOURCE_BARRIER_TYPE_TRANSITION;
-	barrier.Flags = D3D12_RESOURCE_BARRIER_FLAG_NONE;
-	barrier.Transition.pResource = resource;
-	barrier.Transition.StateBefore = stateBefore;
-	barrier.Transition.StateAfter = stateAfter;
-	barrier.Transition.Subresource = D3D12_RESOURCE_BARRIER_ALL_SUBRESOURCES;
-
-	cmdList->ResourceBarrier( 1, &barrier );
-}
-
 void WaitForFence( CommandQueueContext& cmdQueueCtx )
 {
 	ID3D12Fence* fence = cmdQueueCtx.fence;
@@ -128,7 +115,7 @@ void CopyMemoryToBuffer( ID3D12Resource* buffer, void* data, uint64 size )
 
 void UpdateTexture( ID3D12Device* device, CommandQueueContext& cmdQueueCtx, ID3D12Resource* outBuffer, void* data, uint32 width, uint32 height )
 {
-	ID3D12GraphicsCommandList* cmdList = *cmdQueueCtx.cmdListIter;
+	ID3D12GraphicsCommandList* cmdList = *cmdQueueCtx.iCmdList;
 	ID3D12CommandAllocator* cmdAllocator = cmdQueueCtx.allocator;
 
 	D3D12_RESOURCE_DESC resourceDesc = outBuffer->GetDesc();
@@ -149,7 +136,7 @@ void UpdateTexture( ID3D12Device* device, CommandQueueContext& cmdQueueCtx, ID3D
 	CHECK_HRESULT( cmdAllocator->Reset(), L"Failed to reset command allocator." );
 	CHECK_HRESULT( cmdList->Reset( cmdAllocator, nullptr ), L"Failed to reset command list." );
 
-	TransitionResource( cmdList, outBuffer, D3D12_RESOURCE_STATE_ALL_SHADER_RESOURCE, D3D12_RESOURCE_STATE_COPY_DEST );
+	//TransitionResource( cmdList, outBuffer, D3D12_RESOURCE_STATE_ALL_SHADER_RESOURCE, D3D12_RESOURCE_STATE_COPY_DEST );
 
 	uint64 requiredSize = 0;
 	D3D12_PLACED_SUBRESOURCE_FOOTPRINT layout;
@@ -171,7 +158,7 @@ void UpdateTexture( ID3D12Device* device, CommandQueueContext& cmdQueueCtx, ID3D
 
 	cmdList->CopyTextureRegion( &dstLocation, 0, 0, 0, &srcLocation, nullptr );
 
-	TransitionResource( cmdList, outBuffer, D3D12_RESOURCE_STATE_COPY_DEST, D3D12_RESOURCE_STATE_ALL_SHADER_RESOURCE );
+	//TransitionResource( cmdList, outBuffer, D3D12_RESOURCE_STATE_COPY_DEST, D3D12_RESOURCE_STATE_ALL_SHADER_RESOURCE );
 
 	CHECK_HRESULT( cmdList->Close(), L"Failed to close command list." );
 
@@ -257,6 +244,10 @@ void GPI_DX12::Initialize()
 	CHECK_HRESULT( D3D12GetDebugInterface( IID_PPV_ARGS( &_debugInterface ) ), L"Failed to create debug layer." );
 	_debugInterface->EnableDebugLayer();
 
+	CHECK_HRESULT( D3D12GetDebugInterface( IID_PPV_ARGS( &_debugInterfaceEx ) ), L"Failed to create debug layer." );
+	_debugInterfaceEx->SetAutoBreadcrumbsEnablement( D3D12_DRED_ENABLEMENT_FORCED_ON );
+	_debugInterfaceEx->SetPageFaultEnablement( D3D12_DRED_ENABLEMENT_FORCED_ON );
+
 	/* Create device */
 	CHECK_HRESULT( D3D12CreateDevice( nullptr, D3D_FEATURE_LEVEL_11_0, IID_PPV_ARGS( &_device ) ), L"Failed to create device." );
 
@@ -296,7 +287,7 @@ void GPI_DX12::Initialize()
 
 			cmdQueueCtx.fenceEventHandle = CreateEvent( nullptr, FALSE, FALSE, nullptr );
 			cmdQueueCtx.fenceValue = 0;
-			cmdQueueCtx.cmdListIter = cmdQueueCtx.cmdLists.begin();
+			cmdQueueCtx.iCmdList = cmdQueueCtx.cmdLists.begin();
 		}
 	}
 
@@ -334,7 +325,7 @@ void GPI_DX12::BeginFrame( const IGPIResource& inSwapChainResource, const IGPIRe
 
 	CommandQueueContext& cmdQueueCtx = _cmdQueueCtx[ D3D12_COMMAND_LIST_TYPE_DIRECT ];
 	ID3D12CommandAllocator* cmdAllocator = cmdQueueCtx.allocator;
-	ID3D12GraphicsCommandList* cmdList = *cmdQueueCtx.cmdListIter;
+	ID3D12GraphicsCommandList* cmdList = *cmdQueueCtx.iCmdList;
 
 	CHECK_HRESULT( cmdAllocator->Reset(), L"Failed to reset command allocator." );
 	CHECK_HRESULT( cmdList->Reset( cmdAllocator, nullptr ), L"Failed to reset command list." );
@@ -360,7 +351,7 @@ void GPI_DX12::EndFrame( const IGPIResource& inSwapChainResource )
 
 	CommandQueueContext& cmdQueueCtx = _cmdQueueCtx[ D3D12_COMMAND_LIST_TYPE_DIRECT ];
 	ID3D12CommandAllocator* cmdAllocator = cmdQueueCtx.allocator;
-	ID3D12GraphicsCommandList* cmdList = *cmdQueueCtx.cmdListIter;
+	ID3D12GraphicsCommandList* cmdList = *cmdQueueCtx.iCmdList;
 
 	CHECK_HRESULT( cmdAllocator->Reset(), L"Failed to reset command allocator." );
 	CHECK_HRESULT( cmdList->Reset( cmdAllocator, nullptr ), L"Failed to reset command list." );
@@ -378,9 +369,9 @@ void GPI_DX12::EndFrame( const IGPIResource& inSwapChainResource )
 
 	_swapChainIndex = ( _swapChainIndex + 1 ) % SWAPCHAIN_COUNT;
 
-	if( ++cmdQueueCtx.cmdListIter == cmdQueueCtx.cmdLists.end() )
+	if( ++cmdQueueCtx.iCmdList == cmdQueueCtx.cmdLists.end() )
 	{
-		cmdQueueCtx.cmdListIter = cmdQueueCtx.cmdLists.begin();
+		cmdQueueCtx.iCmdList = cmdQueueCtx.cmdLists.begin();
 	}
 }
 
@@ -390,7 +381,7 @@ void GPI_DX12::ClearSwapChain( const IGPIRenderTargetView& inRTV )
 
 	CommandQueueContext& cmdQueueCtx = _cmdQueueCtx[ D3D12_COMMAND_LIST_TYPE_DIRECT ];
 	ID3D12CommandAllocator* cmdAllocator = cmdQueueCtx.allocator;
-	ID3D12GraphicsCommandList* cmdList = *cmdQueueCtx.cmdListIter;
+	ID3D12GraphicsCommandList* cmdList = *cmdQueueCtx.iCmdList;
 
 	CHECK_HRESULT( cmdAllocator->Reset(), L"Failed to reset command allocator." );
 	CHECK_HRESULT( cmdList->Reset( cmdAllocator, nullptr ), L"Failed to reset command list." );
@@ -416,7 +407,7 @@ void GPI_DX12::ClearRenderTarget( const IGPIRenderTargetView& inRTV )
 
 	CommandQueueContext& cmdQueueCtx = _cmdQueueCtx[ D3D12_COMMAND_LIST_TYPE_DIRECT ];
 	ID3D12CommandAllocator* cmdAllocator = cmdQueueCtx.allocator;
-	ID3D12GraphicsCommandList* cmdList = *cmdQueueCtx.cmdListIter;
+	ID3D12GraphicsCommandList* cmdList = *cmdQueueCtx.iCmdList;
 
 	CHECK_HRESULT( cmdAllocator->Reset(), L"Failed to reset command allocator." );
 	CHECK_HRESULT( cmdList->Reset( cmdAllocator, nullptr ), L"Failed to reset command list." );
@@ -442,7 +433,7 @@ void GPI_DX12::ClearRenderTarget( const IGPIUnorderedAccessView& inUAV )
 
 	CommandQueueContext& cmdQueueCtx = _cmdQueueCtx[ D3D12_COMMAND_LIST_TYPE_DIRECT ];
 	ID3D12CommandAllocator* cmdAllocator = cmdQueueCtx.allocator;
-	ID3D12GraphicsCommandList* cmdList = *cmdQueueCtx.cmdListIter;
+	ID3D12GraphicsCommandList* cmdList = *cmdQueueCtx.iCmdList;
 
 	CHECK_HRESULT( cmdAllocator->Reset(), L"Failed to reset command allocator." );
 	CHECK_HRESULT( cmdList->Reset( cmdAllocator, nullptr ), L"Failed to reset command list." );
@@ -466,7 +457,7 @@ void GPI_DX12::SetPipelineState( const GPIPipelineStateDesc& desc, const GPIPipe
 {
 	CommandQueueContext& cmdQueueCtx = _cmdQueueCtx[ D3D12_COMMAND_LIST_TYPE_DIRECT ];
 	ID3D12CommandAllocator* cmdAllocator = cmdQueueCtx.allocator;
-	ID3D12GraphicsCommandList* cmdList = *cmdQueueCtx.cmdListIter;
+	ID3D12GraphicsCommandList* cmdList = *cmdQueueCtx.iCmdList;
 
 	CHECK_HRESULT( cmdAllocator->Reset(), L"Failed to reset allocator." );
 	CHECK_HRESULT( cmdList->Reset( cmdAllocator, nullptr ), L"Failed to reset command list." );
@@ -475,7 +466,7 @@ void GPI_DX12::SetPipelineState( const GPIPipelineStateDesc& desc, const GPIPipe
 	cmdList->SetGraphicsRootSignature( pipeline.rootSignature );
 	cmdList->IASetPrimitiveTopology( D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST );
 
-	if( desc.bWriteDepth )
+	if( desc.bBindDepth )
 		cmdList->OMSetRenderTargets( pipeline.rtv.size(), pipeline.rtv.data(), true, &pipeline.dsv );
 	else
 		cmdList->OMSetRenderTargets( pipeline.rtv.size(), pipeline.rtv.data(), false, nullptr );
@@ -523,7 +514,7 @@ void GPI_DX12::SetPipelineState( const GPIPipelineStateDesc& pipelineDesc )
 void GPI_DX12::Render( const GPIPipelineInput& pipelineInput )
 {
 	CommandQueueContext& cmdQueueCtx = _cmdQueueCtx[ D3D12_COMMAND_LIST_TYPE_DIRECT ];
-	ID3D12GraphicsCommandList* cmdList = *cmdQueueCtx.cmdListIter;
+	ID3D12GraphicsCommandList* cmdList = *cmdQueueCtx.iCmdList;
 
 	std::vector<D3D12_VERTEX_BUFFER_VIEW> VBViews;
 	VBViews.resize( pipelineInput.vbv.size() );
@@ -562,7 +553,7 @@ void GPI_DX12::Render( const GPIPipelineInput& pipelineInput )
 void GPI_DX12::ExecuteCommandList()
 {
 	CommandQueueContext& cmdQueueCtx = _cmdQueueCtx[ D3D12_COMMAND_LIST_TYPE_DIRECT ];
-	ID3D12GraphicsCommandList* cmdList = *cmdQueueCtx.cmdListIter;
+	ID3D12GraphicsCommandList* cmdList = *cmdQueueCtx.iCmdList;
 
 	CHECK_HRESULT( cmdList->Close(), L"Failed to close command list." );
 
@@ -759,8 +750,8 @@ ID3D12PipelineState* CreateGraphicsPipelineState( ID3D12Device* device, const GP
 	psoDesc.InputLayout.NumElements = layout.size();
 	psoDesc.InputLayout.pInputElementDescs = layout.data();
 	psoDesc.SampleDesc.Count = 1;
-	psoDesc.DepthStencilState.DepthEnable = pipelineDesc.bWriteDepth;
-	psoDesc.DepthStencilState.DepthWriteMask = pipelineDesc.bWriteDepth ? D3D12_DEPTH_WRITE_MASK_ALL : D3D12_DEPTH_WRITE_MASK_ZERO;
+	psoDesc.DepthStencilState.DepthEnable = pipelineDesc.bBindDepth;
+	psoDesc.DepthStencilState.DepthWriteMask = pipelineDesc.bBindDepth ? D3D12_DEPTH_WRITE_MASK_ALL : D3D12_DEPTH_WRITE_MASK_ZERO;
 	psoDesc.DepthStencilState.DepthFunc = D3D12_COMPARISON_FUNC_LESS;
 	psoDesc.DepthStencilState.StencilEnable = false;
 	psoDesc.SampleMask = 0xFFFFFFFF;
@@ -910,13 +901,18 @@ IGPIResourceRef GPI_DX12::CreateResource( const GPIResourceDesc& desc )
 					   L"Failed to create output buffer." );
 	}
 
+	if( !desc.name.empty() )
+	{
+		resource->SetName( desc.name.c_str() );
+	}
+
 	return std::make_shared<GPIResource_DX12>( resource );
 }
 
 IGPIResourceRef GPI_DX12::CreateResource( const GPIResourceDesc& desc, void* data, uint32 sizeInBytes )
 {
 	CommandQueueContext& cmdQueueCtx = _cmdQueueCtx[ D3D12_COMMAND_LIST_TYPE_DIRECT ];
-	ID3D12GraphicsCommandList* cmdList = *cmdQueueCtx.cmdListIter;
+	ID3D12GraphicsCommandList* cmdList = *cmdQueueCtx.iCmdList;
 	ID3D12CommandAllocator* cmdAllocator = cmdQueueCtx.allocator;
 
 	D3D12_RESOURCE_DESC translatedDesc = GPIUtil::TranslateResourceDesc( desc );
@@ -931,6 +927,11 @@ IGPIResourceRef GPI_DX12::CreateResource( const GPIResourceDesc& desc, void* dat
 				   nullptr,
 				   IID_PPV_ARGS( &resource ) ),
 				   L"Failed to create output buffer." );
+
+	if( !desc.name.empty() )
+	{
+		resource->SetName( desc.name.c_str() );
+	}
 
 	// Create upload buffer on CPU
 	ID3D12Resource* uploadResource;
@@ -998,10 +999,15 @@ IGPIConstantBufferViewRef GPI_DX12::CreateConstantBufferView( const IGPIResource
 {
 	const GPIResource_DX12& resource = static_cast< const GPIResource_DX12& >( inResource );
 
+	//@TODO: refactoring needed
+	const D3D12_RESOURCE_DESC desc = resource.resource->GetDesc();
+	const bool bUseVirtualAddress = desc.Dimension == D3D12_RESOURCE_DIMENSION_BUFFER;
+	//
+
 	std::shared_ptr<GPIConstantBufferView_DX12> cbv = std::make_shared<GPIConstantBufferView_DX12>();
 	cbv->handle = _heap.Allocate( GPIResourceViewType_CBV );
 	cbv->resource = resource.resource;
-	cbv->gpuAddress = resource.resource->GetGPUVirtualAddress();
+	cbv->gpuAddress = bUseVirtualAddress ? resource.resource->GetGPUVirtualAddress() : 0;
 
 	D3D12_CONSTANT_BUFFER_VIEW_DESC translatedDesc = GPIUtil::TranslateCBVDesc( inResource, cbvDesc );
 	_device->CreateConstantBufferView( &translatedDesc, cbv->handle.cpu );
@@ -1013,10 +1019,15 @@ IGPIShaderResourceViewRef GPI_DX12::CreateShaderResourceView( const IGPIResource
 {
 	const GPIResource_DX12& resource = static_cast< const GPIResource_DX12& >( inResource );
 
+	//@TODO: refactoring needed
+	const D3D12_RESOURCE_DESC desc = resource.resource->GetDesc();
+	const bool bUseVirtualAddress = desc.Dimension == D3D12_RESOURCE_DIMENSION_BUFFER;
+	//
+
 	std::shared_ptr<GPIShaderResourceView_DX12> srv = std::make_shared<GPIShaderResourceView_DX12>();
 	srv->handle = _heap.Allocate( GPIResourceViewType_SRV );
 	srv->resource = resource.resource;
-	srv->gpuAddress = resource.resource->GetGPUVirtualAddress();
+	srv->gpuAddress = bUseVirtualAddress ? resource.resource->GetGPUVirtualAddress() : 0;
 
 	D3D12_SHADER_RESOURCE_VIEW_DESC translatedDesc = GPIUtil::TranslateSRVDesc( inResource, srvDesc );
 	_device->CreateShaderResourceView( resource.resource, &translatedDesc, srv->handle.cpu );
@@ -1028,10 +1039,15 @@ IGPIUnorderedAccessViewRef GPI_DX12::CreateUnorderedAccessView( const IGPIResour
 {
 	const GPIResource_DX12& resource = static_cast< const GPIResource_DX12& >( inResource );
 
+	//@TODO: refactoring needed
+	const D3D12_RESOURCE_DESC desc = resource.resource->GetDesc();
+	const bool bUseVirtualAddress = desc.Dimension == D3D12_RESOURCE_DIMENSION_BUFFER;
+	//
+
 	std::shared_ptr<GPIUnorderedAccessView_DX12> uav = std::make_shared<GPIUnorderedAccessView_DX12>();
 	uav->handle = _heap.Allocate( bShaderHidden ? GPIResourceViewType_UAV_SHADERHIDDEN : GPIResourceViewType_UAV );
 	uav->resource = resource.resource;
-	uav->gpuAddress = resource.resource->GetGPUVirtualAddress(); //@TODO: this line generates D3D12 ERROR [ GetGPUVirtualAddress returns NULL for non-buffer resources. ]
+	uav->gpuAddress = bUseVirtualAddress ? resource.resource->GetGPUVirtualAddress() : 0;
 
 	D3D12_UNORDERED_ACCESS_VIEW_DESC translatedDesc = GPIUtil::TranslateUAVDesc( inResource, uavDesc );
 	_device->CreateUnorderedAccessView( resource.resource, nullptr, &translatedDesc, uav->handle.cpu );
@@ -1050,6 +1066,19 @@ IGPITextureViewTableRef GPI_DX12::CreateTextureViewTable( const std::vector<cons
 		D3D12_SHADER_RESOURCE_VIEW_DESC translatedDesc = GPIUtil::TranslateSRVDesc( resource, inDescs[ index ] );
 
 		handles[ index ] = _heap.Allocate( GPIResourceViewType_SRV_TEXTURE );
+
+		if( inDescs[ index ].format == EGPIResourceFormat::R32_Float )
+		{
+			D3D12_SHADER_RESOURCE_VIEW_DESC srvDesc{};
+			srvDesc.Format = DXGI_FORMAT_R32_FLOAT;
+			srvDesc.ViewDimension = D3D12_SRV_DIMENSION_TEXTURE2D;
+			srvDesc.Shader4ComponentMapping = D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING;
+			srvDesc.Texture2D.MipLevels = 1;
+
+			_device->CreateShaderResourceView( resource.resource, &srvDesc, handles[ index ].cpu );
+
+			continue;
+		}
 
 		_device->CreateShaderResourceView( resource.resource, &translatedDesc, handles[ index ].cpu );
 	}
@@ -1142,7 +1171,7 @@ void GPI_DX12::UpdateResourceData( const IGPIResource& inResource, void* data, u
 {
 	CommandQueueContext& cmdQueueCtx = _cmdQueueCtx[ D3D12_COMMAND_LIST_TYPE_DIRECT ];
 
-	ID3D12GraphicsCommandList* cmdList = *cmdQueueCtx.cmdListIter;
+	ID3D12GraphicsCommandList* cmdList = *cmdQueueCtx.iCmdList;
 	ID3D12CommandAllocator* cmdAllocator = cmdQueueCtx.allocator;
 
 	const GPIResource_DX12& resource = static_cast< const GPIResource_DX12& >( inResource );
@@ -1184,10 +1213,32 @@ void GPI_DX12::UpdateResourceData( const IGPIResource& inResource, void* data, u
 	uploadBuffer->Release();
 }
 
+void GPI_DX12::TransitionResource( ID3D12GraphicsCommandList* cmdList, ID3D12Resource* resource, D3D12_RESOURCE_STATES stateBefore, D3D12_RESOURCE_STATES stateAfter )
+{
+	D3D12_RESOURCE_BARRIER barrier;
+	barrier.Type = D3D12_RESOURCE_BARRIER_TYPE_TRANSITION;
+	barrier.Flags = D3D12_RESOURCE_BARRIER_FLAG_NONE;
+	barrier.Transition.pResource = resource;
+	barrier.Transition.StateBefore = stateBefore;
+	barrier.Transition.StateAfter = stateAfter;
+	barrier.Transition.Subresource = D3D12_RESOURCE_BARRIER_ALL_SUBRESOURCES;
+
+	cmdList->ResourceBarrier( 1, &barrier );
+}
+
+void GPI_DX12::TransitionResource( const IGPIResource& inResource, const EGPIResourceStates statesBefore, const EGPIResourceStates statesAfter )
+{
+	CommandQueueContext& cmdQueueCtx = _cmdQueueCtx[ D3D12_COMMAND_LIST_TYPE_DIRECT ];
+	ID3D12GraphicsCommandList* cmdList = *cmdQueueCtx.iCmdList;
+	const GPIResource_DX12& resource = static_cast< const GPIResource_DX12& >( inResource );
+
+	TransitionResource( cmdList, resource.resource, GPIUtil::TranslateResourceState( statesBefore ), GPIUtil::TranslateResourceState( statesAfter ) );
+}
+
 void GPI_DX12::RunCS()
 {
 	//CHECK_HRESULT( _cmdQueueCtx[ D3D12_COMMAND_LIST_TYPE_COMPUTE ].allocator->Reset(), L"Failed to reset command allocator." );
-	//CHECK_HRESULT( ( *_cmdQueueCtx[ D3D12_COMMAND_LIST_TYPE_COMPUTE ].cmdListIter )->Reset( _cmdQueueCtx[ D3D12_COMMAND_LIST_TYPE_COMPUTE ].allocator, nullptr ), L"Failed to reset command list." );
+	//CHECK_HRESULT( ( *_cmdQueueCtx[ D3D12_COMMAND_LIST_TYPE_COMPUTE ].iCmdList )->Reset( _cmdQueueCtx[ D3D12_COMMAND_LIST_TYPE_COMPUTE ].allocator, nullptr ), L"Failed to reset command list." );
 
 	//static ID3D12Resource* buffer = nullptr;
 	//if( !buffer )
@@ -1197,7 +1248,7 @@ void GPI_DX12::RunCS()
 	//	int32 data[ 64 ] = {};
 	//	buffer = CreateBuffer( _device, _cmdQueueCtx[ D3D12_COMMAND_LIST_TYPE_COPY ], data, 256 );
 
-	//	TransitionResource( *_cmdQueueCtx[ D3D12_COMMAND_LIST_TYPE_COMPUTE ].cmdListIter, buffer, D3D12_RESOURCE_STATE_COMMON, D3D12_RESOURCE_STATE_UNORDERED_ACCESS );
+	//	TransitionResource( *_cmdQueueCtx[ D3D12_COMMAND_LIST_TYPE_COMPUTE ].iCmdList, buffer, D3D12_RESOURCE_STATE_COMMON, D3D12_RESOURCE_STATE_UNORDERED_ACCESS );
 
 	//	D3D12_CPU_DESCRIPTOR_HANDLE uavDescHandle = _guavHeap->GetCPUDescriptorHandleForHeapStart();
 
@@ -1223,7 +1274,7 @@ void GPI_DX12::RunCS()
 	//}
 
 	//CommandQueueContext& cmdQueueCtx = _cmdQueueCtx[ D3D12_COMMAND_LIST_TYPE_COMPUTE ];
-	//ID3D12GraphicsCommandList* cmdList = *cmdQueueCtx.cmdListIter;
+	//ID3D12GraphicsCommandList* cmdList = *cmdQueueCtx.iCmdList;
 
 	//cmdList->SetPipelineState( pipelineState );
 	//cmdList->SetComputeRootSignature( rootSignature );

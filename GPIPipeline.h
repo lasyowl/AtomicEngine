@@ -37,7 +37,7 @@ struct GPIPipelineStateDesc
 
 	EGPIPipelineType pipelineType;
 
-	bool bWriteDepth;
+	bool bBindDepth;
 
 	std::vector<GPIPipelineInputDesc> inputDesc;
 

@@ -22,6 +22,8 @@ struct GPIResourceClearValue
 
 struct GPIResourceDesc
 {
+	std::wstring name;
+
 	EGPIResourceDimension dimension;
 	EGPIResourceFormat format;
 

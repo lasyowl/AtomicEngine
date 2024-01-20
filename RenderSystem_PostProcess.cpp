@@ -17,7 +17,7 @@ void RenderSystem::PostProcess( std::array<std::unique_ptr<IComponentRegistry>, 
 		pipelineDesc.id = 2;
 		pipelineDesc.pipelineType = PipelineType_Graphics;
 		pipelineDesc.bRenderSwapChainBuffer = true;
-		pipelineDesc.bWriteDepth = false;
+		pipelineDesc.bBindDepth = false;
 
 		pipelineDesc.rtvFormats = { EGPIResourceFormat::B8G8R8A8_SRGB, };
 

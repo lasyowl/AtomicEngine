@@ -23,13 +23,14 @@ void RenderSystem::DirectionalLight( std::array<std::unique_ptr<IComponentRegist
 	{
 		pipelineDesc.id = 1;
 		pipelineDesc.pipelineType = PipelineType_Graphics;
-		pipelineDesc.bWriteDepth = false;
+		pipelineDesc.bBindDepth = false;
 
 		pipelineDesc.rtvFormats = { EGPIResourceFormat::B8G8R8A8_SRGB };
 
-		pipelineDesc.inputDesc.resize( 2 );
-		pipelineDesc.inputDesc[ 0 ] = { "POSITION", EGPIResourceFormat::R32G32B32_Float, GPIInputClass_PerVertex, 0 };
-		pipelineDesc.inputDesc[ 1 ] = { "TEXCOORD", EGPIResourceFormat::R32G32_Float, GPIInputClass_PerVertex, 1 };
+		pipelineDesc.inputDesc = {
+			{ "POSITION", EGPIResourceFormat::R32G32B32_Float, GPIInputClass_PerVertex, 0 },
+			{ "TEXCOORD", EGPIResourceFormat::R32G32_Float, GPIInputClass_PerVertex, 1 }
+		};
 
 		pipelineDesc.vertexShader.hash = 2;
 		pipelineDesc.vertexShader.type = ShaderType_VertexShader;
@@ -42,7 +43,7 @@ void RenderSystem::DirectionalLight( std::array<std::unique_ptr<IComponentRegist
 		pipelineDesc.pixelShader.entry = "PS_DirectionalLight";
 
 		pipelineDesc.numCBVs = 1;
-		pipelineDesc.numTextures = { 4/*, 1*/ };
+		pipelineDesc.numTextures = { 4 };
 
 		pipeline = AtomicEngine::GetGPI()->CreatePipelineState( pipelineDesc );
 
@@ -66,7 +67,7 @@ void RenderSystem::DirectionalLight( std::array<std::unique_ptr<IComponentRegist
 
 	if( !_sceneLightResource )
 	{
-		/*GPIResourceDesc sceneLightDesc{};
+		GPIResourceDesc sceneLightDesc{};
 		sceneLightDesc.dimension = EGPIResourceDimension::Texture2D;
 		sceneLightDesc.format = EGPIResourceFormat::B8G8R8A8;
 		sceneLightDesc.width = 1920;
@@ -74,7 +75,7 @@ void RenderSystem::DirectionalLight( std::array<std::unique_ptr<IComponentRegist
 		sceneLightDesc.depth = 1;
 		sceneLightDesc.numMips = 1;
 		sceneLightDesc.flags = GPIResourceFlag_AllowRenderTarget | GPIResourceFlag_AllowUnorderedAccess;
-		sceneLightDesc.usage = GPIResourceUsage_RenderTarget;
+		sceneLightDesc.initialState = GPIResourceState_RenderTarget;
 		sceneLightDesc.clearValue.type = EGPIResourceClearValueType::Color;
 		sceneLightDesc.clearValue.color = Vec4( 0.0f, 0.0f, 0.0f, 0.0f );
 
@@ -102,13 +103,11 @@ void RenderSystem::DirectionalLight( std::array<std::unique_ptr<IComponentRegist
 		uavDesc.format = EGPIResourceFormat::R32_Uint;
 		uavDesc.dimension = EGPIResourceDimension::Texture2D;
 
-		_sceneLightUAV = AtomicEngine::GetGPI()->CreateUnorderedAccessView( *_sceneLightResource, uavDesc, true );*/
+		_sceneLightUAV = AtomicEngine::GetGPI()->CreateUnorderedAccessView( *_sceneLightResource, uavDesc, true );
 	}
 
 	{// @TODO: move to somewhere makes sense
-		uint32 swapChainIndex = AtomicEngine::GetGPI()->GetSwapChainCurrentIndex();
-		IGPIRenderTargetViewRef& swapChainRTV = _swapChainRTV[ swapChainIndex ];
-		AtomicEngine::GetGPI()->BindRenderTargetView( *pipeline, *_swapChainRTV[ swapChainIndex ], 0 );
+		AtomicEngine::GetGPI()->BindRenderTargetView( *pipeline, *_sceneLightRTV, 0 );
 	}
 
 	{// @TODO: move to somewhere makes sense
@@ -117,7 +116,6 @@ void RenderSystem::DirectionalLight( std::array<std::unique_ptr<IComponentRegist
 
 	{// @TODO: move to somewhere makes sense
 		AtomicEngine::GetGPI()->BindTextureViewTable( *pipeline, *_gBufferTextureViewTable, 0 );
-		//AtomicEngine::GetGPI()->BindTextureViewTable( *pipeline, *_sceneLightTextureViewTable, 1 );
 	}
 
 	static IGPIResourceRef positionResource;
@@ -154,7 +152,7 @@ void RenderSystem::DirectionalLight( std::array<std::unique_ptr<IComponentRegist
 		pipelineInput.ibv[ 0 ] = AtomicEngine::GetGPI()->CreateIndexBufferView( *indexResource, staticMesh.GetIndexByteSize( 0 ) );
 	}
 
-	//AtomicEngine::GetGPI()->ClearRenderTarget( *_sceneLightUAV );
+	AtomicEngine::GetGPI()->ClearRenderTarget( *_sceneLightUAV );
 
 	AtomicEngine::GetGPI()->SetPipelineState( pipelineDesc );
 
@@ -188,9 +186,9 @@ void RenderSystem::PointLight( std::array<std::unique_ptr<IComponentRegistry>, N
 	static GPIPipelineStateDesc pipelineDesc{};
 	if( pipelineDesc.id == 0 )
 	{
-		pipelineDesc.id = 3;
+		pipelineDesc.id = 2;
 		pipelineDesc.pipelineType = PipelineType_Graphics;
-		pipelineDesc.bWriteDepth = false;
+		pipelineDesc.bBindDepth = false;
 
 		pipelineDesc.rtvFormats = { EGPIResourceFormat::B8G8R8A8_SRGB };
 
@@ -256,51 +254,83 @@ void RenderSystem::LightCombine( std::array<std::unique_ptr<IComponentRegistry>,
 	SceneViewComponent& sceneViewComp = sceneViewCompReg->GetComponent( 0 );
 
 	static GPIPipelineStateDesc pipelineDesc{};
-	if( pipelineDesc.id == 0 )
+	static IGPIPipelineRef pipeline = nullptr;
+	if( !pipeline )
 	{
-		pipelineDesc.id = 4;
+		pipelineDesc.id = 3;
 		pipelineDesc.pipelineType = PipelineType_Graphics;
-		pipelineDesc.bWriteDepth = false;
+		pipelineDesc.bBindDepth = false;
 
 		pipelineDesc.rtvFormats = { EGPIResourceFormat::B8G8R8A8_SRGB };
 
-		pipelineDesc.inputDesc.resize( 2 );
-		pipelineDesc.inputDesc[ 0 ] = { "POSITION", EGPIResourceFormat::R32G32B32_Float, GPIInputClass_PerVertex, 0 };
-		pipelineDesc.inputDesc[ 1 ] = { "TEXCOORD", EGPIResourceFormat::R32G32_Float, GPIInputClass_PerVertex, 2 };
+		pipelineDesc.inputDesc = {
+			{ "POSITION", EGPIResourceFormat::R32G32B32_Float, GPIInputClass_PerVertex, 0 },
+			{ "TEXCOORD", EGPIResourceFormat::R32G32_Float, GPIInputClass_PerVertex, 1 }
+		};
 
-		pipelineDesc.vertexShader.hash = 7;
+		pipelineDesc.vertexShader.hash = 6;
 		pipelineDesc.vertexShader.type = ShaderType_VertexShader;
 		pipelineDesc.vertexShader.file = "Engine/Shader/Lighting.hlsl";
 		pipelineDesc.vertexShader.entry = "VS_LightCombine";
 
-		pipelineDesc.pixelShader.hash = 8;
+		pipelineDesc.pixelShader.hash = 7;
 		pipelineDesc.pixelShader.type = ShaderType_PixelShader;
 		pipelineDesc.pixelShader.file = "Engine/Shader/Lighting.hlsl";
 		pipelineDesc.pixelShader.entry = "PS_LightCombine";
 
-		pipelineDesc.numCBVs = 1;
-		pipelineDesc.numSRVs = 0;
+		pipelineDesc.numTextures = { 4, 1 };
 
-		AtomicEngine::GetGPI()->CreatePipelineState( pipelineDesc );
+		pipeline = AtomicEngine::GetGPI()->CreatePipelineState( pipelineDesc );
 	}
-	//AtomicEngine::GetGPI()->BindConstantBuffer( pipelineDesc, sceneViewComp.constBufferID, 0 );
 
-	/*AtomicEngine::GetGPI()->SetPipelineState( pipelineDesc );
+	{// @TODO: move to somewhere makes sense
+		uint32 swapChainIndex = AtomicEngine::GetGPI()->GetSwapChainCurrentIndex();
+		IGPIRenderTargetViewRef& swapChainRTV = _swapChainRTV[ swapChainIndex ];
+		AtomicEngine::GetGPI()->BindRenderTargetView( *pipeline, *_swapChainRTV[ swapChainIndex ], 0 );
+	}
 
-	static IVertexBufferRef positionBuffer = nullptr;
-	static IVertexBufferRef uvBuffer = nullptr;
-	static IIndexBufferRef indexBuffer = nullptr;
+	{// @TODO: move to somewhere makes sense
+		AtomicEngine::GetGPI()->BindTextureViewTable( *pipeline, *_gBufferTextureViewTable, 0 );
+		AtomicEngine::GetGPI()->BindTextureViewTable( *pipeline, *_sceneLightTextureViewTable, 1 );
+	}
 
-	if( !positionBuffer )
+	static IGPIResourceRef positionResource;
+	static IGPIResourceRef uvResource;
+	static IGPIResourceRef indexResource;
+	static GPIPipelineInput pipelineInput;
+
+	if( !positionResource )
 	{
-		static StaticMesh staticMesh = SampleMesh::GetQuad();
+		StaticMesh staticMesh = SampleMesh::GetQuad();
 
-		positionBuffer = AtomicEngine::GetGPI()->CreateVertexBuffer( staticMesh.GetPositionPtr(), staticMesh.GetPositionStride(), staticMesh.GetPositionByteSize() );
-		uvBuffer = AtomicEngine::GetGPI()->CreateVertexBuffer( staticMesh.GetUVPtr(), staticMesh.GetUVStride(), staticMesh.GetUVByteSize() );
-		indexBuffer = AtomicEngine::GetGPI()->CreateIndexBuffer( staticMesh.GetIndexPtr( 0 ), staticMesh.GetIndexByteSize( 0 ) );
+		GPIResourceDesc desc{};
+		desc.dimension = EGPIResourceDimension::Buffer;
+		desc.format = EGPIResourceFormat::Unknown;
+		//desc.width = size;
+		desc.height = 1;
+		desc.depth = 1;
+		desc.numMips = 1;
+		desc.flags = GPIResourceFlag_None;
+
+		pipelineInput.vbv.resize( 2 );
+		pipelineInput.ibv.resize( 1 );
+
+		desc.width = staticMesh.GetPositionByteSize();
+		positionResource = AtomicEngine::GetGPI()->CreateResource( desc, staticMesh.GetPositionPtr(), staticMesh.GetPositionByteSize() );
+		pipelineInput.vbv[ 0 ] = AtomicEngine::GetGPI()->CreateVertexBufferView( *positionResource, staticMesh.GetPositionByteSize(), staticMesh.GetPositionStride() );
+
+		desc.width = staticMesh.GetUVByteSize();
+		uvResource = AtomicEngine::GetGPI()->CreateResource( desc, staticMesh.GetUVPtr(), staticMesh.GetUVByteSize() );
+		pipelineInput.vbv[ 1 ] = AtomicEngine::GetGPI()->CreateVertexBufferView( *uvResource, staticMesh.GetUVByteSize(), staticMesh.GetUVStride() );
+
+		desc.width = staticMesh.GetIndexByteSize( 0 );
+		indexResource = AtomicEngine::GetGPI()->CreateResource( desc, staticMesh.GetIndexPtr( 0 ), staticMesh.GetIndexByteSize( 0 ) );
+		pipelineInput.ibv[ 0 ] = AtomicEngine::GetGPI()->CreateIndexBufferView( *indexResource, staticMesh.GetIndexByteSize( 0 ) );
 	}
 
-	AtomicEngine::GetGPI()->Render( positionBuffer.get(), uvBuffer.get(), nullptr, indexBuffer.get() );
+	AtomicEngine::GetGPI()->SetPipelineState( pipelineDesc );
 
-	AtomicEngine::GetGPI()->ExecuteCommandList();*/
+	AtomicEngine::GetGPI()->Render( pipelineInput );
+
+	AtomicEngine::GetGPI()->ExecuteCommandList();
 }

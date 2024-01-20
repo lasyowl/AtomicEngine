@@ -45,7 +45,7 @@ void RenderSystem::GeometryPass( std::array<std::unique_ptr<IComponentRegistry>,
 	{
 		pipelineDesc.id = 0;
 		pipelineDesc.pipelineType = PipelineType_Graphics;
-		pipelineDesc.bWriteDepth = true;
+		pipelineDesc.bBindDepth = true;
 
 		pipelineDesc.rtvFormats = {
 			EGPIResourceFormat::B8G8R8A8_SRGB,
@@ -94,6 +94,7 @@ void RenderSystem::GeometryPass( std::array<std::unique_ptr<IComponentRegistry>,
 	if( !modelCBResource )
 	{
 		GPIResourceDesc cbDesc{};
+		cbDesc.name = L"ModelConstant";
 		cbDesc.dimension = EGPIResourceDimension::Buffer;
 		cbDesc.format = EGPIResourceFormat::Unknown;
 		cbDesc.width = sizeof( PrimitiveConstantBuffer );

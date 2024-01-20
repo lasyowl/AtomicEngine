@@ -9,6 +9,7 @@ Texture2D gDiffuse : register (t0);
 Texture2D gNormal : register (t1);
 Texture2D gBuffer2 : register (t2);
 Texture2D gDepth : register (t3);
+Texture2D sceneLightBuffer : register (t4);
 SamplerState smp { AddressU = Wrap; AddressV = Wrap; };
 
 struct VertexShaderOutput
@@ -126,5 +127,5 @@ float4 PS_LightCombine (
     float4 position : SV_POSITION,
     float2 uv : TEXCOORD) : SV_TARGET
 {
-    return float4(0, 0, 0, 1);
+    return sceneLightBuffer.Sample(smp, uv);
 }

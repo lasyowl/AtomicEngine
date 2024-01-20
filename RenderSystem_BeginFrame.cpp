@@ -36,9 +36,13 @@ void RenderSystem::BeginFrame( std::array<std::unique_ptr<IComponentRegistry>, N
 
 			swapChainRTV = AtomicEngine::GetGPI()->CreateRenderTargetView( *swapChainResource, rtvDesc );
 		}
+	}
 
+	if( !_swapChainDepthResource )
+	{
 		{
 			GPIResourceDesc dsDesc{};
+			dsDesc.name = L"DepthStencil";
 			dsDesc.dimension = EGPIResourceDimension::Texture2D;
 			dsDesc.format = EGPIResourceFormat::D32_Float;
 			dsDesc.width = 1920;
@@ -68,6 +72,7 @@ void RenderSystem::BeginFrame( std::array<std::unique_ptr<IComponentRegistry>, N
 
 		{
 			GPIResourceDesc cbDesc{};
+			cbDesc.name = L"ViewConstant";
 			cbDesc.dimension = EGPIResourceDimension::Buffer;
 			cbDesc.format = EGPIResourceFormat::Unknown;
 			cbDesc.width = sizeof( SceneViewConstantBuffer );

@@ -60,7 +60,7 @@ public:
 
 	virtual void UpdateResourceData( const IGPIResource& inResource, void* data, uint32 sizeInBytes ) abstract;
 
-	//virtual void UpdateConstantBuffer( uint32 bufferID, void* data, uint32 size ) abstract;
+	virtual void TransitionResource( const IGPIResource& inResource, const EGPIResourceStates statesBefore, const EGPIResourceStates statesAfter ) abstract;
 
 	virtual void RunCS() abstract;
 
