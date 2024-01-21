@@ -1,5 +1,6 @@
 #include "stdafx.h"
 #include "GPIUtility.h"
+#include "IntVector.h"
 
 #include <dxgi.h>
 
@@ -20,14 +21,14 @@ GPIResourceDesc GetConstantBufferResourceDesc( const std::wstring& name, const u
 	return desc;
 }
 
-GPIResourceDesc GetRenderTargetResourceDesc( const std::wstring& name, const uint32 width, const uint32 height )
+GPIResourceDesc GetRenderTargetResourceDesc( const std::wstring& name, const IVec2& size )
 {
 	GPIResourceDesc desc{};
 	desc.name = name;
 	desc.dimension = EGPIResourceDimension::Texture2D;
 	desc.format = EGPIResourceFormat::B8G8R8A8;
-	desc.width = width;
-	desc.height = height;
+	desc.width = size.x;
+	desc.height = size.y;
 	desc.depth = 1;
 	desc.numMips = 1;
 	desc.flags = GPIResourceFlag_AllowRenderTarget | GPIResourceFlag_AllowUnorderedAccess;
@@ -38,14 +39,14 @@ GPIResourceDesc GetRenderTargetResourceDesc( const std::wstring& name, const uin
 	return desc;
 }
 
-GPIResourceDesc GetDepthStencilResourceDesc( const std::wstring& name, const uint32 width, const uint32 height )
+GPIResourceDesc GetDepthStencilResourceDesc( const std::wstring& name, const IVec2& size )
 {
 	GPIResourceDesc desc{};
 	desc.name = L"DepthStencil";
 	desc.dimension = EGPIResourceDimension::Texture2D;
 	desc.format = EGPIResourceFormat::D32_Float;
-	desc.width = width;
-	desc.height = height;
+	desc.width = size.x;
+	desc.height = size.y;
 	desc.depth = 1;
 	desc.numMips = 1;
 	desc.flags = GPIResourceFlag_AllowDepthStencil;

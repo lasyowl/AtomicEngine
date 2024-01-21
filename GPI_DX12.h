@@ -69,7 +69,7 @@ private:
 class GPI_DX12 : public IGPI
 {
 public:
-	GPI_DX12( const HWND hWnd, const int32 screenWidth, const int32 screenHeight );
+	GPI_DX12( const HWND hWnd, const IVec2& windowSize );
 
 	virtual void Initialize() override;
 	virtual void BeginFrame( const IGPIResource& inSwapChainResource, const IGPIRenderTargetView& inSwapChainRTV, const IGPIDepthStencilView& inSwapChainDSV ) override;

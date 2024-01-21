@@ -10,6 +10,7 @@
 #include "../RenderSystem.h"
 #include "../KeyInputSystem.h"
 #include "../SceneViewSystem.h"
+#include "../IntVector.h"
 
 namespace
 {
@@ -22,9 +23,10 @@ namespace
 
 		/* todo : Run graphics API by compatibility */
 
-		_gpi = std::make_unique<GPI_DX12>( hWnd, 1920, 1080 );
+		IVec2 windowSize = IVec2( 1920, 1080 );
+		_gpi = std::make_unique<GPI_DX12>( hWnd, windowSize );
 		_gpi->Initialize();
-		_gpi->SetWindowSize( 1920, 1080 );
+		_gpi->SetWindowSize( windowSize );
 	}
 
 	LRESULT CALLBACK WindowMessageProcessor( HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam )

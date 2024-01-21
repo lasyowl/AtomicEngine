@@ -2,6 +2,7 @@
 
 #include "GPIPipeline.h"
 #include "GPIResource.h"
+#include "IntVector.h"
 
 struct IGPIPipeline;
 struct GPIResourceDesc;
@@ -64,13 +65,9 @@ public:
 
 	virtual void RunCS() abstract;
 
-	void SetWindowSize( uint32 width, uint32 height )
-	{
-		_windowWidth = width;
-		_windowHeight = height;
-	}
+	void SetWindowSize( const IVec2& size ) { _windowSize = size; }
+	IVec2 GetWindowSize() { return _windowSize; }
 
 protected:
-	uint32 _windowWidth;
-	uint32 _windowHeight;
+	IVec2 _windowSize;
 };

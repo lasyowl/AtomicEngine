@@ -46,7 +46,8 @@ void RenderSystem::DirectionalLight( std::array<std::unique_ptr<IComponentRegist
 
 	if( !_sceneLightResource )
 	{
-		const GPIResourceDesc sceneLightDesc = GPIUtil::GetRenderTargetResourceDesc( L"SceneLight", 1920, 1080 );
+		const IVec2 windowSize = AtomicEngine::GetGPI()->GetWindowSize();
+		const GPIResourceDesc sceneLightDesc = GPIUtil::GetRenderTargetResourceDesc( L"SceneLight", windowSize );
 		_sceneLightResource = AtomicEngine::GetGPI()->CreateResource( sceneLightDesc );
 
 		GPIRenderTargetViewDesc rtvDesc{};

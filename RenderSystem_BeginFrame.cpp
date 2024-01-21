@@ -39,10 +39,12 @@ void RenderSystem::BeginFrame( std::array<std::unique_ptr<IComponentRegistry>, N
 		}
 	}
 
+	const IVec2 windowSize = AtomicEngine::GetGPI()->GetWindowSize();
+
 	if( !_swapChainDepthResource )
 	{
 		{
-			const GPIResourceDesc dsDesc = GPIUtil::GetDepthStencilResourceDesc( L"DepthStencil", 1920, 1080 );
+			const GPIResourceDesc dsDesc = GPIUtil::GetDepthStencilResourceDesc( L"DepthStencil", windowSize );
 
 			_swapChainDepthResource = AtomicEngine::GetGPI()->CreateResource( dsDesc );
 
@@ -67,10 +69,10 @@ void RenderSystem::BeginFrame( std::array<std::unique_ptr<IComponentRegistry>, N
 
 	if( !_gBufferDiffuseResource )
 	{
-		_gBufferDiffuseResource = AtomicEngine::GetGPI()->CreateResource( GPIUtil::GetRenderTargetResourceDesc( L"GBufferDiffuse", 1920, 1080 ) );
-		_gBufferNormalResource = AtomicEngine::GetGPI()->CreateResource( GPIUtil::GetRenderTargetResourceDesc( L"GBufferNormal", 1920, 1080 ) );
-		_gBufferUnknown0Resource = AtomicEngine::GetGPI()->CreateResource( GPIUtil::GetRenderTargetResourceDesc( L"GBufferUnknown0", 1920, 1080 ) );
-		_gBufferUnknown1Resource = AtomicEngine::GetGPI()->CreateResource( GPIUtil::GetRenderTargetResourceDesc( L"GBufferUnknown1", 1920, 1080 ) );
+		_gBufferDiffuseResource = AtomicEngine::GetGPI()->CreateResource( GPIUtil::GetRenderTargetResourceDesc( L"GBufferDiffuse", windowSize ) );
+		_gBufferNormalResource = AtomicEngine::GetGPI()->CreateResource( GPIUtil::GetRenderTargetResourceDesc( L"GBufferNormal", windowSize ) );
+		_gBufferUnknown0Resource = AtomicEngine::GetGPI()->CreateResource( GPIUtil::GetRenderTargetResourceDesc( L"GBufferUnknown0", windowSize ) );
+		_gBufferUnknown1Resource = AtomicEngine::GetGPI()->CreateResource( GPIUtil::GetRenderTargetResourceDesc( L"GBufferUnknown1", windowSize ) );
 
 		GPIRenderTargetViewDesc rtvDesc{};
 		rtvDesc.format = EGPIResourceFormat::B8G8R8A8_SRGB;

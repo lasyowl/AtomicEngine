@@ -227,7 +227,7 @@ ID3D12Resource* GPIResourceAllocator_DX12::GetResource( uint32 resourceID )
 ///////////////////////////////////////
 // GPI_DX12
 ///////////////////////////////////////
-GPI_DX12::GPI_DX12( const HWND hWnd, const int32 screenWidth, const int32 screenHeight )
+GPI_DX12::GPI_DX12( const HWND hWnd, const IVec2& windowSize )
 	: _device( nullptr )
 	, _swapChain( nullptr )
 	, _swapChainIndex( 0 )
@@ -235,7 +235,7 @@ GPI_DX12::GPI_DX12( const HWND hWnd, const int32 screenWidth, const int32 screen
 	, _debugInfoQueue( nullptr )
 	, _hWnd( hWnd )
 {
-	SetWindowSize( screenWidth, screenHeight );
+	SetWindowSize( windowSize );
 }
 
 void GPI_DX12::Initialize()
@@ -299,8 +299,8 @@ void GPI_DX12::Initialize()
 		swapChainDesc.BufferCount = SWAPCHAIN_COUNT;
 		swapChainDesc.BufferDesc.Format = DXGI_FORMAT_B8G8R8A8_UNORM;
 		swapChainDesc.BufferUsage = DXGI_USAGE_RENDER_TARGET_OUTPUT;
-		swapChainDesc.BufferDesc.Width = _windowWidth;
-		swapChainDesc.BufferDesc.Height = _windowHeight;
+		swapChainDesc.BufferDesc.Width = _windowSize.x;
+		swapChainDesc.BufferDesc.Height = _windowSize.y;
 		swapChainDesc.OutputWindow = _hWnd;
 		swapChainDesc.SampleDesc.Count = 1;
 		swapChainDesc.SwapEffect = DXGI_SWAP_EFFECT_FLIP_DISCARD;
@@ -471,8 +471,8 @@ void GPI_DX12::SetPipelineState( const GPIPipelineStateDesc& desc, const GPIPipe
 	else
 		cmdList->OMSetRenderTargets( pipeline.rtv.size(), pipeline.rtv.data(), false, nullptr );
 
-	D3D12_VIEWPORT viewport = ToDX12Viewport( _windowWidth, _windowHeight );
-	D3D12_RECT scissorRect = ToDX12Rect( _windowWidth, _windowHeight );
+	D3D12_VIEWPORT viewport = ToDX12Viewport( _windowSize.x, _windowSize.y );
+	D3D12_RECT scissorRect = ToDX12Rect( _windowSize.x, _windowSize.y );
 	cmdList->RSSetViewports( 1, &viewport );
 	cmdList->RSSetScissorRects( 1, &scissorRect );
 
