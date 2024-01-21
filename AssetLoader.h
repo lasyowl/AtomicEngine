@@ -10,6 +10,6 @@
 class AssetLoader
 {
 public:
-	static std::shared_ptr<StaticMesh> LoadStaticMesh( const std::string& fileName );
+	static std::shared_ptr<StaticMeshData> LoadStaticMeshData( const std::string& fileName );
 	static std::shared_ptr<RawImage> LoadRawImage( const std::string& fileName );
 };

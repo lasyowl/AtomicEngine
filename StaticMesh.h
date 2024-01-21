@@ -4,10 +4,10 @@
 #include "Vector.h"
 #include "IntVector.h"
 
-struct StaticMesh
+struct StaticMeshData
 {
 public:
-	StaticMesh() {}
+	StaticMeshData() {}
 
 	Vec3* GetPositionPtr() { return position.data(); }
 	Vec3* GetNormalPtr() { return normal.data(); }

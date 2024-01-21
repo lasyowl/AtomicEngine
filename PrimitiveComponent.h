@@ -9,7 +9,7 @@ struct PrimitiveComponent
 {
 	DEFINE_ECS_COMPONENT( Primitive );
 
-	std::shared_ptr<StaticMesh> staticMesh;
+	std::shared_ptr<StaticMeshData> staticMeshData;
 
 	IGPIResourceRef positionResource;
 	IGPIResourceRef normalResource;

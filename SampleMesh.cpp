@@ -4,9 +4,9 @@
 
 namespace SampleMesh
 {
-StaticMesh GetQuad()
+StaticMeshData GetQuad()
 {
-	StaticMesh quad;
+	StaticMeshData quad;
 	quad.position = { { -1.0f, 1.0f, 0 }, { 1.0f, 1.0f, 0 }, { 1.0f, -1.0f, 0 }, { -1.0f, -1.0f, 0 } };
 	quad.normal = { { 0, 0, -1 }, { 0, 0, -1 }, { 0, 0, -1 }, { 0, 0, -1 } };
 	quad.uv = { { 0, 0 }, { 1, 0 }, { 1, 1 }, { 0, 1 } };
@@ -15,9 +15,9 @@ StaticMesh GetQuad()
 	return quad;
 }
 
-StaticMesh GetCube()
+StaticMeshData GetCube()
 {
-	StaticMesh cube;
+	StaticMeshData cube;
 	cube.position = { 
 		{ -1.0f, 1.0f, 1.0f }, { 1.0f, 1.0f, 1.0f }, { 1.0f, 1.0f, -1.0f }, { -1.0f, 1.0f, -1.0f },
 		{ -1.0f, 1.0f, -1.0f }, { 1.0f, 1.0f, -1.0f }, { 1.0f, -1.0f, -1.0f }, { -1.0f, -1.0f, -1.0f },
@@ -47,7 +47,7 @@ StaticMesh GetCube()
 	return cube;
 }
 
-StaticMesh GetSphere()
+StaticMeshData GetSphere()
 {
 	const Vec2 magicNumber = Vec2( 1.0f, 1.0f / ( 0.5f + 0.5f * sqrtf( 5.0 ) ) ).Normalize();
 	const float mn0 = magicNumber.x;
@@ -116,7 +116,7 @@ StaticMesh GetSphere()
 		trianglesNew.push_back( IVec3( newIndex2, newIndex4, newIndex5 ) );
 	}
 
-	StaticMesh sphere;
+	StaticMeshData sphere;
 	sphere.position = vertices;
 	sphere.normal = sphere.position;
 	sphere.uv = { { 0, 0 }, { 1, 0 }, { 1, 1 }, { 0, 1 }, { 0, 0 }, { 1, 0 }, { 1, 1 }, { 0, 1 } }; // invalid

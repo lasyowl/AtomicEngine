@@ -104,7 +104,7 @@ void RenderSystem::DirectionalLight( std::array<std::unique_ptr<IComponentRegist
 
 	if( !positionResource )
 	{
-		StaticMesh staticMesh = SampleMesh::GetQuad();
+		StaticMeshData staticMeshData = SampleMesh::GetQuad();
 
 		GPIResourceDesc desc{};
 		desc.dimension = EGPIResourceDimension::Buffer;
@@ -118,17 +118,17 @@ void RenderSystem::DirectionalLight( std::array<std::unique_ptr<IComponentRegist
 		pipelineInput.vbv.resize( 2 );
 		pipelineInput.ibv.resize( 1 );
 
-		desc.width = staticMesh.GetPositionByteSize();
-		positionResource = AtomicEngine::GetGPI()->CreateResource( desc, staticMesh.GetPositionPtr(), staticMesh.GetPositionByteSize() );
-		pipelineInput.vbv[ 0 ] = AtomicEngine::GetGPI()->CreateVertexBufferView( *positionResource, staticMesh.GetPositionByteSize(), staticMesh.GetPositionStride() );
+		desc.width = staticMeshData.GetPositionByteSize();
+		positionResource = AtomicEngine::GetGPI()->CreateResource( desc, staticMeshData.GetPositionPtr(), staticMeshData.GetPositionByteSize() );
+		pipelineInput.vbv[ 0 ] = AtomicEngine::GetGPI()->CreateVertexBufferView( *positionResource, staticMeshData.GetPositionByteSize(), staticMeshData.GetPositionStride() );
 
-		desc.width = staticMesh.GetUVByteSize();
-		uvResource = AtomicEngine::GetGPI()->CreateResource( desc, staticMesh.GetUVPtr(), staticMesh.GetUVByteSize() );
-		pipelineInput.vbv[ 1 ] = AtomicEngine::GetGPI()->CreateVertexBufferView( *uvResource, staticMesh.GetUVByteSize(), staticMesh.GetUVStride() );
+		desc.width = staticMeshData.GetUVByteSize();
+		uvResource = AtomicEngine::GetGPI()->CreateResource( desc, staticMeshData.GetUVPtr(), staticMeshData.GetUVByteSize() );
+		pipelineInput.vbv[ 1 ] = AtomicEngine::GetGPI()->CreateVertexBufferView( *uvResource, staticMeshData.GetUVByteSize(), staticMeshData.GetUVStride() );
 
-		desc.width = staticMesh.GetIndexByteSize( 0 );
-		indexResource = AtomicEngine::GetGPI()->CreateResource( desc, staticMesh.GetIndexPtr( 0 ), staticMesh.GetIndexByteSize( 0 ) );
-		pipelineInput.ibv[ 0 ] = AtomicEngine::GetGPI()->CreateIndexBufferView( *indexResource, staticMesh.GetIndexByteSize( 0 ) );
+		desc.width = staticMeshData.GetIndexByteSize( 0 );
+		indexResource = AtomicEngine::GetGPI()->CreateResource( desc, staticMeshData.GetIndexPtr( 0 ), staticMeshData.GetIndexByteSize( 0 ) );
+		pipelineInput.ibv[ 0 ] = AtomicEngine::GetGPI()->CreateIndexBufferView( *indexResource, staticMeshData.GetIndexByteSize( 0 ) );
 	}
 
 	AtomicEngine::GetGPI()->ClearRenderTarget( *_sceneLightUAV );
@@ -236,7 +236,7 @@ void RenderSystem::PointLight( std::array<std::unique_ptr<IComponentRegistry>, N
 
 	if( !positionResource )
 	{
-		StaticMesh staticMesh = SampleMesh::GetSphere();
+		StaticMeshData staticMeshData = SampleMesh::GetSphere();
 
 		GPIResourceDesc desc{};
 		desc.dimension = EGPIResourceDimension::Buffer;
@@ -250,17 +250,17 @@ void RenderSystem::PointLight( std::array<std::unique_ptr<IComponentRegistry>, N
 		pipelineInput.vbv.resize( 2 );
 		pipelineInput.ibv.resize( 1 );
 
-		desc.width = staticMesh.GetPositionByteSize();
-		positionResource = AtomicEngine::GetGPI()->CreateResource( desc, staticMesh.GetPositionPtr(), staticMesh.GetPositionByteSize() );
-		pipelineInput.vbv[ 0 ] = AtomicEngine::GetGPI()->CreateVertexBufferView( *positionResource, staticMesh.GetPositionByteSize(), staticMesh.GetPositionStride() );
+		desc.width = staticMeshData.GetPositionByteSize();
+		positionResource = AtomicEngine::GetGPI()->CreateResource( desc, staticMeshData.GetPositionPtr(), staticMeshData.GetPositionByteSize() );
+		pipelineInput.vbv[ 0 ] = AtomicEngine::GetGPI()->CreateVertexBufferView( *positionResource, staticMeshData.GetPositionByteSize(), staticMeshData.GetPositionStride() );
 
-		desc.width = staticMesh.GetUVByteSize();
-		uvResource = AtomicEngine::GetGPI()->CreateResource( desc, staticMesh.GetUVPtr(), staticMesh.GetUVByteSize() );
-		pipelineInput.vbv[ 1 ] = AtomicEngine::GetGPI()->CreateVertexBufferView( *uvResource, staticMesh.GetUVByteSize(), staticMesh.GetUVStride() );
+		desc.width = staticMeshData.GetUVByteSize();
+		uvResource = AtomicEngine::GetGPI()->CreateResource( desc, staticMeshData.GetUVPtr(), staticMeshData.GetUVByteSize() );
+		pipelineInput.vbv[ 1 ] = AtomicEngine::GetGPI()->CreateVertexBufferView( *uvResource, staticMeshData.GetUVByteSize(), staticMeshData.GetUVStride() );
 
-		desc.width = staticMesh.GetIndexByteSize( 0 );
-		indexResource = AtomicEngine::GetGPI()->CreateResource( desc, staticMesh.GetIndexPtr( 0 ), staticMesh.GetIndexByteSize( 0 ) );
-		pipelineInput.ibv[ 0 ] = AtomicEngine::GetGPI()->CreateIndexBufferView( *indexResource, staticMesh.GetIndexByteSize( 0 ) );
+		desc.width = staticMeshData.GetIndexByteSize( 0 );
+		indexResource = AtomicEngine::GetGPI()->CreateResource( desc, staticMeshData.GetIndexPtr( 0 ), staticMeshData.GetIndexByteSize( 0 ) );
+		pipelineInput.ibv[ 0 ] = AtomicEngine::GetGPI()->CreateIndexBufferView( *indexResource, staticMeshData.GetIndexByteSize( 0 ) );
 	}
 
 	for( Entity entity = 0; entity < NUM_ENTITY_MAX; ++entity )
@@ -341,7 +341,7 @@ void RenderSystem::LightCombine( std::array<std::unique_ptr<IComponentRegistry>,
 
 	if( !positionResource )
 	{
-		StaticMesh staticMesh = SampleMesh::GetQuad();
+		StaticMeshData staticMeshData = SampleMesh::GetQuad();
 
 		GPIResourceDesc desc{};
 		desc.dimension = EGPIResourceDimension::Buffer;
@@ -355,17 +355,17 @@ void RenderSystem::LightCombine( std::array<std::unique_ptr<IComponentRegistry>,
 		pipelineInput.vbv.resize( 2 );
 		pipelineInput.ibv.resize( 1 );
 
-		desc.width = staticMesh.GetPositionByteSize();
-		positionResource = AtomicEngine::GetGPI()->CreateResource( desc, staticMesh.GetPositionPtr(), staticMesh.GetPositionByteSize() );
-		pipelineInput.vbv[ 0 ] = AtomicEngine::GetGPI()->CreateVertexBufferView( *positionResource, staticMesh.GetPositionByteSize(), staticMesh.GetPositionStride() );
+		desc.width = staticMeshData.GetPositionByteSize();
+		positionResource = AtomicEngine::GetGPI()->CreateResource( desc, staticMeshData.GetPositionPtr(), staticMeshData.GetPositionByteSize() );
+		pipelineInput.vbv[ 0 ] = AtomicEngine::GetGPI()->CreateVertexBufferView( *positionResource, staticMeshData.GetPositionByteSize(), staticMeshData.GetPositionStride() );
 
-		desc.width = staticMesh.GetUVByteSize();
-		uvResource = AtomicEngine::GetGPI()->CreateResource( desc, staticMesh.GetUVPtr(), staticMesh.GetUVByteSize() );
-		pipelineInput.vbv[ 1 ] = AtomicEngine::GetGPI()->CreateVertexBufferView( *uvResource, staticMesh.GetUVByteSize(), staticMesh.GetUVStride() );
+		desc.width = staticMeshData.GetUVByteSize();
+		uvResource = AtomicEngine::GetGPI()->CreateResource( desc, staticMeshData.GetUVPtr(), staticMeshData.GetUVByteSize() );
+		pipelineInput.vbv[ 1 ] = AtomicEngine::GetGPI()->CreateVertexBufferView( *uvResource, staticMeshData.GetUVByteSize(), staticMeshData.GetUVStride() );
 
-		desc.width = staticMesh.GetIndexByteSize( 0 );
-		indexResource = AtomicEngine::GetGPI()->CreateResource( desc, staticMesh.GetIndexPtr( 0 ), staticMesh.GetIndexByteSize( 0 ) );
-		pipelineInput.ibv[ 0 ] = AtomicEngine::GetGPI()->CreateIndexBufferView( *indexResource, staticMesh.GetIndexByteSize( 0 ) );
+		desc.width = staticMeshData.GetIndexByteSize( 0 );
+		indexResource = AtomicEngine::GetGPI()->CreateResource( desc, staticMeshData.GetIndexPtr( 0 ), staticMeshData.GetIndexByteSize( 0 ) );
+		pipelineInput.ibv[ 0 ] = AtomicEngine::GetGPI()->CreateIndexBufferView( *indexResource, staticMeshData.GetIndexByteSize( 0 ) );
 	}
 
 	AtomicEngine::GetGPI()->SetPipelineState( pipelineDesc );

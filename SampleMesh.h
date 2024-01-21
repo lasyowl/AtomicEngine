@@ -4,7 +4,7 @@
 
 namespace SampleMesh
 {
-StaticMesh GetQuad();
-StaticMesh GetCube();
-StaticMesh GetSphere();
+StaticMeshData GetQuad();
+StaticMeshData GetCube();
+StaticMeshData GetSphere();
 }

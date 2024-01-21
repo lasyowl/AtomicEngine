@@ -7,9 +7,9 @@
 #include <assimp/postprocess.h>
 #include <FreeImage/x64/FreeImage.h>
 
-std::shared_ptr<StaticMesh> LoadStaticMesh_WavefrontObj( std::ifstream& file )
+std::shared_ptr<StaticMeshData> LoadStaticMeshData_WavefrontObj( std::ifstream& file )
 {
-	std::shared_ptr<StaticMesh> staticMesh = std::make_shared<StaticMesh>();
+	std::shared_ptr<StaticMeshData> staticMeshData = std::make_shared<StaticMeshData>();
 
 	//std::vector<Vec3>& position = staticMesh->position;
 	//std::vector<Vec2>& uv = staticMesh->uv;
@@ -96,20 +96,20 @@ std::shared_ptr<StaticMesh> LoadStaticMesh_WavefrontObj( std::ifstream& file )
 	//	}
 	//}
 
-	return staticMesh;
+	return staticMeshData;
 }
 
-std::shared_ptr<StaticMesh> LoadStaticMesh_Assimp( const aiScene* scene )
+std::shared_ptr<StaticMeshData> LoadStaticMeshData_Assimp( const aiScene* scene )
 {
-	std::shared_ptr<StaticMesh> staticMesh = std::make_shared<StaticMesh>();
+	std::shared_ptr<StaticMeshData> staticMeshData = std::make_shared<StaticMeshData>();
 
 	const aiMesh* mesh = scene->mMeshes[ 0 ];
 
-	staticMesh->position.resize( mesh->mNumVertices );
-	staticMesh->normal.resize( mesh->mNumVertices );
-	//staticMesh->uv.resize( mesh->mNumVertices );
-	staticMesh->indices.resize( 1 );
-	std::vector<IVec3>& indices = staticMesh->indices[ 0 ];
+	staticMeshData->position.resize( mesh->mNumVertices );
+	staticMeshData->normal.resize( mesh->mNumVertices );
+	//staticMeshData->uv.resize( mesh->mNumVertices );
+	staticMeshData->indices.resize( 1 );
+	std::vector<IVec3>& indices = staticMeshData->indices[ 0 ];
 	indices.resize( mesh->mNumFaces );
 
 	for( int32 index = 0; index < mesh->mNumFaces; ++index )
@@ -121,16 +121,16 @@ std::shared_ptr<StaticMesh> LoadStaticMesh_Assimp( const aiScene* scene )
 		indices[ index ].z = face.mIndices[ 2 ];
 	}
 
-	memcpy( staticMesh->position.data(), mesh->mVertices, mesh->mNumVertices * sizeof( aiVector3D ) );
+	memcpy( staticMeshData->position.data(), mesh->mVertices, mesh->mNumVertices * sizeof( aiVector3D ) );
 	if( mesh->mNormals )
 	{
-		memcpy( staticMesh->normal.data(), mesh->mNormals, mesh->mNumVertices * sizeof( aiVector3D ) );
+		memcpy( staticMeshData->normal.data(), mesh->mNormals, mesh->mNumVertices * sizeof( aiVector3D ) );
 	}
 
-	return staticMesh;
+	return staticMeshData;
 }
 
-std::shared_ptr<StaticMesh> AssetLoader::LoadStaticMesh( const std::string& fileName )
+std::shared_ptr<StaticMeshData> AssetLoader::LoadStaticMeshData( const std::string& fileName )
 {
 	std::vector<std::string> splits;
 	std::stringstream ss( fileName );
@@ -149,17 +149,17 @@ std::shared_ptr<StaticMesh> AssetLoader::LoadStaticMesh( const std::string& file
 		return nullptr;
 	}
 
-	std::shared_ptr<StaticMesh> staticMesh;
+	std::shared_ptr<StaticMeshData> staticMeshData;
 
 	Assimp::Importer assimp;
 	if( const aiScene* assimpScene = assimp.ReadFile( fileName, aiProcess_ConvertToLeftHanded | aiProcess_Triangulate | aiProcess_GenUVCoords | aiProcess_GenSmoothNormals ) )
 	{
-		staticMesh = LoadStaticMesh_Assimp( assimpScene );
+		staticMeshData = LoadStaticMeshData_Assimp( assimpScene );
 	}
 
 	file.close();
 
-	return staticMesh;
+	return staticMeshData;
 }
 
 std::shared_ptr<RawImage> AssetLoader::LoadRawImage( const std::string& fileName )
