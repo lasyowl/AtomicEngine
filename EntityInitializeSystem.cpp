@@ -37,25 +37,25 @@ void EntityInitializeSystem::RunSystem( std::array<std::unique_ptr<struct ICompo
 			PrimitiveComponent& primitiveComp = primitiveCompReg->GetComponent( entity );
 			if( metaDataComp.hash == 0 )
 			{
-				primitiveComp.staticMeshData = AssetLoader::LoadStaticMeshData( "Resource/teapot.obj" );
+				primitiveComp.staticMesh = StaticMeshCache::AddStaticMesh( "teapot", *AssetLoader::LoadStaticMeshData( "Resource/teapot.obj" ) );
 			}
 			else if( metaDataComp.hash == 1 )
 			{
-				primitiveComp.staticMeshData = std::make_shared<StaticMeshData>( SampleMesh::GetQuad() );
+				primitiveComp.staticMesh = StaticMeshCache::FindStaticMesh( "quad" );
 				transformComp.scale = Vec3( 2.0f, 2.0f, 2.0f );
 			}
 			else if( metaDataComp.hash == 2 )
 			{
-				primitiveComp.staticMeshData = std::make_shared<StaticMeshData>( SampleMesh::GetSphere() );
+				primitiveComp.staticMesh = StaticMeshCache::FindStaticMesh( "sphere" );
 				transformComp.position = Vec3( 1, 0, 0 );
 			}
 			else if( metaDataComp.hash == 3 )
 			{
-				primitiveComp.staticMeshData = std::make_shared<StaticMeshData>( SampleMesh::GetQuad() );
+				primitiveComp.staticMesh = StaticMeshCache::FindStaticMesh( "quad" );
 			}
 			else if( metaDataComp.hash == 4 )
 			{
-				primitiveComp.staticMeshData = std::make_shared<StaticMeshData>( SampleMesh::GetQuad() );
+				primitiveComp.staticMesh = StaticMeshCache::FindStaticMesh( "quad" );
 			}
 		}
 

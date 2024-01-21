@@ -95,6 +95,7 @@
     <ClCompile Include="RenderSystem_GeometryPass.cpp" />
     <ClCompile Include="SampleMesh.cpp" />
     <ClCompile Include="SceneViewSystem.cpp" />
+    <ClCompile Include="StaticMesh.cpp" />
     <ClCompile Include="Vector.cpp" />
   </ItemGroup>
   <PropertyGroup Label="Globals">

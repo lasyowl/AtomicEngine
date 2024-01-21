@@ -120,49 +120,7 @@ void RenderSystem::GeometryPass( std::array<std::unique_ptr<IComponentRegistry>,
 			continue;
 		}
 
-		PrimitiveComponent& component = renderCompReg->GetComponent( entity );
-		if( !component.positionResource )
-		{
-			std::shared_ptr<StaticMeshData>& staticMeshData = component.staticMeshData;
-
-			GPIResourceDesc desc{};
-			desc.dimension = EGPIResourceDimension::Buffer;
-			desc.format = EGPIResourceFormat::Unknown;
-			//desc.width = size;
-			desc.height = 1;
-			desc.depth = 1;
-			desc.numMips = 1;
-			desc.flags = GPIResourceFlag_None;
-
-			component.pipelineInput.vbv.resize( 3 );
-
-			desc.width = staticMeshData->GetPositionByteSize();
-
-			component.positionResource = AtomicEngine::GetGPI()->CreateResource( desc, staticMeshData->GetPositionPtr(), staticMeshData->GetPositionByteSize() );
-			component.pipelineInput.vbv[ 0 ] = AtomicEngine::GetGPI()->CreateVertexBufferView( *component.positionResource, staticMeshData->GetPositionByteSize(), staticMeshData->GetPositionStride() );
-			if( !staticMeshData->normal.empty() )
-			{
-				desc.width = staticMeshData->GetNormalByteSize();
-				component.normalResource = AtomicEngine::GetGPI()->CreateResource( desc, staticMeshData->GetNormalPtr(), staticMeshData->GetNormalByteSize() );
-				component.pipelineInput.vbv[ 1 ] = AtomicEngine::GetGPI()->CreateVertexBufferView( *component.normalResource, staticMeshData->GetNormalByteSize(), staticMeshData->GetNormalStride() );
-			}
-			if( !staticMeshData->uv.empty() )
-			{
-				desc.width = staticMeshData->GetUVByteSize();
-				component.uvResource = AtomicEngine::GetGPI()->CreateResource( desc, staticMeshData->GetUVPtr(), staticMeshData->GetUVByteSize() );
-				component.pipelineInput.vbv[ 2 ] = AtomicEngine::GetGPI()->CreateVertexBufferView( *component.uvResource, staticMeshData->GetUVByteSize(), staticMeshData->GetUVStride() );
-			}
-
-			for( uint32 index = 0; index < staticMeshData->GetNumMeshes(); ++index )
-			{
-				desc.width = staticMeshData->GetIndexByteSize( index );
-				IGPIResourceRef ib = AtomicEngine::GetGPI()->CreateResource( desc, staticMeshData->GetIndexPtr( index ), staticMeshData->GetIndexByteSize( index ) );
-				IGPIIndexBufferViewRef ibv = AtomicEngine::GetGPI()->CreateIndexBufferView( *ib, staticMeshData->GetIndexByteSize( index ) );
-				component.indexResource.emplace_back( ib );
-				component.pipelineInput.ibv.emplace_back( ibv );
-			}
-		}
-
+		PrimitiveComponent& primitiveComp = renderCompReg->GetComponent( entity );
 		TransformComponent& transformComp = transformCompReg->GetComponent( entity );
 
 		Vec3 earlyTransform = Vec3( 0, 0, 0 );
@@ -196,7 +154,7 @@ void RenderSystem::GeometryPass( std::array<std::unique_ptr<IComponentRegistry>,
 
 		AtomicEngine::GetGPI()->SetPipelineState( pipelineDesc );
 
-		AtomicEngine::GetGPI()->Render( component.pipelineInput );
+		AtomicEngine::GetGPI()->Render( primitiveComp.staticMesh->pipelineInput );
 
 		AtomicEngine::GetGPI()->ExecuteCommandList();
 	}
