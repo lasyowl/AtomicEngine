@@ -105,7 +105,7 @@ float4 PS_PointLight (
     float3 screenNormal = normalize(viewPosition - worldPos);
     float3 specular = lightColor * pow(max(0, dot(reflectNormal, screenNormal)), 30);   
 
-    return float4(diffuse + specular, 1);
+    return float4(diffuse + specular, attenuation);
 }
 
 ////////////////////////////////

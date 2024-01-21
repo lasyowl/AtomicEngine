@@ -14,7 +14,7 @@ public:
 		BeginFrame( componentRegistry );
 		GeometryPass( componentRegistry );
 		DirectionalLight( componentRegistry );
-		//PointLight( componentRegistry );
+		PointLight( componentRegistry );
 		LightCombine( componentRegistry );
 		//PostProcess( componentRegistry );
 		EndFrame( componentRegistry );

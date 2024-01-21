@@ -13,10 +13,6 @@
 
 void RenderSystem::DirectionalLight( std::array<std::unique_ptr<IComponentRegistry>, NUM_COMPONENT_MAX>& componentRegistry )
 {
-	ComponentRegistry<SceneViewComponent>* sceneViewCompReg = GetRegistry<SceneViewComponent>( componentRegistry );
-
-	SceneViewComponent& sceneViewComp = sceneViewCompReg->GetComponent( 0 );
-
 	static GPIPipelineStateDesc pipelineDesc{};
 	static IGPIPipelineRef pipeline = nullptr;
 	if( !pipeline )
@@ -46,23 +42,6 @@ void RenderSystem::DirectionalLight( std::array<std::unique_ptr<IComponentRegist
 		pipelineDesc.numTextures = { 4 };
 
 		pipeline = AtomicEngine::GetGPI()->CreatePipelineState( pipelineDesc );
-
-		/*struct PointLightResourceBuffer
-		{
-			std::vector<Vec3> position;
-			std::vector<float> radius;
-
-			IVertexBufferRef positionBuffer;
-			IVertexBufferRef radiusBuffer;
-		} static pointLightBuffer;
-		for( int32 iter = 0; iter < 100; ++iter )
-		{
-			pointLightBuffer.position.emplace_back( Vec3(1 + iter, 2 + iter, 3 + iter ) );
-			pointLightBuffer.radius.emplace_back( 1.0f );
-		}
-		pointLightBuffer.positionBuffer = AtomicEngine::GetGPI()->CreateResourceBuffer( pointLightBuffer.position.data(), pointLightBuffer.position.size() * sizeof( Vec3 ) );
-
-		AtomicEngine::GetGPI()->BindResourceBuffer( pipelineDesc, pointLightBuffer.positionBuffer.get(), 0);*/
 	}
 
 	if( !_sceneLightResource )
@@ -175,26 +154,21 @@ void RenderSystem::PointLight( std::array<std::unique_ptr<IComponentRegistry>, N
 
 	SceneViewComponent& sceneViewComp = sceneViewCompReg->GetComponent( 0 );
 
-	__declspec( align( 256 ) )
-	struct LightConstantBuffer
-	{
-		Mat4x4 matModel;
-		Vec3 origin;
-		float intensity;
-	};
-
 	static GPIPipelineStateDesc pipelineDesc{};
-	if( pipelineDesc.id == 0 )
+	static IGPIPipelineRef pipeline = nullptr;
+	if( !pipeline )
 	{
 		pipelineDesc.id = 2;
 		pipelineDesc.pipelineType = PipelineType_Graphics;
 		pipelineDesc.bBindDepth = false;
+		pipelineDesc.bEnableBlend = true;
 
 		pipelineDesc.rtvFormats = { EGPIResourceFormat::B8G8R8A8_SRGB };
 
-		pipelineDesc.inputDesc.resize( 2 );
-		pipelineDesc.inputDesc[ 0 ] = { "POSITION", EGPIResourceFormat::R32G32B32_Float, GPIInputClass_PerVertex, 0 };
-		pipelineDesc.inputDesc[ 1 ] = { "TEXCOORD", EGPIResourceFormat::R32G32_Float, GPIInputClass_PerVertex, 2 };
+		pipelineDesc.inputDesc = {
+			{ "POSITION", EGPIResourceFormat::R32G32B32_Float, GPIInputClass_PerVertex, 0 },
+			{ "TEXCOORD", EGPIResourceFormat::R32G32_Float, GPIInputClass_PerVertex, 1 }
+		};
 
 		pipelineDesc.vertexShader.hash = 4;
 		pipelineDesc.vertexShader.type = ShaderType_VertexShader;
@@ -207,9 +181,86 @@ void RenderSystem::PointLight( std::array<std::unique_ptr<IComponentRegistry>, N
 		pipelineDesc.pixelShader.entry = "PS_PointLight";
 
 		pipelineDesc.numCBVs = 2;
-		pipelineDesc.numSRVs = 0;
+		pipelineDesc.numTextures = { 4 };
 
-		AtomicEngine::GetGPI()->CreatePipelineState( pipelineDesc );
+		pipeline = AtomicEngine::GetGPI()->CreatePipelineState( pipelineDesc );
+	}
+
+	{// @TODO: move to somewhere makes sense
+		AtomicEngine::GetGPI()->BindRenderTargetView( *pipeline, *_sceneLightRTV, 0 );
+	}
+
+	{// @TODO: move to somewhere makes sense
+		AtomicEngine::GetGPI()->BindTextureViewTable( *pipeline, *_gBufferTextureViewTable, 0 );
+	}
+
+	__declspec( align( 256 ) )
+		struct LightConstantBuffer
+	{
+		Mat4x4 matModel;
+		Vec3 origin;
+		float intensity;
+	};
+
+	static IGPIResourceRef lightCBResource = nullptr;
+	static IGPIConstantBufferViewRef lightCBV;
+	if( !lightCBResource )
+	{
+		GPIResourceDesc cbDesc{};
+		cbDesc.name = L"LightConstant";
+		cbDesc.dimension = EGPIResourceDimension::Buffer;
+		cbDesc.format = EGPIResourceFormat::Unknown;
+		cbDesc.width = sizeof( LightConstantBuffer );
+		cbDesc.height = 1;
+		cbDesc.depth = 1;
+		cbDesc.numMips = 1;
+		cbDesc.flags = GPIResourceFlag_None;
+
+		lightCBResource = AtomicEngine::GetGPI()->CreateResource( cbDesc );
+
+		GPIConstantBufferViewDesc cbvDesc{};
+		cbvDesc.sizeInBytes = sizeof( LightConstantBuffer );
+
+		lightCBV = AtomicEngine::GetGPI()->CreateConstantBufferView( *lightCBResource, cbvDesc );
+	}
+
+	{// @TODO: move to somewhere makes sense
+		AtomicEngine::GetGPI()->BindConstantBufferView( *pipeline, *_viewCBV, 0 );
+		AtomicEngine::GetGPI()->BindConstantBufferView( *pipeline, *lightCBV, 1 );
+	}
+
+	static IGPIResourceRef positionResource;
+	static IGPIResourceRef uvResource;
+	static IGPIResourceRef indexResource;
+	static GPIPipelineInput pipelineInput;
+
+	if( !positionResource )
+	{
+		StaticMesh staticMesh = SampleMesh::GetSphere();
+
+		GPIResourceDesc desc{};
+		desc.dimension = EGPIResourceDimension::Buffer;
+		desc.format = EGPIResourceFormat::Unknown;
+		//desc.width = size;
+		desc.height = 1;
+		desc.depth = 1;
+		desc.numMips = 1;
+		desc.flags = GPIResourceFlag_None;
+
+		pipelineInput.vbv.resize( 2 );
+		pipelineInput.ibv.resize( 1 );
+
+		desc.width = staticMesh.GetPositionByteSize();
+		positionResource = AtomicEngine::GetGPI()->CreateResource( desc, staticMesh.GetPositionPtr(), staticMesh.GetPositionByteSize() );
+		pipelineInput.vbv[ 0 ] = AtomicEngine::GetGPI()->CreateVertexBufferView( *positionResource, staticMesh.GetPositionByteSize(), staticMesh.GetPositionStride() );
+
+		desc.width = staticMesh.GetUVByteSize();
+		uvResource = AtomicEngine::GetGPI()->CreateResource( desc, staticMesh.GetUVPtr(), staticMesh.GetUVByteSize() );
+		pipelineInput.vbv[ 1 ] = AtomicEngine::GetGPI()->CreateVertexBufferView( *uvResource, staticMesh.GetUVByteSize(), staticMesh.GetUVStride() );
+
+		desc.width = staticMesh.GetIndexByteSize( 0 );
+		indexResource = AtomicEngine::GetGPI()->CreateResource( desc, staticMesh.GetIndexPtr( 0 ), staticMesh.GetIndexByteSize( 0 ) );
+		pipelineInput.ibv[ 0 ] = AtomicEngine::GetGPI()->CreateIndexBufferView( *indexResource, staticMesh.GetIndexByteSize( 0 ) );
 	}
 
 	for( Entity entity = 0; entity < NUM_ENTITY_MAX; ++entity )
@@ -225,23 +276,16 @@ void RenderSystem::PointLight( std::array<std::unique_ptr<IComponentRegistry>, N
 
 		Vec3 earlyTransform = Vec3( 0, 0, 0 );
 
-		LightConstantBuffer constBuffer;
-		constBuffer.matModel = AEMath::GetTransposedMatrix( AEMath::GetScaleMatrix( Vec3( 3, 3, 3 )/*transformComp.scale*/ ) * AEMath::GetTranslateMatrix( earlyTransform ) * AEMath::GetRotationMatrix( transformComp.rotation ) * AEMath::GetTranslateMatrix( transformComp.position ) );
-		constBuffer.origin = transformComp.position;
-		constBuffer.intensity = 3.0f;
+		LightConstantBuffer lightBuffer;
+		lightBuffer.matModel = AEMath::GetTransposedMatrix( AEMath::GetScaleMatrix( Vec3( 3, 3, 3 )/*transformComp.scale*/ ) * AEMath::GetTranslateMatrix( earlyTransform ) * AEMath::GetRotationMatrix( transformComp.rotation ) * AEMath::GetTranslateMatrix( transformComp.position ) );
+		lightBuffer.origin = transformComp.position;
+		lightBuffer.intensity = 4.0f;
 
-		//AtomicEngine::GetGPI()->BindConstantBuffer( pipelineDesc, sceneViewComp.constBufferID, 0 );
-
-		//static const uint32 constBufferID = AtomicEngine::GetGPI()->CreateConstantBuffer( &constBuffer, sizeof( LightConstantBuffer ) );
-		//AtomicEngine::GetGPI()->UpdateConstantBuffer( constBufferID, &constBuffer, sizeof( LightConstantBuffer ) );
-		//AtomicEngine::GetGPI()->BindConstantBuffer( pipelineDesc, constBufferID, 1 );
+		AtomicEngine::GetGPI()->UpdateResourceData( *lightCBResource, &lightBuffer, sizeof( lightBuffer ) );
 
 		AtomicEngine::GetGPI()->SetPipelineState( pipelineDesc );
 
-		for( uint32 index = 0; index < renderComp.staticMesh->GetNumMeshes(); ++index )
-		{
-			//AtomicEngine::GetGPI()->Render( renderComp.positionBuffer.get(), renderComp.uvBuffer.get(), nullptr, renderComp.indexBuffer[ index ].get() );
-		}
+		AtomicEngine::GetGPI()->Render( pipelineInput );
 
 		AtomicEngine::GetGPI()->ExecuteCommandList();
 	}
@@ -249,10 +293,6 @@ void RenderSystem::PointLight( std::array<std::unique_ptr<IComponentRegistry>, N
 
 void RenderSystem::LightCombine( std::array<std::unique_ptr<IComponentRegistry>, NUM_COMPONENT_MAX>& componentRegistry )
 {
-	ComponentRegistry<SceneViewComponent>* sceneViewCompReg = GetRegistry<SceneViewComponent>( componentRegistry );
-
-	SceneViewComponent& sceneViewComp = sceneViewCompReg->GetComponent( 0 );
-
 	static GPIPipelineStateDesc pipelineDesc{};
 	static IGPIPipelineRef pipeline = nullptr;
 	if( !pipeline )

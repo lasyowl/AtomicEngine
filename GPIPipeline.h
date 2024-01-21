@@ -38,6 +38,7 @@ struct GPIPipelineStateDesc
 	EGPIPipelineType pipelineType;
 
 	bool bBindDepth;
+	bool bEnableBlend;
 
 	std::vector<GPIPipelineInputDesc> inputDesc;
 

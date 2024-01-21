@@ -723,7 +723,7 @@ ID3D12PipelineState* CreateGraphicsPipelineState( ID3D12Device* device, const GP
 	// Simple alpha blending
 	for( uint32 index = 0; index < pipelineDesc.rtvFormats.size(); ++index )
 	{
-		blendState.RenderTarget[ index ].BlendEnable = true;
+		blendState.RenderTarget[ index ].BlendEnable = pipelineDesc.bEnableBlend;
 		blendState.RenderTarget[ index ].SrcBlend = D3D12_BLEND_SRC_ALPHA;
 		blendState.RenderTarget[ index ].DestBlend = D3D12_BLEND_INV_SRC_ALPHA;
 		blendState.RenderTarget[ index ].BlendOp = D3D12_BLEND_OP_ADD;

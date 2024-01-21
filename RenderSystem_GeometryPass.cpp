@@ -79,9 +79,6 @@ void RenderSystem::GeometryPass( std::array<std::unique_ptr<IComponentRegistry>,
 	}
 
 	{// @TODO: move to somewhere makes sense
-		/*uint32 swapChainIndex = AtomicEngine::GetGPI()->GetSwapChainCurrentIndex();
-		IGPIRenderTargetViewRef& swapChainRTV = _swapChainRTV[ swapChainIndex ];
-		AtomicEngine::GetGPI()->BindRenderTargetView( *pipeline, *_swapChainRTV[ swapChainIndex ], 0 );*/
 		AtomicEngine::GetGPI()->BindRenderTargetView( *pipeline, *_gBufferDiffuseRTV, 0 );
 		AtomicEngine::GetGPI()->BindRenderTargetView( *pipeline, *_gBufferNormalRTV, 1 );
 		AtomicEngine::GetGPI()->BindRenderTargetView( *pipeline, *_gBufferUnknown0RTV, 2 );
@@ -169,7 +166,7 @@ void RenderSystem::GeometryPass( std::array<std::unique_ptr<IComponentRegistry>,
 		TransformComponent& transformComp = transformCompReg->GetComponent( entity );
 
 		Vec3 earlyTransform = Vec3( 0, 0, 0 );
-		if( entity == 3 )
+		if( entity == 2 )
 		{
 			static float aa = 0;
 			static float sign = 1;
