@@ -10,6 +10,7 @@
 #include "GPIPipeline.h"
 #include "Matrix.h"
 #include "Math.h"
+#include "GPIUtility.h"
 
 void RenderSystem::GeometryPass( std::array<std::unique_ptr<IComponentRegistry>, NUM_COMPONENT_MAX>& componentRegistry )
 {
@@ -31,13 +32,6 @@ void RenderSystem::GeometryPass( std::array<std::unique_ptr<IComponentRegistry>,
 	{
 		return;
 	}
-
-	__declspec( align( 256 ) )
-		struct PrimitiveConstantBuffer
-	{
-		Mat4x4 matModel;
-		Mat4x4 matRotation;
-	};
 
 	static GPIPipelineStateDesc pipelineDesc{};
 	static IGPIPipelineRef pipeline = nullptr;
@@ -86,20 +80,18 @@ void RenderSystem::GeometryPass( std::array<std::unique_ptr<IComponentRegistry>,
 		AtomicEngine::GetGPI()->BindDepthStencilView( *pipeline, *_swapChainDepthDSV );
 	}
 
+	__declspec( align( 256 ) )
+		struct PrimitiveConstantBuffer
+	{
+		Mat4x4 matModel;
+		Mat4x4 matRotation;
+	};
+
 	static IGPIResourceRef modelCBResource = nullptr;
 	static IGPIConstantBufferViewRef modelCBV;
 	if( !modelCBResource )
 	{
-		GPIResourceDesc cbDesc{};
-		cbDesc.name = L"ModelConstant";
-		cbDesc.dimension = EGPIResourceDimension::Buffer;
-		cbDesc.format = EGPIResourceFormat::Unknown;
-		cbDesc.width = sizeof( PrimitiveConstantBuffer );
-		cbDesc.height = 1;
-		cbDesc.depth = 1;
-		cbDesc.numMips = 1;
-		cbDesc.flags = GPIResourceFlag_None;
-
+		const GPIResourceDesc cbDesc = GPIUtil::GetConstantBufferResourceDesc( L"ModelConstant", sizeof( PrimitiveConstantBuffer ) );
 		modelCBResource = AtomicEngine::GetGPI()->CreateResource( cbDesc );
 
 		GPIConstantBufferViewDesc cbvDesc{};
@@ -133,7 +125,7 @@ void RenderSystem::GeometryPass( std::array<std::unique_ptr<IComponentRegistry>,
 				sign = -sign;
 			}
 			if( bMove )	aa += sign * 0.04f;
-			transformComp.position = Vec3( aa, 0, -5 );
+			transformComp.position = Vec3( aa, 0, -3 );
 			transformComp.rotation = Vec3( 0, 0, 0 );
 			transformComp.scale = Vec3( 0.5f, 0.5f, 0.5f );
 		}

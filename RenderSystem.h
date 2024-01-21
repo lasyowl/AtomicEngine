@@ -34,7 +34,6 @@ private:
 	IGPIRenderTargetViewRef _swapChainRTV[ 3 ];
 	IGPIResourceRef _swapChainDepthResource;
 	IGPIDepthStencilViewRef _swapChainDepthDSV;
-	IGPIShaderResourceViewRef _swapChainDepthSRV;
 
 	IGPIResourceRef _viewCBResource;
 	IGPIConstantBufferViewRef _viewCBV;

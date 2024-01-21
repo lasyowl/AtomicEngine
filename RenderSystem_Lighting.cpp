@@ -5,11 +5,11 @@
 #include "GPIPipeline.h"
 #include "StaticMesh.h"
 #include "SampleMesh.h"
-#include "SceneViewSystem.h"
 #include "LightComponent.h"
 #include "TransformComponent.h"
 #include "PrimitiveComponent.h"
 #include "Math.h"
+#include "GPIUtility.h"
 
 void RenderSystem::DirectionalLight( std::array<std::unique_ptr<IComponentRegistry>, NUM_COMPONENT_MAX>& componentRegistry )
 {
@@ -46,18 +46,7 @@ void RenderSystem::DirectionalLight( std::array<std::unique_ptr<IComponentRegist
 
 	if( !_sceneLightResource )
 	{
-		GPIResourceDesc sceneLightDesc{};
-		sceneLightDesc.dimension = EGPIResourceDimension::Texture2D;
-		sceneLightDesc.format = EGPIResourceFormat::B8G8R8A8;
-		sceneLightDesc.width = 1920;
-		sceneLightDesc.height = 1080;
-		sceneLightDesc.depth = 1;
-		sceneLightDesc.numMips = 1;
-		sceneLightDesc.flags = GPIResourceFlag_AllowRenderTarget | GPIResourceFlag_AllowUnorderedAccess;
-		sceneLightDesc.initialState = GPIResourceState_RenderTarget;
-		sceneLightDesc.clearValue.type = EGPIResourceClearValueType::Color;
-		sceneLightDesc.clearValue.color = Vec4( 0.0f, 0.0f, 0.0f, 0.0f );
-
+		const GPIResourceDesc sceneLightDesc = GPIUtil::GetRenderTargetResourceDesc( L"SceneLight", 1920, 1080 );
 		_sceneLightResource = AtomicEngine::GetGPI()->CreateResource( sceneLightDesc );
 
 		GPIRenderTargetViewDesc rtvDesc{};
@@ -87,13 +76,9 @@ void RenderSystem::DirectionalLight( std::array<std::unique_ptr<IComponentRegist
 
 	{// @TODO: move to somewhere makes sense
 		AtomicEngine::GetGPI()->BindRenderTargetView( *pipeline, *_sceneLightRTV, 0 );
-	}
 
-	{// @TODO: move to somewhere makes sense
 		AtomicEngine::GetGPI()->BindConstantBufferView( *pipeline, *_viewCBV, 0 );
-	}
 
-	{// @TODO: move to somewhere makes sense
 		AtomicEngine::GetGPI()->BindTextureViewTable( *pipeline, *_gBufferTextureViewTable, 0 );
 	}
 
@@ -113,14 +98,11 @@ void RenderSystem::PointLight( std::array<std::unique_ptr<IComponentRegistry>, N
 	ComponentRegistry<TransformComponent>* transformCompReg = GetRegistry<TransformComponent>( componentRegistry );
 	ComponentRegistry<PrimitiveComponent>* renderCompReg = GetRegistry<PrimitiveComponent>( componentRegistry );
 	ComponentRegistry<LightComponent>* lightCompReg = GetRegistry<LightComponent>( componentRegistry );
-	ComponentRegistry<SceneViewComponent>* sceneViewCompReg = GetRegistry<SceneViewComponent>( componentRegistry );
 
 	if( !transformCompReg || !renderCompReg || !lightCompReg )
 	{
 		return;
 	}
-
-	SceneViewComponent& sceneViewComp = sceneViewCompReg->GetComponent( 0 );
 
 	static GPIPipelineStateDesc pipelineDesc{};
 	static IGPIPipelineRef pipeline = nullptr;
@@ -156,9 +138,7 @@ void RenderSystem::PointLight( std::array<std::unique_ptr<IComponentRegistry>, N
 
 	{// @TODO: move to somewhere makes sense
 		AtomicEngine::GetGPI()->BindRenderTargetView( *pipeline, *_sceneLightRTV, 0 );
-	}
 
-	{// @TODO: move to somewhere makes sense
 		AtomicEngine::GetGPI()->BindTextureViewTable( *pipeline, *_gBufferTextureViewTable, 0 );
 	}
 
@@ -174,16 +154,7 @@ void RenderSystem::PointLight( std::array<std::unique_ptr<IComponentRegistry>, N
 	static IGPIConstantBufferViewRef lightCBV;
 	if( !lightCBResource )
 	{
-		GPIResourceDesc cbDesc{};
-		cbDesc.name = L"LightConstant";
-		cbDesc.dimension = EGPIResourceDimension::Buffer;
-		cbDesc.format = EGPIResourceFormat::Unknown;
-		cbDesc.width = sizeof( LightConstantBuffer );
-		cbDesc.height = 1;
-		cbDesc.depth = 1;
-		cbDesc.numMips = 1;
-		cbDesc.flags = GPIResourceFlag_None;
-
+		const GPIResourceDesc cbDesc = GPIUtil::GetConstantBufferResourceDesc( L"LightConstant", sizeof( LightConstantBuffer ) );
 		lightCBResource = AtomicEngine::GetGPI()->CreateResource( cbDesc );
 
 		GPIConstantBufferViewDesc cbvDesc{};
@@ -197,7 +168,7 @@ void RenderSystem::PointLight( std::array<std::unique_ptr<IComponentRegistry>, N
 		AtomicEngine::GetGPI()->BindConstantBufferView( *pipeline, *lightCBV, 1 );
 	}
 
-	const StaticMeshRef& staticMesh = StaticMeshCache::FindStaticMesh( "quad" );
+	const StaticMeshRef& staticMesh = StaticMeshCache::FindStaticMesh( "sphere" );
 
 	for( Entity entity = 0; entity < NUM_ENTITY_MAX; ++entity )
 	{
@@ -211,11 +182,12 @@ void RenderSystem::PointLight( std::array<std::unique_ptr<IComponentRegistry>, N
 		TransformComponent& transformComp = transformCompReg->GetComponent( entity );
 
 		Vec3 earlyTransform = Vec3( 0, 0, 0 );
+		float lightIntensity = 4.0f;
 
 		LightConstantBuffer lightBuffer;
-		lightBuffer.matModel = AEMath::GetTransposedMatrix( AEMath::GetScaleMatrix( Vec3( 3, 3, 3 )/*transformComp.scale*/ ) * AEMath::GetTranslateMatrix( earlyTransform ) * AEMath::GetRotationMatrix( transformComp.rotation ) * AEMath::GetTranslateMatrix( transformComp.position ) );
+		lightBuffer.matModel = AEMath::GetTransposedMatrix( AEMath::GetScaleMatrix( Vec3( lightIntensity, lightIntensity, lightIntensity ) ) * AEMath::GetTranslateMatrix( earlyTransform ) * AEMath::GetRotationMatrix( transformComp.rotation ) * AEMath::GetTranslateMatrix( transformComp.position ) );
 		lightBuffer.origin = transformComp.position;
-		lightBuffer.intensity = 4.0f;
+		lightBuffer.intensity = lightIntensity;
 
 		AtomicEngine::GetGPI()->UpdateResourceData( *lightCBResource, &lightBuffer, sizeof( lightBuffer ) );
 
@@ -263,9 +235,7 @@ void RenderSystem::LightCombine( std::array<std::unique_ptr<IComponentRegistry>,
 		uint32 swapChainIndex = AtomicEngine::GetGPI()->GetSwapChainCurrentIndex();
 		IGPIRenderTargetViewRef& swapChainRTV = _swapChainRTV[ swapChainIndex ];
 		AtomicEngine::GetGPI()->BindRenderTargetView( *pipeline, *_swapChainRTV[ swapChainIndex ], 0 );
-	}
 
-	{// @TODO: move to somewhere makes sense
 		AtomicEngine::GetGPI()->BindTextureViewTable( *pipeline, *_gBufferTextureViewTable, 0 );
 		AtomicEngine::GetGPI()->BindTextureViewTable( *pipeline, *_sceneLightTextureViewTable, 1 );
 	}

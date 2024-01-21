@@ -11,6 +11,7 @@
 #include "Matrix.h"
 #include "Math.h"
 #include "SceneViewSystem.h"
+#include "GPIUtility.h"
 
 void RenderSystem::BeginFrame( std::array<std::unique_ptr<IComponentRegistry>, NUM_COMPONENT_MAX>& componentRegistry )
 {
@@ -41,18 +42,7 @@ void RenderSystem::BeginFrame( std::array<std::unique_ptr<IComponentRegistry>, N
 	if( !_swapChainDepthResource )
 	{
 		{
-			GPIResourceDesc dsDesc{};
-			dsDesc.name = L"DepthStencil";
-			dsDesc.dimension = EGPIResourceDimension::Texture2D;
-			dsDesc.format = EGPIResourceFormat::D32_Float;
-			dsDesc.width = 1920;
-			dsDesc.height = 1080;
-			dsDesc.depth = 1;
-			dsDesc.numMips = 1;
-			dsDesc.flags = GPIResourceFlag_AllowDepthStencil;
-			dsDesc.initialState = GPIResourceState_DepthWrite;
-			dsDesc.clearValue.type = EGPIResourceClearValueType::DepthStencil;
-			dsDesc.clearValue.depthStencil = Vec2( 1.0f, 0.0f );
+			const GPIResourceDesc dsDesc = GPIUtil::GetDepthStencilResourceDesc( L"DepthStencil", 1920, 1080 );
 
 			_swapChainDepthResource = AtomicEngine::GetGPI()->CreateResource( dsDesc );
 
@@ -62,25 +52,10 @@ void RenderSystem::BeginFrame( std::array<std::unique_ptr<IComponentRegistry>, N
 			dsvDesc.flag = GPIDepthStencilViewFlag_None;
 
 			_swapChainDepthDSV = AtomicEngine::GetGPI()->CreateDepthStencilView( *_swapChainDepthResource, dsvDesc );
-
-			GPIShaderResourceViewDesc srvDesc{};
-			srvDesc.format = EGPIResourceFormat::R32_Float;
-			srvDesc.dimension = EGPIResourceDimension::Texture2D;
-
-			_swapChainDepthSRV = AtomicEngine::GetGPI()->CreateShaderResourceView( *_swapChainDepthResource, srvDesc );
 		}
 
 		{
-			GPIResourceDesc cbDesc{};
-			cbDesc.name = L"ViewConstant";
-			cbDesc.dimension = EGPIResourceDimension::Buffer;
-			cbDesc.format = EGPIResourceFormat::Unknown;
-			cbDesc.width = sizeof( SceneViewConstantBuffer );
-			cbDesc.height = 1;
-			cbDesc.depth = 1;
-			cbDesc.numMips = 1;
-			cbDesc.flags = GPIResourceFlag_None;
-
+			const GPIResourceDesc cbDesc = GPIUtil::GetConstantBufferResourceDesc( L"ViewConstant", sizeof( SceneViewConstantBuffer ) );
 			_viewCBResource = AtomicEngine::GetGPI()->CreateResource( cbDesc );
 
 			GPIConstantBufferViewDesc cbvDesc{};
@@ -92,22 +67,10 @@ void RenderSystem::BeginFrame( std::array<std::unique_ptr<IComponentRegistry>, N
 
 	if( !_gBufferDiffuseResource )
 	{
-		GPIResourceDesc gBufferDesc{};
-		gBufferDesc.dimension = EGPIResourceDimension::Texture2D;
-		gBufferDesc.format = EGPIResourceFormat::B8G8R8A8;
-		gBufferDesc.width = 1920;
-		gBufferDesc.height = 1080;
-		gBufferDesc.depth = 1;
-		gBufferDesc.numMips = 1;
-		gBufferDesc.flags = GPIResourceFlag_AllowRenderTarget | GPIResourceFlag_AllowUnorderedAccess;
-		gBufferDesc.initialState = GPIResourceState_RenderTarget;
-		gBufferDesc.clearValue.type = EGPIResourceClearValueType::Color;
-		gBufferDesc.clearValue.color = Vec4( 0.0f, 0.0f, 0.0f, 0.0f );
-
-		_gBufferDiffuseResource = AtomicEngine::GetGPI()->CreateResource( gBufferDesc );
-		_gBufferNormalResource = AtomicEngine::GetGPI()->CreateResource( gBufferDesc );
-		_gBufferUnknown0Resource = AtomicEngine::GetGPI()->CreateResource( gBufferDesc );
-		_gBufferUnknown1Resource = AtomicEngine::GetGPI()->CreateResource( gBufferDesc );
+		_gBufferDiffuseResource = AtomicEngine::GetGPI()->CreateResource( GPIUtil::GetRenderTargetResourceDesc( L"GBufferDiffuse", 1920, 1080 ) );
+		_gBufferNormalResource = AtomicEngine::GetGPI()->CreateResource( GPIUtil::GetRenderTargetResourceDesc( L"GBufferNormal", 1920, 1080 ) );
+		_gBufferUnknown0Resource = AtomicEngine::GetGPI()->CreateResource( GPIUtil::GetRenderTargetResourceDesc( L"GBufferUnknown0", 1920, 1080 ) );
+		_gBufferUnknown1Resource = AtomicEngine::GetGPI()->CreateResource( GPIUtil::GetRenderTargetResourceDesc( L"GBufferUnknown1", 1920, 1080 ) );
 
 		GPIRenderTargetViewDesc rtvDesc{};
 		rtvDesc.format = EGPIResourceFormat::B8G8R8A8_SRGB;
