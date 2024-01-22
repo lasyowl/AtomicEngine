@@ -40,7 +40,7 @@ public:
 	virtual IGPIPipelineRef CreatePipelineState( const GPIPipelineStateDesc& pipelineDesc ) abstract;
 
 	virtual IGPIResourceRef CreateResource( const GPIResourceDesc& desc ) abstract;
-	virtual IGPIResourceRef CreateResource( const GPIResourceDesc& desc, void* data, uint32 sizeInBytes ) abstract;
+	virtual IGPIResourceRef CreateResource( const GPIResourceDesc& desc, const void* data, uint32 sizeInBytes ) abstract;
 
 	virtual IGPIRenderTargetViewRef CreateRenderTargetView( const IGPIResource& inResource, const GPIRenderTargetViewDesc& rtvDesc ) abstract;
 	virtual IGPIDepthStencilViewRef CreateDepthStencilView( const IGPIResource& inResource, const GPIDepthStencilViewDesc& dsvDesc ) abstract;

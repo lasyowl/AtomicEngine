@@ -11,10 +11,10 @@ struct StaticMeshData
 public:
 	StaticMeshData() {}
 
-	Vec3* GetPositionPtr() { return position.data(); }
-	Vec3* GetNormalPtr() { return normal.data(); }
-	Vec2* GetUVPtr() { return uv.data(); }
-	IVec3* GetIndexPtr( uint32 meshIndex ) { return indices[ meshIndex ].data(); }
+	const Vec3* GetPositionPtr() const { return position.data(); }
+	const Vec3* GetNormalPtr() const { return normal.data(); }
+	const Vec2* GetUVPtr() const { return uv.data(); }
+	const IVec3* GetIndexPtr( uint32 meshIndex ) const { return indices[ meshIndex ].data(); }
 
 	uint32 GetNumPosition() const { return position.size(); }
 	uint32 GetNumNormal() const { return normal.size(); }
@@ -39,6 +39,11 @@ public:
 	std::vector<std::vector<IVec3>> indices;
 };
 
+struct StaticMeshDataGroup
+{
+	std::vector<StaticMeshData> datas;
+};
+
 struct StaticMesh
 {
 	IGPIResourceRef positionResource;
@@ -49,15 +54,19 @@ struct StaticMesh
 	GPIPipelineInput pipelineInput;
 };
 
-using StaticMeshRef = std::shared_ptr<StaticMesh>;
+struct StaticMeshGroup
+{
+	std::vector<StaticMesh> meshes;
+};
+
+using StaticMeshGroupRef = std::shared_ptr<StaticMeshGroup>;
 
 class StaticMeshCache
 {
 public:
-	static StaticMeshRef& AddStaticMesh( const std::string& name, const StaticMeshData& meshData );
-
-	static StaticMeshRef& FindStaticMesh( const std::string& name );
+	static StaticMeshGroupRef& AddStaticMeshGroup( const std::string& name, const StaticMeshDataGroup& dataGroup );
+	static StaticMeshGroupRef& FindStaticMeshGroup( const std::string& name );
 
 private:
-	static std::unordered_map<std::string, StaticMeshRef> _cache;
+	static std::unordered_map<std::string, StaticMeshGroupRef> _cache;
 };

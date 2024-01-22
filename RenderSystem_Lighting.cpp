@@ -83,13 +83,14 @@ void RenderSystem::DirectionalLight( std::array<std::unique_ptr<IComponentRegist
 		AtomicEngine::GetGPI()->BindTextureViewTable( *pipeline, *_gBufferTextureViewTable, 0 );
 	}
 
-	const StaticMeshRef& staticMesh = StaticMeshCache::FindStaticMesh( "quad" );
-
 	AtomicEngine::GetGPI()->ClearRenderTarget( *_sceneLightUAV );
 
 	AtomicEngine::GetGPI()->SetPipelineState( pipelineDesc );
 
-	AtomicEngine::GetGPI()->Render( staticMesh->pipelineInput );
+	for( const StaticMesh& mesh : StaticMeshCache::FindStaticMeshGroup( "quad" )->meshes )
+	{
+		AtomicEngine::GetGPI()->Render( mesh.pipelineInput );
+	}
 
 	AtomicEngine::GetGPI()->ExecuteCommandList();
 }
@@ -169,7 +170,7 @@ void RenderSystem::PointLight( std::array<std::unique_ptr<IComponentRegistry>, N
 		AtomicEngine::GetGPI()->BindConstantBufferView( *pipeline, *lightCBV, 1 );
 	}
 
-	const StaticMeshRef& staticMesh = StaticMeshCache::FindStaticMesh( "sphere" );
+	const StaticMeshGroupRef& meshGroup = StaticMeshCache::FindStaticMeshGroup( "sphere" );
 
 	for( Entity entity = 0; entity < NUM_ENTITY_MAX; ++entity )
 	{
@@ -194,7 +195,10 @@ void RenderSystem::PointLight( std::array<std::unique_ptr<IComponentRegistry>, N
 
 		AtomicEngine::GetGPI()->SetPipelineState( pipelineDesc );
 
-		AtomicEngine::GetGPI()->Render( staticMesh->pipelineInput );
+		for( const StaticMesh& mesh : meshGroup->meshes )
+		{
+			AtomicEngine::GetGPI()->Render( mesh.pipelineInput );
+		}
 
 		AtomicEngine::GetGPI()->ExecuteCommandList();
 	}
@@ -241,11 +245,12 @@ void RenderSystem::LightCombine( std::array<std::unique_ptr<IComponentRegistry>,
 		AtomicEngine::GetGPI()->BindTextureViewTable( *pipeline, *_sceneLightTextureViewTable, 1 );
 	}
 
-	const StaticMeshRef& staticMesh = StaticMeshCache::FindStaticMesh( "quad" );
-
 	AtomicEngine::GetGPI()->SetPipelineState( pipelineDesc );
 
-	AtomicEngine::GetGPI()->Render( staticMesh->pipelineInput );
+	for( const StaticMesh& mesh : StaticMeshCache::FindStaticMeshGroup( "quad" )->meshes )
+	{
+		AtomicEngine::GetGPI()->Render( mesh.pipelineInput );
+	}
 
 	AtomicEngine::GetGPI()->ExecuteCommandList();
 }

@@ -132,7 +132,7 @@ void RenderSystem::GeometryPass( std::array<std::unique_ptr<IComponentRegistry>,
 		else
 		{
 			static float aa = 0;
-			aa += 0.001f;
+			//aa += 0.001f;
 			transformComp.position = Vec3( 0, 0, 0 );
 			transformComp.rotation = Vec3( 0, aa, 0 );
 			transformComp.scale = Vec3( 1, 1, 1 );
@@ -146,7 +146,10 @@ void RenderSystem::GeometryPass( std::array<std::unique_ptr<IComponentRegistry>,
 
 		AtomicEngine::GetGPI()->SetPipelineState( pipelineDesc );
 
-		AtomicEngine::GetGPI()->Render( primitiveComp.staticMesh->pipelineInput );
+		for( const StaticMesh& mesh : primitiveComp.staticMeshGroup->meshes )
+		{
+			AtomicEngine::GetGPI()->Render( mesh.pipelineInput );
+		}
 
 		AtomicEngine::GetGPI()->ExecuteCommandList();
 	}

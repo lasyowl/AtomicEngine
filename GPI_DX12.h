@@ -90,7 +90,7 @@ public:
 	virtual IGPIPipelineRef CreatePipelineState( const GPIPipelineStateDesc& pipelineDesc ) override;
 
 	virtual IGPIResourceRef CreateResource( const GPIResourceDesc& desc ) override;
-	virtual IGPIResourceRef CreateResource( const GPIResourceDesc& desc, void* data, uint32 sizeInBytes ) override;
+	virtual IGPIResourceRef CreateResource( const GPIResourceDesc& desc, const void* data, uint32 sizeInBytes ) override;
 
 	virtual IGPIRenderTargetViewRef CreateRenderTargetView( const IGPIResource& inResource, const GPIRenderTargetViewDesc& rtvDesc ) override;
 	virtual IGPIDepthStencilViewRef CreateDepthStencilView( const IGPIResource& inResource, const GPIDepthStencilViewDesc& dsvDesc ) override;

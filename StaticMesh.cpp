@@ -2,70 +2,80 @@
 #include "StaticMesh.h"
 #include "AtomicEngine.h"
 #include "GPI.h"
+#include "GPIUtility.h"
 #include "SampleMesh.h"
 
-std::unordered_map<std::string, StaticMeshRef> StaticMeshCache::_cache;
+std::unordered_map<std::string, StaticMeshGroupRef> StaticMeshCache::_cache;
 
-StaticMeshRef BuildStaticMesh( StaticMeshData meshData )
+StaticMeshGroupRef BuildStaticMeshGroup( const StaticMeshDataGroup& dataGroup )
 {
-	StaticMeshRef mesh = std::make_shared<StaticMesh>();
+	StaticMeshGroupRef meshGroup = std::make_shared<StaticMeshGroup>();
+	meshGroup->meshes.resize( dataGroup.datas.size() );
 
-	GPIResourceDesc desc{};
-	desc.dimension = EGPIResourceDimension::Buffer;
-	desc.format = EGPIResourceFormat::Unknown;
-	desc.height = 1;
-	desc.depth = 1;
-	desc.numMips = 1;
-	desc.flags = GPIResourceFlag_None;
+	GPIResourceDesc desc = GPIUtil::GetVertexResourceDesc( L"", 0 );
 
-	mesh->pipelineInput.vbv.resize( 3 );
-
-	desc.width = meshData.GetPositionByteSize();
-	mesh->positionResource = AtomicEngine::GetGPI()->CreateResource( desc, meshData.GetPositionPtr(), meshData.GetPositionByteSize() );
-	mesh->pipelineInput.vbv[ 0 ] = AtomicEngine::GetGPI()->CreateVertexBufferView( *mesh->positionResource, meshData.GetPositionByteSize(), meshData.GetPositionStride() );
-
-	if( !meshData.normal.empty() )
+	for( uint32 index = 0; index < dataGroup.datas.size(); ++index )
 	{
-		desc.width = meshData.GetNormalByteSize();
-		mesh->normalResource = AtomicEngine::GetGPI()->CreateResource( desc, meshData.GetNormalPtr(), meshData.GetNormalByteSize() );
-		mesh->pipelineInput.vbv[ 1 ] = AtomicEngine::GetGPI()->CreateVertexBufferView( *mesh->normalResource, meshData.GetNormalByteSize(), meshData.GetNormalStride() );
-	}
-	if( !meshData.uv.empty() )
-	{
-		desc.width = meshData.GetUVByteSize();
-		mesh->uvResource = AtomicEngine::GetGPI()->CreateResource( desc, meshData.GetUVPtr(), meshData.GetUVByteSize() );
-		mesh->pipelineInput.vbv[ 2 ] = AtomicEngine::GetGPI()->CreateVertexBufferView( *mesh->uvResource, meshData.GetUVByteSize(), meshData.GetUVStride() );
+		StaticMesh& mesh = meshGroup->meshes[ index ];
+		const StaticMeshData& data = dataGroup.datas[ index ];
+
+		mesh.pipelineInput.vbv.resize( 3 );
+
+		desc.width = data.GetPositionByteSize();
+		mesh.positionResource = AtomicEngine::GetGPI()->CreateResource( desc, data.GetPositionPtr(), data.GetPositionByteSize() );
+		mesh.pipelineInput.vbv[ 0 ] = AtomicEngine::GetGPI()->CreateVertexBufferView( *mesh.positionResource, data.GetPositionByteSize(), data.GetPositionStride() );
+
+		if( !data.normal.empty() )
+		{
+			desc.width = data.GetNormalByteSize();
+			mesh.normalResource = AtomicEngine::GetGPI()->CreateResource( desc, data.GetNormalPtr(), data.GetNormalByteSize() );
+			mesh.pipelineInput.vbv[ 1 ] = AtomicEngine::GetGPI()->CreateVertexBufferView( *mesh.normalResource, data.GetNormalByteSize(), data.GetNormalStride() );
+		}
+		if( !data.uv.empty() )
+		{
+			desc.width = data.GetUVByteSize();
+			mesh.uvResource = AtomicEngine::GetGPI()->CreateResource( desc, data.GetUVPtr(), data.GetUVByteSize() );
+			mesh.pipelineInput.vbv[ 2 ] = AtomicEngine::GetGPI()->CreateVertexBufferView( *mesh.uvResource, data.GetUVByteSize(), data.GetUVStride() );
+		}
+
+		for( uint32 index = 0; index < data.GetNumMeshes(); ++index )
+		{
+			desc.width = data.GetIndexByteSize( index );
+			IGPIResourceRef ib = AtomicEngine::GetGPI()->CreateResource( desc, data.GetIndexPtr( index ), data.GetIndexByteSize( index ) );
+			IGPIIndexBufferViewRef ibv = AtomicEngine::GetGPI()->CreateIndexBufferView( *ib, data.GetIndexByteSize( index ) );
+			mesh.indexResource.emplace_back( ib );
+			mesh.pipelineInput.ibv.emplace_back( ibv );
+		}
 	}
 
-	for( uint32 index = 0; index < meshData.GetNumMeshes(); ++index )
-	{
-		desc.width = meshData.GetIndexByteSize( index );
-		IGPIResourceRef ib = AtomicEngine::GetGPI()->CreateResource( desc, meshData.GetIndexPtr( index ), meshData.GetIndexByteSize( index ) );
-		IGPIIndexBufferViewRef ibv = AtomicEngine::GetGPI()->CreateIndexBufferView( *ib, meshData.GetIndexByteSize( index ) );
-		mesh->indexResource.emplace_back( ib );
-		mesh->pipelineInput.ibv.emplace_back( ibv );
-	}
-
-	return mesh;
+	return meshGroup;
 }
 
-StaticMeshRef& StaticMeshCache::AddStaticMesh( const std::string& name, const StaticMeshData& meshData )
+StaticMeshGroupRef BuildStaticMeshGroup( StaticMeshData data )
+{
+	StaticMeshDataGroup group;
+	group.datas.push_back( data );
+
+	return BuildStaticMeshGroup( group );
+}
+
+StaticMeshGroupRef& StaticMeshCache::AddStaticMeshGroup( const std::string& name, const StaticMeshDataGroup& dataGroup )
 {
 	assert( !_cache.contains( name ) );
 
-	_cache[ name ] = BuildStaticMesh( meshData );
+	_cache[ name ] = BuildStaticMeshGroup( dataGroup );
 
 	return _cache[ name ];
 }
 
-StaticMeshRef& StaticMeshCache::FindStaticMesh( const std::string& name )
+StaticMeshGroupRef& StaticMeshCache::FindStaticMeshGroup( const std::string& name )
 {
 	static bool bInit = true;
 	if( bInit )
 	{
-		_cache[ "cube" ] = BuildStaticMesh( SampleMesh::GetCube() );
-		_cache[ "quad" ] = BuildStaticMesh( SampleMesh::GetQuad() );
-		_cache[ "sphere" ] = BuildStaticMesh( SampleMesh::GetSphere() );
+		_cache[ "cube" ] = BuildStaticMeshGroup( SampleMesh::GetCube() );
+		_cache[ "quad" ] = BuildStaticMeshGroup( SampleMesh::GetQuad() );
+		_cache[ "sphere" ] = BuildStaticMeshGroup( SampleMesh::GetSphere() );
 
 		bInit = false;
 	}

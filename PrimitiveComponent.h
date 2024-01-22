@@ -9,5 +9,5 @@ struct PrimitiveComponent
 {
 	DEFINE_ECS_COMPONENT( Primitive );
 
-	StaticMeshRef staticMesh;
+	StaticMeshGroupRef staticMeshGroup;
 };

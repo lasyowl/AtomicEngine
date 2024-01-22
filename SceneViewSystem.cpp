@@ -24,35 +24,55 @@ void SceneViewSystem::RunSystem( std::array<std::unique_ptr<struct IComponentReg
 			continue;
 		}
 
+		const float camMoveSpeed = 1.0f;
+		const float camRotateSpeed = 0.03f;
+		static Vec3 camDirection = Vec3( 0, 0, 1 );
+
 		SceneViewComponent& sceneView = viewCompReg->GetComponent( entity );
 
 		if( keyInputComp.keyPressed[ KeyType_A ] )
 		{
-			sceneView.position.x -= 0.1;
+			sceneView.position.x -= camMoveSpeed;
 		}
 		if( keyInputComp.keyPressed[ KeyType_D ] )
 		{
-			sceneView.position.x += 0.1;
+			sceneView.position.x += camMoveSpeed;
 		}
 		if( keyInputComp.keyPressed[ KeyType_S ] )
 		{
-			sceneView.position.y -= 0.1;
+			sceneView.position.z -= camMoveSpeed;
 		}
 		if( keyInputComp.keyPressed[ KeyType_W ] )
 		{
-			sceneView.position.y += 0.1;
+			sceneView.position.z += camMoveSpeed;
 		}
 		if( keyInputComp.keyPressed[ KeyType_Q ] )
 		{
-			sceneView.position.z -= 0.1;
+			sceneView.position.y -= camMoveSpeed;
 		}
 		if( keyInputComp.keyPressed[ KeyType_E ] )
 		{
-			sceneView.position.z += 0.1;
+			sceneView.position.y += camMoveSpeed;
 		}
-		sceneView.direction = Vec3{ 0, 0, 1 };
+		if( keyInputComp.keyPressed[ KeyType_J ] )
+		{
+			camDirection.x -= camRotateSpeed;
+		}
+		if( keyInputComp.keyPressed[ KeyType_L ] )
+		{
+			camDirection.x += camRotateSpeed;
+		}
+		if( keyInputComp.keyPressed[ KeyType_I ] )
+		{
+			camDirection.y += camRotateSpeed;
+		}
+		if( keyInputComp.keyPressed[ KeyType_K ] )
+		{
+			camDirection.y -= camRotateSpeed;
+		}
+		sceneView.direction = camDirection.Normalize();
 
 		sceneView.matView = AEMath::GetViewMatrix( sceneView.position, sceneView.position + sceneView.direction, Vec3::up );
-		sceneView.matProjection = AEMath::GetPerspectiveMatrixFOV( 0.25f * 3.14f, 1920.0f / 1080.0f, 0.1f, 1000.0f );
+		sceneView.matProjection = AEMath::GetPerspectiveMatrixFOV( 0.25f * 3.14f, 1920.0f / 1080.0f, 0.1f, 5000.0f );
 	}
 }

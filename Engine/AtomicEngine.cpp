@@ -97,9 +97,9 @@ namespace
 		ECSAddComponent<TransformComponent>( entity0 );
 		ECSAddComponent<PrimitiveComponent>( entity0 );
 
-		//Entity entity = ECSCreateEntityWithMetaData( 1 );
-		//ECSAddComponent<TransformComponent>( entity );
-		//ECSAddComponent<PrimitiveComponent>( entity );
+		Entity entity = ECSCreateEntityWithMetaData( 1 );
+		ECSAddComponent<TransformComponent>( entity );
+		ECSAddComponent<PrimitiveComponent>( entity );
 
 		Entity entityCube = ECSCreateEntityWithMetaData( 2 );
 		ECSAddComponent<TransformComponent>( entityCube );

@@ -105,7 +105,7 @@ constexpr D3D12_HEAP_PROPERTIES HeapProperties( D3D12_HEAP_TYPE heapType )
 	return heapProp;
 }
 
-void CopyMemoryToBuffer( ID3D12Resource* buffer, void* data, uint64 size )
+void CopyMemoryToBuffer( ID3D12Resource* buffer, const void* data, uint64 size )
 {
 	void* virtualMem;
 	buffer->Map( 0, nullptr, &virtualMem );
@@ -922,7 +922,7 @@ IGPIResourceRef GPI_DX12::CreateResource( const GPIResourceDesc& desc )
 	return std::make_shared<GPIResource_DX12>( resource );
 }
 
-IGPIResourceRef GPI_DX12::CreateResource( const GPIResourceDesc& desc, void* data, uint32 sizeInBytes )
+IGPIResourceRef GPI_DX12::CreateResource( const GPIResourceDesc& desc, const void* data, uint32 sizeInBytes )
 {
 	CommandQueueContext& cmdQueueCtx = _cmdQueueCtx[ D3D12_COMMAND_LIST_TYPE_DIRECT ];
 	ID3D12GraphicsCommandList* cmdList = *cmdQueueCtx.iCmdList;

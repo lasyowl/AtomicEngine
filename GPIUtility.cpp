@@ -56,4 +56,19 @@ GPIResourceDesc GetDepthStencilResourceDesc( const std::wstring& name, const IVe
 
 	return desc;
 }
+
+GPIResourceDesc GetVertexResourceDesc( const std::wstring& name, const uint32 byteSize )
+{
+	GPIResourceDesc desc{};
+	desc.name = name;
+	desc.dimension = EGPIResourceDimension::Buffer;
+	desc.format = EGPIResourceFormat::Unknown;
+	desc.width = byteSize;
+	desc.height = 1;
+	desc.depth = 1;
+	desc.numMips = 1;
+	desc.flags = GPIResourceFlag_None;
+
+	return desc;
+}
 }
