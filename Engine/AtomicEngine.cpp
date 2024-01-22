@@ -109,7 +109,7 @@ namespace
 
 		bool ShutOff = false;
 
-		std::future<void> RenderThread = std::async(
+		std::future<void> ecsThread = std::async(
 			[ & ]()-> void
 			{
 				while( !ShutOff )
@@ -127,7 +127,9 @@ namespace
 
 		ShutOff = true;
 
-		RenderThread.wait();
+		ecsThread.wait();
+
+		_gpi.reset();
 	}
 #endif
 }

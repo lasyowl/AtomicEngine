@@ -232,10 +232,23 @@ GPI_DX12::GPI_DX12( const HWND hWnd, const IVec2& windowSize )
 	, _swapChain( nullptr )
 	, _swapChainIndex( 0 )
 	, _debugInterface( nullptr )
-	, _debugInfoQueue( nullptr )
+	, _debugInterfaceEx( nullptr )
 	, _hWnd( hWnd )
 {
 	SetWindowSize( windowSize );
+}
+
+GPI_DX12::~GPI_DX12()
+{
+#define CHECKED_RELEASE(ref)\
+	if(ref) ref->Release();
+
+	CHECKED_RELEASE( _debugInterfaceEx );
+	CHECKED_RELEASE( _debugInterface );
+	CHECKED_RELEASE( _swapChain );
+	CHECKED_RELEASE( _device );
+
+#undef CHECKED_RELEASE
 }
 
 void GPI_DX12::Initialize()
@@ -1167,6 +1180,7 @@ void GPI_DX12::BindTextureViewTable( IGPIPipeline& inPipeline, const IGPITexture
 	pipeline.textureTables[ index ] = table.handle.gpu;
 }
 
+//@TODO: memory may leak somewhere..
 void GPI_DX12::UpdateResourceData( const IGPIResource& inResource, void* data, uint32 sizeInBytes )
 {
 	CommandQueueContext& cmdQueueCtx = _cmdQueueCtx[ D3D12_COMMAND_LIST_TYPE_DIRECT ];

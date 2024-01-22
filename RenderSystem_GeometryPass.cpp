@@ -116,7 +116,7 @@ void RenderSystem::GeometryPass( std::array<std::unique_ptr<IComponentRegistry>,
 		TransformComponent& transformComp = transformCompReg->GetComponent( entity );
 
 		Vec3 earlyTransform = Vec3( 0, 0, 0 );
-		if( entity == 2 )
+		if( entity == 3 )
 		{
 			static float aa = 0;
 			static float sign = 1;

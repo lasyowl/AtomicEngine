@@ -41,7 +41,7 @@ void EntityInitializeSystem::RunSystem( std::array<std::unique_ptr<struct ICompo
 			}
 			else if( metaDataComp.hash == 1 )
 			{
-				primitiveComp.staticMesh = StaticMeshCache::FindStaticMesh( "quad" );
+				primitiveComp.staticMesh = StaticMeshCache::AddStaticMesh( "sponza", *AssetLoader::LoadStaticMeshData( "Resource/Sponza-master/sponza.obj" ) );
 				transformComp.scale = Vec3( 2.0f, 2.0f, 2.0f );
 			}
 			else if( metaDataComp.hash == 2 )

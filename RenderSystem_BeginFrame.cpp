@@ -28,15 +28,13 @@ void RenderSystem::BeginFrame( std::array<std::unique_ptr<IComponentRegistry>, N
 	IGPIRenderTargetViewRef& swapChainRTV = _swapChainRTV[ swapChainIndex ];
 	if( !swapChainResource )
 	{
-		{
-			swapChainResource = AtomicEngine::GetGPI()->GetSwapChainResource( swapChainIndex );
+		swapChainResource = AtomicEngine::GetGPI()->GetSwapChainResource( swapChainIndex );
 
-			GPIRenderTargetViewDesc rtvDesc{};
-			rtvDesc.format = EGPIResourceFormat::B8G8R8A8_SRGB;
-			rtvDesc.dimension = EGPIResourceDimension::Texture2D;
+		GPIRenderTargetViewDesc rtvDesc{};
+		rtvDesc.format = EGPIResourceFormat::B8G8R8A8_SRGB;
+		rtvDesc.dimension = EGPIResourceDimension::Texture2D;
 
-			swapChainRTV = AtomicEngine::GetGPI()->CreateRenderTargetView( *swapChainResource, rtvDesc );
-		}
+		swapChainRTV = AtomicEngine::GetGPI()->CreateRenderTargetView( *swapChainResource, rtvDesc );
 	}
 
 	const IVec2 windowSize = AtomicEngine::GetGPI()->GetWindowSize();

@@ -70,6 +70,7 @@ class GPI_DX12 : public IGPI
 {
 public:
 	GPI_DX12( const HWND hWnd, const IVec2& windowSize );
+	virtual ~GPI_DX12();
 
 	virtual void Initialize() override;
 	virtual void BeginFrame( const IGPIResource& inSwapChainResource, const IGPIRenderTargetView& inSwapChainRTV, const IGPIDepthStencilView& inSwapChainDSV ) override;
@@ -129,7 +130,6 @@ private:
 	IDXGISwapChain* _swapChain;
 
 	ID3D12Debug* _debugInterface;
-	ID3D12InfoQueue* _debugInfoQueue;
 
 	ID3D12DeviceRemovedExtendedDataSettings* _debugInterfaceEx;
 
