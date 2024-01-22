@@ -17,6 +17,7 @@ std::shared_ptr<StaticMeshDataGroup> LoadStaticMeshData_Assimp( const aiScene* s
 		StaticMeshData& data = dataGroup->datas[ index ];
 		const aiMesh* mesh = scene->mMeshes[ index ];
 
+		data.name = mesh->mName.C_Str();
 		data.position.resize( mesh->mNumVertices );
 		data.normal.resize( mesh->mNumVertices );
 		data.uv.resize( mesh->mNumVertices );

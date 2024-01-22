@@ -19,6 +19,8 @@ StaticMeshGroupRef BuildStaticMeshGroup( const StaticMeshDataGroup& dataGroup )
 		StaticMesh& mesh = meshGroup->meshes[ index ];
 		const StaticMeshData& data = dataGroup.datas[ index ];
 
+		desc.name.assign( data.name.begin(), data.name.end() );
+
 		mesh.pipelineInput.vbv.resize( 3 );
 
 		desc.width = data.GetPositionByteSize();
