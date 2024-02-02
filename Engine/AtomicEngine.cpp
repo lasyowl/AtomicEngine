@@ -1,16 +1,15 @@
-#include "stdafx.h"
 #include "AtomicEngine.h"
 #include "System.h"
-#include "../PrimitiveComponent.h"
-#include "../TransformComponent.h"
-#include "../LightComponent.h"
-#include "../GPI_DX12.h"
-#include "../EntityInitializeSystem.h"
-#include "../LightSystem.h"
-#include "../RenderSystem.h"
-#include "../KeyInputSystem.h"
-#include "../SceneViewSystem.h"
-#include "../IntVector.h"
+#include <Engine/PrimitiveComponent.h>
+#include <Engine/TransformComponent.h>
+#include <Engine/LightComponent.h>
+#include <Engine/EntityInitializeSystem.h>
+#include <Engine/LightSystem.h>
+#include <Engine/RenderSystem.h>
+#include <Engine/KeyInputSystem.h>
+#include <Engine/SceneViewSystem.h>
+#include <GPI/GPI_DX12.h>
+#include <Core/IntVector.h>
 
 namespace
 {
@@ -97,9 +96,9 @@ namespace
 		ECSAddComponent<TransformComponent>( entity0 );
 		ECSAddComponent<PrimitiveComponent>( entity0 );
 
-		Entity entity = ECSCreateEntityWithMetaData( 1 );
+		/*Entity entity = ECSCreateEntityWithMetaData( 1 );
 		ECSAddComponent<TransformComponent>( entity );
-		ECSAddComponent<PrimitiveComponent>( entity );
+		ECSAddComponent<PrimitiveComponent>( entity );*/
 
 		Entity entityCube = ECSCreateEntityWithMetaData( 2 );
 		ECSAddComponent<TransformComponent>( entityCube );

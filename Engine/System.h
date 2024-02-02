@@ -1,7 +1,5 @@
 #pragma once
 
-#include "EngineDefine.h"
-
 enum
 {
 	Platform_Windows,

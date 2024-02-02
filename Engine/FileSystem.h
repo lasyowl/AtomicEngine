@@ -1,6 +1,5 @@
 #pragma once
 
-#include "EngineEssential.h"
 #include "Singleton.h"
 
 enum

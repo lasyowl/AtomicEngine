@@ -1,4 +1,3 @@
-#include "stdafx.h"
 #include "System.h"
 
 EGraphicsAPI CSystemInfo::GraphicsAPIType = EGraphicsAPI::Windows;

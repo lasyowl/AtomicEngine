@@ -1,7 +1,5 @@
 #pragma once
 
-#include "EngineEssential.h"
-
 enum class EShaderType : uint8
 {
 	VS,

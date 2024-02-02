@@ -1,6 +1,4 @@
-#include "stdafx.h"
 #include "ShaderCompiler.h"
-#include "EngineEssential.h"
 
 #include <d3dcompiler.h>
 

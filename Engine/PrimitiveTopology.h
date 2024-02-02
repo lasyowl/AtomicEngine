@@ -1,5 +1,4 @@
 #pragma once
-#include "EngineEssential.h"
 
 enum class EPrimitiveTopology
 {

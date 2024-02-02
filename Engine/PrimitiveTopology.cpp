@@ -1,4 +1,3 @@
-#include "stdafx.h"
 #include "PrimitiveTopology.h"
 
 #include <d3dcommon.h>
