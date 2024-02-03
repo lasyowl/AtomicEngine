@@ -9,7 +9,9 @@ struct IComponentRegistry
 {
 	virtual ~IComponentRegistry() {}
 
-	virtual void AddComponent( Entity entity ) abstract;
+	virtual uint32 GetComponentSize() abstract;
+	virtual void AddComponent( Entity entity, void* data ) abstract;
+	virtual bool HasComponent( Entity entity ) abstract;
 };
 
 template <typename T>
@@ -20,14 +22,19 @@ struct ComponentRegistry : public IComponentRegistry
 		memset( _registry.data(), 0, _registry.size() * sizeof( T ) );
 	}
 
-	virtual void AddComponent( Entity entity ) override
+	virtual uint32 GetComponentSize() override { return sizeof( T ); }
+
+	virtual void AddComponent( Entity entity, void* data ) override
 	{
-		//_registry[ entity ] = {};
+		if( data )
+		{
+			memcpy( &_registry[ entity ], data, sizeof( T ) );
+		}
 
 		_signature[ entity ] = true;
 	}
 
-	bool HasComponent( Entity entity )
+	virtual bool HasComponent( Entity entity ) override
 	{
 		return _signature[ entity ];
 	}

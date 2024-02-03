@@ -114,6 +114,8 @@ void RenderSystem::GeometryPass( std::array<std::unique_ptr<IComponentRegistry>,
 		PrimitiveComponent& primitiveComp = renderCompReg->GetComponent( entity );
 		TransformComponent& transformComp = transformCompReg->GetComponent( entity );
 
+		if( !primitiveComp.staticMeshGroup ) continue;
+
 		Vec3 earlyTransform = Vec3( 0, 0, 0 );
 		if( entity == 2 )
 		{

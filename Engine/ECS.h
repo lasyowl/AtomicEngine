@@ -24,20 +24,19 @@ public:
 	Entity CreateEntity();
 	Entity CreateEntityWithMetaData( uint64 metaDataHash );
 
-	void DestroyEntity( Entity entity )
-	{
-		_entities.push( entity );
-	}
+	void DestroyEntity( Entity entity ) { _entities.push( entity ); }
+
+	uint32 GetComponentSize( ECSComponentType type ) { return _componentRegistry[ type ]->GetComponentSize(); }
 
 	template<typename T>
-	void AddComponent( Entity entity )
+	void AddComponent( Entity entity, T* data )
 	{
 		std::unique_ptr<IComponentRegistry>& componentRegistry = _componentRegistry[ T::type ];
 		if( !componentRegistry )
 		{
 			componentRegistry = std::make_unique<ComponentRegistry<T>>();
 		}
-		componentRegistry->AddComponent( entity );
+		componentRegistry->AddComponent( entity, data );
 	}
 
 	template<typename T>
@@ -50,16 +49,12 @@ public:
 		}
 	}
 
-	void RunSystems()
-	{
-		for( std::unique_ptr<ISystem>& system : _systemRegistry )
-		{
-			if( system )
-			{
-				system->RunSystem( _componentRegistry );
-			}
-		}
-	}
+	void RunSystems();
+
+	void ExportEntity( const Entity entity, const std::string& fileName );
+	Entity ImportEntity( const std::string& fileName );
+
+	void LoadSceneData();
 
 private:
 	std::queue<Entity> _entities;
@@ -75,9 +70,9 @@ Entity ECSCreateEntity();
 Entity ECSCreateEntityWithMetaData( uint64 assetHash );
 
 template<typename T>
-void ECSAddComponent( Entity entity )
+void ECSAddComponent( Entity entity, T* data )
 {
-	ECS::GetInstance().AddComponent<T>( entity );
+	ECS::GetInstance().AddComponent<T>( entity, data );
 }
 
 template<typename T>

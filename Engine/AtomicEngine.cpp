@@ -10,6 +10,7 @@
 #include <Engine/SceneViewSystem.h>
 #include <GPI/GPI_DX12.h>
 #include <Core/IntVector.h>
+#include <Engine/AssetLoader.h>
 
 namespace
 {
@@ -75,6 +76,45 @@ namespace
 		return WindowHandle;
 	}
 
+	void InitWithTestScene()
+	{
+		ECSAddSystem<EntityInitializeSystem>();
+		ECSAddSystem<KeyInputSystem>();
+		ECSAddSystem<SceneViewSystem>();
+		ECSAddSystem<RenderSystem>();
+
+		Entity rootEntity = ECSCreateEntity();
+		ECSAddComponent<KeyInputComponent>( rootEntity, nullptr );
+		ECSAddComponent<SceneViewComponent>( rootEntity, nullptr );
+
+		//ECSAddSystem<LightSystem>();
+
+		{
+			Entity entity0 = ECSCreateEntityWithMetaData( 0 );
+			ECSAddComponent<TransformComponent>( entity0, nullptr );
+
+			PrimitiveComponent primComp;
+			primComp.staticMeshGroup = StaticMeshCache::AddStaticMeshGroup( "teapot", *AssetLoader::LoadStaticMeshData( "../Resource/teapot.obj" ) );
+			ECSAddComponent<PrimitiveComponent>( entity0, &primComp );
+		}
+
+		/*Entity entity = ECSCreateEntityWithMetaData( 1 );
+		ECSAddComponent<TransformComponent>( entity, nullptr );
+		PrimitiveComponent primComp;
+		primComp.staticMeshGroup = StaticMeshCache::AddStaticMeshGroup( "sponza", *AssetLoader::LoadStaticMeshData( "../Resource/Sponza-master/sponza.obj" ) );
+		ECSAddComponent<PrimitiveComponent>( entity, nullptr );*/
+
+		{
+			Entity entityCube = ECSCreateEntityWithMetaData( 2 );
+			ECSAddComponent<TransformComponent>( entityCube, nullptr );
+
+			PrimitiveComponent primComp;
+			primComp.staticMeshGroup = StaticMeshCache::FindStaticMeshGroup( "sphere" );
+			ECSAddComponent<PrimitiveComponent>( entityCube, &primComp );
+			ECSAddComponent<LightComponent>( entityCube, nullptr );
+		}
+	}
+
 #if defined( _WIN32 ) || defined( _WIN64 )
 	void LoopEngine( HINSTANCE handle )
 	{
@@ -82,29 +122,7 @@ namespace
 
 		InitGPI( hWnd );
 
-		ECSAddSystem<EntityInitializeSystem>();
-		ECSAddSystem<KeyInputSystem>();
-
-		Entity rootEntity = ECSCreateEntity();
-		ECSAddComponent<KeyInputComponent>( rootEntity );
-		ECSAddComponent<SceneViewComponent>( rootEntity );
-		ECSAddSystem<SceneViewSystem>();
-
-		//ECSAddSystem<LightSystem>();
-
-		Entity entity0 = ECSCreateEntityWithMetaData( 0 );
-		ECSAddComponent<TransformComponent>( entity0 );
-		ECSAddComponent<PrimitiveComponent>( entity0 );
-
-		/*Entity entity = ECSCreateEntityWithMetaData( 1 );
-		ECSAddComponent<TransformComponent>( entity );
-		ECSAddComponent<PrimitiveComponent>( entity );*/
-
-		Entity entityCube = ECSCreateEntityWithMetaData( 2 );
-		ECSAddComponent<TransformComponent>( entityCube );
-		ECSAddComponent<PrimitiveComponent>( entityCube );
-		ECSAddComponent<LightComponent>( entityCube );
-		ECSAddSystem<RenderSystem>();
+		InitWithTestScene();
 
 		bool ShutOff = false;
 

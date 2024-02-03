@@ -30,34 +30,6 @@ void EntityInitializeSystem::RunSystem( std::array<std::unique_ptr<struct ICompo
 			continue;
 		}
 
-		if( primitiveCompReg->HasComponent( entity ) )
-		{
-			TransformComponent& transformComp = transformCompReg->GetComponent( entity );
-			PrimitiveComponent& primitiveComp = primitiveCompReg->GetComponent( entity );
-			if( metaDataComp.hash == 0 )
-			{
-				primitiveComp.staticMeshGroup = StaticMeshCache::AddStaticMeshGroup( "teapot", *AssetLoader::LoadStaticMeshData( "../Resource/teapot.obj" ) );
-			}
-			else if( metaDataComp.hash == 1 )
-			{
-				primitiveComp.staticMeshGroup = StaticMeshCache::AddStaticMeshGroup( "sponza", *AssetLoader::LoadStaticMeshData( "../Resource/Sponza-master/sponza.obj" ) );
-				transformComp.scale = Vec3( 2.0f, 2.0f, 2.0f );
-			}
-			else if( metaDataComp.hash == 2 )
-			{
-				primitiveComp.staticMeshGroup = StaticMeshCache::FindStaticMeshGroup( "sphere" );
-				transformComp.position = Vec3( 1, 0, 0 );
-			}
-			else if( metaDataComp.hash == 3 )
-			{
-				primitiveComp.staticMeshGroup = StaticMeshCache::FindStaticMeshGroup( "quad" );
-			}
-			else if( metaDataComp.hash == 4 )
-			{
-				primitiveComp.staticMeshGroup = StaticMeshCache::FindStaticMeshGroup( "quad" );
-			}
-		}
-
 		if( lightCompReg->HasComponent( entity ) )
 		{
 			LightComponent& lightComp = lightCompReg->GetComponent( entity );

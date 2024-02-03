@@ -29,6 +29,7 @@
     <ClInclude Include="PrimitiveComponent.h" />
     <ClInclude Include="RawImage.h" />
     <ClInclude Include="SampleMesh.h" />
+    <ClInclude Include="Scene.h" />
     <ClInclude Include="SceneViewSystem.h" />
     <ClInclude Include="ECS_Component.h" />
     <ClInclude Include="ECS_System.h" />
@@ -51,6 +52,7 @@
     <ClCompile Include="AssetLoader.cpp" />
     <ClCompile Include="ECS.cpp" />
     <ClCompile Include="ECS_Component.cpp" />
+    <ClCompile Include="ECS_Serialize.cpp" />
     <ClCompile Include="ECS_System.cpp" />
     <ClCompile Include="FileSystem.cpp" />
     <ClCompile Include="Main.cpp" />
