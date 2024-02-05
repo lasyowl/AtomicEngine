@@ -17,6 +17,7 @@ public:
 		PointLight( componentRegistry );
 		LightCombine( componentRegistry );
 		//PostProcess( componentRegistry );
+		RayTracingTest( componentRegistry );
 		EndFrame( componentRegistry );
 	}
 
@@ -27,6 +28,7 @@ private:
 	void PointLight( std::array<std::unique_ptr<struct IComponentRegistry>, NUM_COMPONENT_MAX>& componentRegistry );
 	void LightCombine( std::array<std::unique_ptr<struct IComponentRegistry>, NUM_COMPONENT_MAX>& componentRegistry );
 	void PostProcess( std::array<std::unique_ptr<struct IComponentRegistry>, NUM_COMPONENT_MAX>& componentRegistry );
+	void RayTracingTest( std::array<std::unique_ptr<struct IComponentRegistry>, NUM_COMPONENT_MAX>& componentRegistry );
 	void EndFrame( std::array<std::unique_ptr<struct IComponentRegistry>, NUM_COMPONENT_MAX>& componentRegistry );
 
 private:
@@ -55,5 +57,6 @@ private:
 	IGPIResourceRef _sceneLightResource;
 	IGPIRenderTargetViewRef _sceneLightRTV;
 	IGPIUnorderedAccessViewRef _sceneLightUAV;
+	IGPIUnorderedAccessViewRef _sceneLightUAVSH;
 	IGPITextureViewTableRef _sceneLightTextureViewTable;
 };

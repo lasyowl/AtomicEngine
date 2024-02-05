@@ -58,6 +58,7 @@
     <ClCompile Include="Main.cpp" />
     <ClCompile Include="PrimitiveTopology.cpp" />
     <ClCompile Include="AtomicEngine.cpp" />
+    <ClCompile Include="RenderSystem_RayTracingTest.cpp" />
     <ClCompile Include="Shader.cpp" />
     <ClCompile Include="ShaderCompiler.cpp" />
     <ClCompile Include="System.cpp" />
@@ -175,7 +176,7 @@
     <Link>
       <SubSystem>Windows</SubSystem>
       <GenerateDebugInformation>true</GenerateDebugInformation>
-      <AdditionalDependencies>Core.lib;GPI.lib;d3d12.lib;d3dcompiler.lib;onecore.lib;dxgi.lib;assimp-vc143-mtd.lib;FreeImage.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <AdditionalDependencies>Core.lib;GPI.lib;d3d12.lib;d3dcompiler.lib;dxcompiler.lib;dxgi.lib;onecore.lib;assimp-vc143-mtd.lib;FreeImage.lib;%(AdditionalDependencies)</AdditionalDependencies>
       <EntryPointSymbol>WinMainCRTStartup</EntryPointSymbol>
       <AdditionalLibraryDirectories>$(SolutionDir)$(Platform)\$(Configuration)\;D:\GitRepository\AtomicEngine\ThirdParty\assimp\lib\Debug;D:\GitRepository\AtomicEngine\ThirdParty\FreeImage\x64;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
     </Link>

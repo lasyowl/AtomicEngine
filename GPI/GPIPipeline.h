@@ -8,6 +8,7 @@ enum EGPIPipelineType
 {
 	PipelineType_Graphics,
 	PipelineType_Compute,
+	PipelineType_RayTrace,
 };
 
 enum EGPIInputClass
@@ -28,6 +29,7 @@ struct GPIPipelineInput
 {
 	std::vector<IGPIVertexBufferViewRef> vbv;
 	std::vector<IGPIIndexBufferViewRef> ibv;
+	IGPIRayTraceViewRef rtrv;
 };
 
 struct GPIPipelineStateDesc
@@ -44,6 +46,7 @@ struct GPIPipelineStateDesc
 	GPIShaderDesc vertexShader;
 	GPIShaderDesc pixelShader;
 	GPIShaderDesc computeShader;
+	GPIShaderDesc raytraceShader;
 
 	std::vector<EGPIResourceFormat> rtvFormats;
 

@@ -102,3 +102,9 @@ struct GPIIndexBufferView_DX12 : public IGPIIndexBufferView
 {
 	D3D12_GPU_VIRTUAL_ADDRESS gpuAddress;
 };
+
+struct GPIRayTraceView_DX12 : public IGPIRayTraceView
+{
+	ID3D12Resource* resource;
+	D3D12_GPU_VIRTUAL_ADDRESS gpuAddress;
+};

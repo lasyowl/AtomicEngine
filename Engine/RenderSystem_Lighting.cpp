@@ -68,10 +68,12 @@ void RenderSystem::DirectionalLight( std::array<std::unique_ptr<IComponentRegist
 		_sceneLightTextureViewTable = AtomicEngine::GetGPI()->CreateTextureViewTable( textureResources, textureDescs );
 
 		GPIUnorderedAccessViewDesc uavDesc{};
-		uavDesc.format = EGPIResourceFormat::R32_Uint;
+		uavDesc.format = EGPIResourceFormat::B8G8R8A8;
 		uavDesc.dimension = EGPIResourceDimension::Texture2D;
+		_sceneLightUAV = AtomicEngine::GetGPI()->CreateUnorderedAccessView( *_sceneLightResource, uavDesc, false );
 
-		_sceneLightUAV = AtomicEngine::GetGPI()->CreateUnorderedAccessView( *_sceneLightResource, uavDesc, true );
+		uavDesc.format = EGPIResourceFormat::R32_Uint;
+		_sceneLightUAVSH = AtomicEngine::GetGPI()->CreateUnorderedAccessView( *_sceneLightResource, uavDesc, true );
 	}
 
 	{// @TODO: move to somewhere makes sense
@@ -82,7 +84,7 @@ void RenderSystem::DirectionalLight( std::array<std::unique_ptr<IComponentRegist
 		AtomicEngine::GetGPI()->BindTextureViewTable( *pipeline, *_gBufferTextureViewTable, 0 );
 	}
 
-	AtomicEngine::GetGPI()->ClearRenderTarget( *_sceneLightUAV );
+	AtomicEngine::GetGPI()->ClearRenderTarget( *_sceneLightUAVSH );
 
 	AtomicEngine::GetGPI()->SetPipelineState( pipelineDesc );
 

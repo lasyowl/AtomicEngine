@@ -1,9 +1,9 @@
 #include "GPI_DX12.h"
 
 #include <Core/DebugUtil.h>
-#include "GPIShader_DX12.h"
-#include "GPIPipeline_DX12.h"
-#include "GPIUtility_DX12.h"
+#include <GPI/GPIShader_DX12.h>
+#include <GPI/GPIPipeline_DX12.h>
+#include <GPI/GPIUtility_DX12.h>
 
 #include <d3d12.h>
 #include <d3dcommon.h>
@@ -12,6 +12,7 @@
 #include <d3dcompiler.h>
 #include <comdef.h>
 #include <fstream>
+#include <dxcapi.h>
 
 #define CHECK_HRESULT( hr, msg ) \
 	if(FAILED (hr)) {\
@@ -35,9 +36,10 @@ const char* ShaderTypeToString( EShaderType type )
 {
 	switch( type )
 	{
-		case EShaderType::ShaderType_VertexShader:	return "vs_5_0";
-		case EShaderType::ShaderType_PixelShader:	return "ps_5_0";
-		case EShaderType::ShaderType_ComputeShader:	return "cs_5_0";
+		case EShaderType::ShaderType_VertexShader:		return "vs_5_0";
+		case EShaderType::ShaderType_PixelShader:		return "ps_5_0";
+		case EShaderType::ShaderType_ComputeShader:		return "cs_5_0";
+		case EShaderType::ShaderType_RayTraceShader:	return "lib_6_3";
 	}
 
 	return nullptr;
@@ -462,7 +464,7 @@ void GPI_DX12::ClearRenderTarget( const IGPIUnorderedAccessView& inUAV )
 	WaitForFence( cmdQueueCtx );
 }
 
-void GPI_DX12::SetPipelineState( const GPIPipelineStateDesc& desc, const GPIPipeline_DX12& pipeline )
+void GPI_DX12::SetGraphicsPipelineState( const GPIPipelineStateDesc& desc, const GPIPipeline_DX12& pipeline )
 {
 	CommandQueueContext& cmdQueueCtx = _cmdQueueCtx[ D3D12_COMMAND_LIST_TYPE_DIRECT ];
 	ID3D12CommandAllocator* cmdAllocator = cmdQueueCtx.allocator;
@@ -511,13 +513,53 @@ void GPI_DX12::SetPipelineState( const GPIPipelineStateDesc& desc, const GPIPipe
 	}
 }
 
+void GPI_DX12::SetComputePipelineState( const GPIPipelineStateDesc& desc, const GPIPipeline_DX12& pipeline )
+{
+	//@TODO:
+}
+
+void GPI_DX12::SetRayTracePipelineState( const GPIPipelineStateDesc& desc, const GPIPipeline_DX12& pipeline )
+{
+	/*CommandQueueContext& cmdQueueCtx = _cmdQueueCtx[ D3D12_COMMAND_LIST_TYPE_COMPUTE ];
+	ID3D12CommandAllocator* cmdAllocator = cmdQueueCtx.allocator;
+	ID3D12GraphicsCommandList4* cmdList = ( ID3D12GraphicsCommandList4* )*cmdQueueCtx.iCmdList;
+
+	CHECK_HRESULT( cmdAllocator->Reset(), L"Failed to reset allocator." );
+	CHECK_HRESULT( cmdList->Reset( cmdAllocator, nullptr ), L"Failed to reset command list." );
+
+	cmdList->SetComputeRootSignature( pipeline.rootSignature );
+	cmdList->SetPipelineState1( pipeline.raytrace.pipelineState );
+
+	ID3D12DescriptorHeap* rtvHeap = _heap.GetHeap( GPIResourceViewType_RTV );
+	cmdList->SetDescriptorHeaps( 1, &rtvHeap );
+
+	uint32 rootParamIndex = 0;
+	for( uint32 index = 0; index < pipeline.rtvGPU.size(); ++index )
+	{
+		cmdList->SetComputeRootDescriptorTable( rootParamIndex++, pipeline.rtvGPU[ index ] );
+	}
+
+	D3D12_DISPATCH_RAYS_DESC dispatchRays{};
+	dispatchRays.RayGenerationShaderRecord.StartAddress = pipeline.raytrace.resource->GetGPUVirtualAddress();
+	dispatchRays.RayGenerationShaderRecord.SizeInBytes = pipeline.raytrace.resourceByteSize;
+	dispatchRays.Width = _windowSize.x;
+	dispatchRays.Height = _windowSize.y;
+	dispatchRays.Depth = 1;
+	cmdList->DispatchRays( &dispatchRays );*/
+}
+
 void GPI_DX12::SetPipelineState( const GPIPipelineStateDesc& pipelineDesc )
 {
 	assert( _pipelineCache.contains( pipelineDesc.id ) );
 
 	std::shared_ptr<GPIPipeline_DX12>& pipeline = _pipelineCache[ pipelineDesc.id ];
 
-	SetPipelineState( pipelineDesc, *pipeline.get() );
+	switch( pipelineDesc.pipelineType )
+	{
+		case PipelineType_Graphics:	SetGraphicsPipelineState( pipelineDesc, *pipeline.get() );	break;
+		case PipelineType_Compute:	SetComputePipelineState( pipelineDesc, *pipeline.get() );	break;
+		case PipelineType_RayTrace:	SetRayTracePipelineState( pipelineDesc, *pipeline.get() );	break;
+	}
 }
 
 void GPI_DX12::Render( const GPIPipelineInput& pipelineInput )
@@ -595,6 +637,55 @@ ID3DBlob* CreateShader( const GPIShaderDesc& shaderDesc )
 	}
 
 	return compiledShader;
+}
+
+IDxcBlob* CreateShader2( const GPIShaderDesc& shaderDesc )
+{
+	// Initialize the DXC compiler and library
+	IDxcCompiler* pCompiler;
+	IDxcLibrary* pLibrary;
+	DxcCreateInstance( CLSID_DxcCompiler, IID_PPV_ARGS( &pCompiler ) );
+	DxcCreateInstance( CLSID_DxcLibrary, IID_PPV_ARGS( &pLibrary ) );
+
+	std::ifstream shaderFile( shaderDesc.file, std::ios_base::in );
+	std::string parsedShader = std::string( std::istreambuf_iterator<char>( shaderFile ),
+											std::istreambuf_iterator<char>() );
+
+	// Prepare HLSL shader code as a string or load from a file
+	IDxcBlobEncoding* pSource;
+	pLibrary->CreateBlobWithEncodingFromPinned( parsedShader.data(), parsedShader.size(), CP_UTF8, &pSource);
+
+	// Compile the shader
+	IDxcOperationResult* pResult;
+	pCompiler->Compile(
+		pSource, // pSourceBlob
+		nullptr,//L"RayTracingTest.hlsl", // pSourceName
+		nullptr,//L"RayGeneration", // pEntryPoint
+		L"lib_6_3", // pTargetProfile
+		nullptr, 0, // pArguments, argCount
+		nullptr, 0, // pDefines, defineCount
+		nullptr, // pIncludeHandler
+		&pResult );
+
+	// Check for errors and retrieve the compiled shader bytecode
+	HRESULT hr;
+	pResult->GetStatus( &hr );
+	if( SUCCEEDED( hr ) )
+	{
+		IDxcBlob* pShader;
+		pResult->GetResult( &pShader );
+		// Use the compiled shader (pShader) in your application
+		return pShader;
+	}
+	else
+	{
+		// Handle compilation errors
+		IDxcBlobEncoding* pError;
+		pResult->GetErrorBuffer( &pError );
+		// Output the compilation errors
+		wprintf( L"Errors: %s\n", ( wchar_t* )pError->GetBufferPointer() );
+		return nullptr;
+	}
 }
 
 ID3D12RootSignature* CreateGraphicsRootSignature( ID3D12Device* device, const GPIPipelineStateDesc& pipelineDesc )
@@ -818,6 +909,47 @@ ID3D12PipelineState* CreateComputePipelineState( ID3D12Device* device, ID3D12Roo
 	return pso;
 }
 
+ID3D12RootSignature* CreateRayTraceRootSignature( ID3D12Device5* device, const GPIPipelineStateDesc& pipelineDesc )
+{
+	ID3D12RootSignature* rootSignature;
+
+	D3D12_DESCRIPTOR_RANGE renderTarget{};
+	renderTarget.RangeType = D3D12_DESCRIPTOR_RANGE_TYPE_UAV;
+	renderTarget.NumDescriptors = 1;
+	renderTarget.BaseShaderRegister = 0;
+	renderTarget.RegisterSpace = 0;
+	renderTarget.OffsetInDescriptorsFromTableStart = D3D12_DESCRIPTOR_RANGE_OFFSET_APPEND;
+
+	D3D12_ROOT_PARAMETER rootParams{};
+	rootParams.ParameterType = D3D12_ROOT_PARAMETER_TYPE_DESCRIPTOR_TABLE;
+	rootParams.DescriptorTable = { 1, &renderTarget };
+	rootParams.ShaderVisibility = D3D12_SHADER_VISIBILITY_ALL;
+
+	D3D12_ROOT_SIGNATURE_DESC rootSignatureDesc{};
+	rootSignatureDesc.NumParameters = 1;
+	rootSignatureDesc.pParameters = &rootParams;
+	rootSignatureDesc.NumStaticSamplers = 0;
+	rootSignatureDesc.pStaticSamplers = nullptr;
+	rootSignatureDesc.Flags = D3D12_ROOT_SIGNATURE_FLAG_NONE;
+
+	ID3DBlob* rootBlob;
+	ID3DBlob* errorBlob;
+	CHECK_HRESULT( D3D12SerializeRootSignature( &rootSignatureDesc, D3D_ROOT_SIGNATURE_VERSION_1, &rootBlob, &errorBlob ),
+				   L"Failed to serialize root signature" );
+	if( errorBlob )
+	{
+		std::string errorMsg = ( char* )errorBlob->GetBufferPointer();
+		std::wstring wErrorMsg;
+		wErrorMsg.assign( errorMsg.begin(), errorMsg.end() );
+		AEMessageBox( wErrorMsg );
+	}
+
+	CHECK_HRESULT( device->CreateRootSignature( 0, rootBlob->GetBufferPointer(), rootBlob->GetBufferSize(), IID_PPV_ARGS( &rootSignature ) ),
+				   L"Failed to create root signature" );
+
+	return rootSignature;
+}
+
 uint32 GPI_DX12::GetSwapChainCurrentIndex()
 {
 	return _swapChainIndex;
@@ -838,7 +970,7 @@ IGPIPipelineRef GPI_DX12::CreatePipelineState( const GPIPipelineStateDesc& pipel
 		return nullptr;
 	}
 
-	std::shared_ptr< GPIPipeline_DX12 > pipelineState( new GPIPipeline_DX12() );
+	std::shared_ptr< GPIPipeline_DX12 > pipelineState = std::make_shared<GPIPipeline_DX12>();
 	_pipelineCache.emplace( pipelineDesc.id, pipelineState );
 
 	if( pipelineDesc.pipelineType == PipelineType_Graphics )
@@ -848,7 +980,7 @@ IGPIPipelineRef GPI_DX12::CreatePipelineState( const GPIPipelineStateDesc& pipel
 
 		/*assert( !_shaderCache.contains( pipelineDesc.vertexShader.hash ) );
 		_shaderCache.emplace( pipelineDesc.vertexShader.hash, vertexShader );
-		_shaderCache.emplace( pipelineDesc.pixelShader.hash, pixelShader );*/  
+		_shaderCache.emplace( pipelineDesc.pixelShader.hash, pixelShader );*/
 
 		pipelineState->rootSignature = CreateGraphicsRootSignature( _device, pipelineDesc );
 		pipelineState->pipelineState = CreateGraphicsPipelineState( _device, pipelineDesc, pipelineState->rootSignature, vertexShader, pixelShader );
@@ -856,7 +988,8 @@ IGPIPipelineRef GPI_DX12::CreatePipelineState( const GPIPipelineStateDesc& pipel
 		pipelineState->rtv.resize( pipelineDesc.rtvFormats.size() );
 		pipelineState->cbv.resize( pipelineDesc.numCBVs );
 		pipelineState->srv.resize( pipelineDesc.numSRVs );
-		pipelineState->uav.resize( pipelineDesc.numSRVs );
+		pipelineState->uav.resize( pipelineDesc.numUAVs );
+		pipelineState->uavHandle.resize( pipelineDesc.numUAVs );
 		pipelineState->textureTables.resize( pipelineDesc.numTextures.size() );
 	}
 	/*else if( pipelineDesc.pipelineType == PipelineType_Compute )
@@ -874,6 +1007,96 @@ IGPIPipelineRef GPI_DX12::CreatePipelineState( const GPIPipelineStateDesc& pipel
 			pipelineState->constBuffers.resize( pipelineDesc.numCBVs );
 		}
 	}*/
+	else if( pipelineDesc.pipelineType == PipelineType_RayTrace )
+	{
+		IDxcBlob* shader = CreateShader2( pipelineDesc.raytraceShader );
+
+		pipelineState->rootSignature = CreateRayTraceRootSignature( ( ID3D12Device5* )_device, pipelineDesc );
+
+		D3D12_EXPORT_DESC rayGenerationExport
+		{
+			L"RayGeneration",
+			nullptr,
+			D3D12_EXPORT_FLAG_NONE
+		};
+		D3D12_DXIL_LIBRARY_DESC rayGeneration{};
+		rayGeneration.DXILLibrary.pShaderBytecode = shader->GetBufferPointer();
+		rayGeneration.DXILLibrary.BytecodeLength = shader->GetBufferSize();
+		rayGeneration.NumExports = 1;
+		rayGeneration.pExports = &rayGenerationExport;
+		D3D12_STATE_SUBOBJECT shaders
+		{
+			D3D12_STATE_SUBOBJECT_TYPE_DXIL_LIBRARY,
+			&rayGeneration
+		};
+		D3D12_RAYTRACING_SHADER_CONFIG shaderConfig
+		{
+			0,
+			sizeof( float[ 2 ] )
+		};
+		D3D12_STATE_SUBOBJECT config
+		{
+			D3D12_STATE_SUBOBJECT_TYPE_RAYTRACING_SHADER_CONFIG,
+			&shaderConfig
+		};
+		D3D12_STATE_SUBOBJECT rootSignature
+		{
+			D3D12_STATE_SUBOBJECT_TYPE_GLOBAL_ROOT_SIGNATURE,
+			&pipelineState->rootSignature
+		};
+		D3D12_RAYTRACING_PIPELINE_CONFIG pipelineConfig
+		{
+			1
+		};
+		D3D12_STATE_SUBOBJECT pipeline
+		{
+			D3D12_STATE_SUBOBJECT_TYPE_RAYTRACING_PIPELINE_CONFIG,
+			&pipelineConfig
+		};
+		D3D12_STATE_SUBOBJECT subObjects[]
+		{
+			shaders,
+			config,
+			rootSignature,
+			pipeline
+		};
+		D3D12_STATE_OBJECT_DESC raytracingStateObject{
+			D3D12_STATE_OBJECT_TYPE_RAYTRACING_PIPELINE,
+			4,
+			subObjects
+		};
+
+		HRESULT hr = ( ( ID3D12Device5* )_device )->CreateStateObject( &raytracingStateObject, IID_PPV_ARGS( &pipelineState->raytrace.pipelineState ) );
+		CHECK_HRESULT( ( ( ID3D12Device5* )_device )->CreateStateObject( &raytracingStateObject, IID_PPV_ARGS( &pipelineState->raytrace.pipelineState ) ), 
+					   L"Failed to create raytrace PSO." );
+
+		pipelineState->raytrace.pipelineState->QueryInterface( IID_PPV_ARGS( &pipelineState->raytrace.stateProperties ) );
+
+		struct ShaderParam
+		{
+			uint8 shaderIdentifier[ D3D12_SHADER_IDENTIFIER_SIZE_IN_BYTES ];
+			uint64 rootParams[ 1 ];
+		} shaderParam;
+
+		memcpy( shaderParam.shaderIdentifier, pipelineState->raytrace.stateProperties->GetShaderIdentifier( L"RayGeneration" ), D3D12_SHADER_IDENTIFIER_SIZE_IN_BYTES );
+
+		GPIResourceDesc desc{};
+		desc.name = L"RayTraceTest";
+		desc.dimension = EGPIResourceDimension::Buffer;
+		desc.format = EGPIResourceFormat::Unknown;
+		desc.width = sizeof( shaderParam );
+		desc.height = 1;
+		desc.depth = 1;
+		desc.numMips = 1;
+		desc.flags = GPIResourceFlag_None;
+
+		pipelineState->raytrace.resource = CreateResource_Inner( desc, &shaderParam, sizeof( shaderParam ) );
+		pipelineState->raytrace.resourceByteSize = sizeof( shaderParam );
+
+		///////////////////////////////////////////////////////////
+		pipelineState->uav.resize( pipelineDesc.numUAVs );
+		pipelineState->uavHandle.resize( pipelineDesc.numUAVs );
+	}
 
 	return pipelineState;
 }
@@ -920,59 +1143,7 @@ IGPIResourceRef GPI_DX12::CreateResource( const GPIResourceDesc& desc )
 
 IGPIResourceRef GPI_DX12::CreateResource( const GPIResourceDesc& desc, const void* data, uint32 sizeInBytes )
 {
-	CommandQueueContext& cmdQueueCtx = _cmdQueueCtx[ D3D12_COMMAND_LIST_TYPE_DIRECT ];
-	ID3D12GraphicsCommandList* cmdList = *cmdQueueCtx.iCmdList;
-	ID3D12CommandAllocator* cmdAllocator = cmdQueueCtx.allocator;
-
-	D3D12_RESOURCE_DESC translatedDesc = GPIUtil::TranslateResourceDesc( desc );
-	D3D12_HEAP_PROPERTIES defaultHeapProp = HeapProperties( D3D12_HEAP_TYPE_DEFAULT );
-	D3D12_HEAP_PROPERTIES uploadHeapProp = HeapProperties( D3D12_HEAP_TYPE_UPLOAD );
-
-	ID3D12Resource* resource;
-	CHECK_HRESULT( _device->CreateCommittedResource( &defaultHeapProp,
-				   D3D12_HEAP_FLAG_NONE,
-				   &translatedDesc,
-				   D3D12_RESOURCE_STATE_COPY_DEST,
-				   nullptr,
-				   IID_PPV_ARGS( &resource ) ),
-				   L"Failed to create output buffer." );
-
-	if( !desc.name.empty() )
-	{
-		resource->SetName( desc.name.c_str() );
-	}
-
-	// Create upload buffer on CPU
-	ID3D12Resource* uploadResource;
-	CHECK_HRESULT( _device->CreateCommittedResource( &uploadHeapProp,
-				   D3D12_HEAP_FLAG_NONE,
-				   &translatedDesc,
-				   D3D12_RESOURCE_STATE_GENERIC_READ,
-				   nullptr,
-				   IID_PPV_ARGS( &uploadResource ) ),
-				   L"Failed to create upload buffer." );
-
-	if( data )
-	{
-		CopyMemoryToBuffer( uploadResource, data, sizeInBytes );
-	}
-
-	CHECK_HRESULT( cmdAllocator->Reset(), L"Failed to reset command allocator." );
-	CHECK_HRESULT( cmdList->Reset( cmdAllocator, nullptr ), L"Failed to reset command list." );
-
-	cmdList->CopyBufferRegion( resource, 0, uploadResource, 0, sizeInBytes );
-
-	TransitionResource( cmdList, resource, D3D12_RESOURCE_STATE_COPY_DEST, GPIUtil::TranslateResourceState( desc.initialState ) );
-
-	CHECK_HRESULT( cmdList->Close(), L"Failed to close command list." );
-
-	ID3D12CommandList* cmdListInterface = cmdList;
-	cmdQueueCtx.cmdQueue->ExecuteCommandLists( 1, &cmdListInterface );
-
-	WaitForFence( cmdQueueCtx );
-
-	uploadResource->Release();
-
+	ID3D12Resource* resource = CreateResource_Inner( desc, data, sizeInBytes );
 	return std::make_shared<GPIResource_DX12>( resource );
 }
 
@@ -1158,6 +1329,7 @@ void GPI_DX12::BindUnorderedAccessView( IGPIPipeline& inPipeline, const IGPIUnor
 
 	GPIPipeline_DX12& pipeline = static_cast< GPIPipeline_DX12& >( inPipeline );
 	pipeline.uav[ index ] = uav.gpuAddress;
+	pipeline.uavHandle[ index ] = uav.handle.gpu;
 }
 
 void GPI_DX12::BindDepthStencilView( IGPIPipeline& inPipeline, const IGPIDepthStencilView& inDSV )
@@ -1221,6 +1393,64 @@ void GPI_DX12::UpdateResourceData( const IGPIResource& inResource, void* data, u
 	WaitForFence( cmdQueueCtx );
 
 	uploadBuffer->Release();
+}
+
+ID3D12Resource* GPI_DX12::CreateResource_Inner( const GPIResourceDesc& desc, const void* data, uint32 sizeInBytes )
+{
+	CommandQueueContext& cmdQueueCtx = _cmdQueueCtx[ D3D12_COMMAND_LIST_TYPE_DIRECT ];
+	ID3D12GraphicsCommandList* cmdList = *cmdQueueCtx.iCmdList;
+	ID3D12CommandAllocator* cmdAllocator = cmdQueueCtx.allocator;
+
+	D3D12_RESOURCE_DESC translatedDesc = GPIUtil::TranslateResourceDesc( desc );
+	D3D12_HEAP_PROPERTIES defaultHeapProp = HeapProperties( D3D12_HEAP_TYPE_DEFAULT );
+	D3D12_HEAP_PROPERTIES uploadHeapProp = HeapProperties( D3D12_HEAP_TYPE_UPLOAD );
+
+	ID3D12Resource* resource;
+	CHECK_HRESULT( _device->CreateCommittedResource( &defaultHeapProp,
+				   D3D12_HEAP_FLAG_NONE,
+				   &translatedDesc,
+				   D3D12_RESOURCE_STATE_COPY_DEST,
+				   nullptr,
+				   IID_PPV_ARGS( &resource ) ),
+				   L"Failed to create output buffer." );
+
+	if( !desc.name.empty() )
+	{
+		resource->SetName( desc.name.c_str() );
+	}
+
+	// Create upload buffer on CPU
+	ID3D12Resource* uploadResource;
+	CHECK_HRESULT( _device->CreateCommittedResource( &uploadHeapProp,
+				   D3D12_HEAP_FLAG_NONE,
+				   &translatedDesc,
+				   D3D12_RESOURCE_STATE_GENERIC_READ,
+				   nullptr,
+				   IID_PPV_ARGS( &uploadResource ) ),
+				   L"Failed to create upload buffer." );
+
+	if( data )
+	{
+		CopyMemoryToBuffer( uploadResource, data, sizeInBytes );
+	}
+
+	CHECK_HRESULT( cmdAllocator->Reset(), L"Failed to reset command allocator." );
+	CHECK_HRESULT( cmdList->Reset( cmdAllocator, nullptr ), L"Failed to reset command list." );
+
+	cmdList->CopyBufferRegion( resource, 0, uploadResource, 0, sizeInBytes );
+
+	TransitionResource( cmdList, resource, D3D12_RESOURCE_STATE_COPY_DEST, GPIUtil::TranslateResourceState( desc.initialState ) );
+
+	CHECK_HRESULT( cmdList->Close(), L"Failed to close command list." );
+
+	ID3D12CommandList* cmdListInterface = cmdList;
+	cmdQueueCtx.cmdQueue->ExecuteCommandLists( 1, &cmdListInterface );
+
+	WaitForFence( cmdQueueCtx );
+
+	uploadResource->Release();
+
+	return resource;
 }
 
 void GPI_DX12::TransitionResource( ID3D12GraphicsCommandList* cmdList, ID3D12Resource* resource, D3D12_RESOURCE_STATES stateBefore, D3D12_RESOURCE_STATES stateAfter )
@@ -1302,4 +1532,46 @@ void GPI_DX12::RunCS()
 	//cmdQueueCtx.cmdQueue->ExecuteCommandLists( 1, &cmdListInterface );
 
 	//WaitForFence( cmdQueueCtx );
+}
+
+void GPI_DX12::RayCast( const GPIPipelineStateDesc& desc )
+{
+	assert( _pipelineCache.contains( desc.id ) );
+
+	std::shared_ptr<GPIPipeline_DX12>& pipeline = _pipelineCache[ desc.id ];
+
+	CommandQueueContext& cmdQueueCtx = _cmdQueueCtx[ D3D12_COMMAND_LIST_TYPE_COMPUTE ];
+	ID3D12CommandAllocator* cmdAllocator = cmdQueueCtx.allocator;
+	ID3D12GraphicsCommandList4* cmdList = ( ID3D12GraphicsCommandList4* )*cmdQueueCtx.iCmdList;
+
+	CHECK_HRESULT( cmdAllocator->Reset(), L"Failed to reset allocator." );
+	CHECK_HRESULT( cmdList->Reset( cmdAllocator, nullptr ), L"Failed to reset command list." );
+
+	cmdList->SetComputeRootSignature( pipeline->rootSignature );
+	cmdList->SetPipelineState1( pipeline->raytrace.pipelineState );
+
+	ID3D12DescriptorHeap* uavHeap = _heap.GetHeap( GPIResourceViewType_UAV );
+	cmdList->SetDescriptorHeaps( 1, &uavHeap );
+
+	uint32 rootParamIndex = 0;
+	for( uint32 index = 0; index < pipeline->uavHandle.size(); ++index )
+	{
+		cmdList->SetComputeRootDescriptorTable( rootParamIndex++, pipeline->uavHandle[ index ] );
+	}
+
+	D3D12_DISPATCH_RAYS_DESC dispatchRays{};
+	dispatchRays.RayGenerationShaderRecord.StartAddress = pipeline->raytrace.resource->GetGPUVirtualAddress();
+	dispatchRays.RayGenerationShaderRecord.SizeInBytes = pipeline->raytrace.resourceByteSize;
+	dispatchRays.Width = _windowSize.x;
+	dispatchRays.Height = _windowSize.y;
+	dispatchRays.Depth = 1;
+
+	cmdList->DispatchRays( &dispatchRays );
+
+	CHECK_HRESULT( cmdList->Close(), L"Failed to close command list." );
+
+	ID3D12CommandList* cmdListInterface = cmdList;
+	cmdQueueCtx.cmdQueue->ExecuteCommandLists( 1, &cmdListInterface );
+
+	WaitForFence( cmdQueueCtx );
 }

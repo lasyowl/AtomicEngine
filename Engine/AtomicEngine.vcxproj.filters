@@ -168,7 +168,10 @@
       <Filter>Source Files</Filter>
     </ClCompile>
     <ClCompile Include="ECS_Serialize.cpp">
-      <Filter>Header Files</Filter>
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="RenderSystem_RayTracingTest.cpp">
+      <Filter>Source Files</Filter>
     </ClCompile>
   </ItemGroup>
 </Project>

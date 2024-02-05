@@ -115,8 +115,14 @@ public:
 
 	virtual void RunCS() override;
 
+	virtual void RayCast( const GPIPipelineStateDesc& desc ) override;
+
 private:
-	void SetPipelineState( const GPIPipelineStateDesc& desc, const GPIPipeline_DX12& pipeline );
+	void SetGraphicsPipelineState( const GPIPipelineStateDesc& desc, const GPIPipeline_DX12& pipeline );
+	void SetComputePipelineState( const GPIPipelineStateDesc& desc, const GPIPipeline_DX12& pipeline );
+	void SetRayTracePipelineState( const GPIPipelineStateDesc& desc, const GPIPipeline_DX12& pipeline );
+
+	ID3D12Resource* CreateResource_Inner( const GPIResourceDesc& desc, const void* data, uint32 sizeInBytes );
 
 	void TransitionResource( ID3D12GraphicsCommandList* cmdList, ID3D12Resource* resource, D3D12_RESOURCE_STATES stateBefore, D3D12_RESOURCE_STATES stateAfter );
 

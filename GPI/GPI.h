@@ -65,6 +65,8 @@ public:
 
 	virtual void RunCS() abstract;
 
+	virtual void RayCast( const GPIPipelineStateDesc& desc ) abstract;
+
 	void SetWindowSize( const IVec2& size ) { _windowSize = size; }
 	IVec2 GetWindowSize() { return _windowSize; }
 

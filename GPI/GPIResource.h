@@ -126,6 +126,11 @@ struct IGPIIndexBufferView
 	uint32 size;
 };
 
+struct IGPIRayTraceView
+{
+	uint32 byteSize;
+};
+
 using IGPIResourceRef = std::shared_ptr<IGPIResource>;
 using IGPIRenderTargetViewRef = std::shared_ptr<IGPIRenderTargetView>;
 using IGPIDepthStencilViewRef = std::shared_ptr<IGPIDepthStencilView>;
@@ -136,3 +141,4 @@ using IGPITextureViewTableRef = std::shared_ptr<IGPITextureViewTable>;
 using IGPISamplerRef = std::shared_ptr<IGPISampler>;
 using IGPIVertexBufferViewRef = std::shared_ptr<IGPIVertexBufferView>;
 using IGPIIndexBufferViewRef = std::shared_ptr<IGPIIndexBufferView>;
+using IGPIRayTraceViewRef = std::shared_ptr<IGPIRayTraceView>;
