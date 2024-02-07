@@ -41,6 +41,8 @@ public:
 
 	virtual IGPIResourceRef CreateResource( const GPIResourceDesc& desc ) abstract;
 	virtual IGPIResourceRef CreateResource( const GPIResourceDesc& desc, const void* data, uint32 sizeInBytes ) abstract;
+	virtual IGPIRayTraceBottomLevelASRef CreateRayTraceBottomLevelAS( const GPIRayTraceBottomLevelASDesc& asDesc, const IGPIVertexBufferView& inVBV, const IGPIIndexBufferView& inIBV ) abstract;
+	virtual IGPIRayTraceTopLevelASRef CreateRayTraceTopLevelAS( const std::vector<IGPIRayTraceBottomLevelASRef>& inBottomLevelAS, const GPIRayTraceTopLevelASDesc& asDesc ) abstract;
 
 	virtual IGPIRenderTargetViewRef CreateRenderTargetView( const IGPIResource& inResource, const GPIRenderTargetViewDesc& rtvDesc ) abstract;
 	virtual IGPIDepthStencilViewRef CreateDepthStencilView( const IGPIResource& inResource, const GPIDepthStencilViewDesc& dsvDesc ) abstract;
@@ -65,7 +67,7 @@ public:
 
 	virtual void RunCS() abstract;
 
-	virtual void RayCast( const GPIPipelineStateDesc& desc ) abstract;
+	virtual void RayTrace( const GPIPipelineStateDesc& desc, const IGPIRayTraceTopLevelASRef& inRTRAS ) abstract;
 
 	void SetWindowSize( const IVec2& size ) { _windowSize = size; }
 	IVec2 GetWindowSize() { return _windowSize; }

@@ -108,3 +108,16 @@ struct GPIRayTraceView_DX12 : public IGPIRayTraceView
 	ID3D12Resource* resource;
 	D3D12_GPU_VIRTUAL_ADDRESS gpuAddress;
 };
+
+struct GPIRayTraceBottomLevelAS_DX12 : public IGPIRayTraceBottomLevelAS
+{
+	ID3D12Resource* asResource;
+	D3D12_GPU_VIRTUAL_ADDRESS gpuAddress;
+};
+
+struct GPIRayTraceTopLevelAS_DX12 : public IGPIRayTraceTopLevelAS
+{
+	std::vector<std::shared_ptr<GPIRayTraceBottomLevelAS_DX12>> bottomLevel;
+	ID3D12Resource* asResource;
+	D3D12_GPU_VIRTUAL_ADDRESS gpuAddress;
+};

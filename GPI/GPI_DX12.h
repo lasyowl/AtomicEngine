@@ -91,6 +91,8 @@ public:
 
 	virtual IGPIResourceRef CreateResource( const GPIResourceDesc& desc ) override;
 	virtual IGPIResourceRef CreateResource( const GPIResourceDesc& desc, const void* data, uint32 sizeInBytes ) override;
+	virtual IGPIRayTraceBottomLevelASRef CreateRayTraceBottomLevelAS( const GPIRayTraceBottomLevelASDesc& asDesc, const IGPIVertexBufferView& inVBV, const IGPIIndexBufferView& inIBV ) override;
+	virtual IGPIRayTraceTopLevelASRef CreateRayTraceTopLevelAS( const std::vector<IGPIRayTraceBottomLevelASRef>& inBottomLevelAS, const GPIRayTraceTopLevelASDesc& asDesc ) override;
 
 	virtual IGPIRenderTargetViewRef CreateRenderTargetView( const IGPIResource& inResource, const GPIRenderTargetViewDesc& rtvDesc ) override;
 	virtual IGPIDepthStencilViewRef CreateDepthStencilView( const IGPIResource& inResource, const GPIDepthStencilViewDesc& dsvDesc ) override;
@@ -115,7 +117,7 @@ public:
 
 	virtual void RunCS() override;
 
-	virtual void RayCast( const GPIPipelineStateDesc& desc ) override;
+	virtual void RayTrace( const GPIPipelineStateDesc& desc, const IGPIRayTraceTopLevelASRef& inRTRAS ) override;
 
 private:
 	void SetGraphicsPipelineState( const GPIPipelineStateDesc& desc, const GPIPipeline_DX12& pipeline );

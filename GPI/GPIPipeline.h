@@ -29,7 +29,7 @@ struct GPIPipelineInput
 {
 	std::vector<IGPIVertexBufferViewRef> vbv;
 	std::vector<IGPIIndexBufferViewRef> ibv;
-	IGPIRayTraceViewRef rtrv;
+	IGPIRayTraceTopLevelASRef rtr;
 };
 
 struct GPIPipelineStateDesc

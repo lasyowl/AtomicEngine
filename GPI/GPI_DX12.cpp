@@ -920,14 +920,17 @@ ID3D12RootSignature* CreateRayTraceRootSignature( ID3D12Device5* device, const G
 	renderTarget.RegisterSpace = 0;
 	renderTarget.OffsetInDescriptorsFromTableStart = D3D12_DESCRIPTOR_RANGE_OFFSET_APPEND;
 
-	D3D12_ROOT_PARAMETER rootParams{};
-	rootParams.ParameterType = D3D12_ROOT_PARAMETER_TYPE_DESCRIPTOR_TABLE;
-	rootParams.DescriptorTable = { 1, &renderTarget };
-	rootParams.ShaderVisibility = D3D12_SHADER_VISIBILITY_ALL;
+	D3D12_ROOT_PARAMETER rootParams[ 2 ]{};
+	rootParams[ 0 ].ParameterType = D3D12_ROOT_PARAMETER_TYPE_DESCRIPTOR_TABLE;
+	rootParams[ 0 ].DescriptorTable = { 1, &renderTarget };
+	rootParams[ 0 ].ShaderVisibility = D3D12_SHADER_VISIBILITY_ALL;
+	rootParams[ 1 ].ParameterType = D3D12_ROOT_PARAMETER_TYPE_SRV;
+	rootParams[ 1 ].Descriptor.ShaderRegister = 0;
+	rootParams[ 1 ].ShaderVisibility = D3D12_SHADER_VISIBILITY_ALL;
 
 	D3D12_ROOT_SIGNATURE_DESC rootSignatureDesc{};
-	rootSignatureDesc.NumParameters = 1;
-	rootSignatureDesc.pParameters = &rootParams;
+	rootSignatureDesc.NumParameters = 2;
+	rootSignatureDesc.pParameters = rootParams;
 	rootSignatureDesc.NumStaticSamplers = 0;
 	rootSignatureDesc.pStaticSamplers = nullptr;
 	rootSignatureDesc.Flags = D3D12_ROOT_SIGNATURE_FLAG_NONE;
@@ -1145,6 +1148,236 @@ IGPIResourceRef GPI_DX12::CreateResource( const GPIResourceDesc& desc, const voi
 {
 	ID3D12Resource* resource = CreateResource_Inner( desc, data, sizeInBytes );
 	return std::make_shared<GPIResource_DX12>( resource );
+}
+
+IGPIRayTraceBottomLevelASRef GPI_DX12::CreateRayTraceBottomLevelAS( const GPIRayTraceBottomLevelASDesc& asDesc, const IGPIVertexBufferView& inVBV, const IGPIIndexBufferView& inIBV )
+{
+	std::shared_ptr<GPIRayTraceBottomLevelAS_DX12> as = std::make_shared<GPIRayTraceBottomLevelAS_DX12>();
+
+	CommandQueueContext& cmdQueueCtx = _cmdQueueCtx[ D3D12_COMMAND_LIST_TYPE_COMPUTE ];
+	ID3D12CommandAllocator* cmdAllocator = cmdQueueCtx.allocator;
+	ID3D12GraphicsCommandList4* cmdList = ( ID3D12GraphicsCommandList4* )*cmdQueueCtx.iCmdList;
+
+	CHECK_HRESULT( cmdAllocator->Reset(), L"Failed to reset allocator." );
+	CHECK_HRESULT( cmdList->Reset( cmdAllocator, nullptr ), L"Failed to reset command list." );
+
+	const GPIVertexBufferView_DX12& vbv = static_cast< const GPIVertexBufferView_DX12& >( inVBV );
+	const GPIIndexBufferView_DX12& ibv = static_cast< const GPIIndexBufferView_DX12& >( inIBV );
+
+	// create bottom-level acceleration structure
+	D3D12_RAYTRACING_GEOMETRY_TRIANGLES_DESC triangles{};
+	triangles.VertexBuffer.StartAddress = vbv.gpuAddress;
+	triangles.VertexBuffer.StrideInBytes = vbv.stride;
+	triangles.VertexCount = vbv.size / vbv.stride;
+	triangles.VertexFormat = DXGI_FORMAT_R32G32B32_FLOAT;
+
+	triangles.IndexBuffer = ibv.gpuAddress;
+	triangles.IndexCount = ibv.size / sizeof( uint32 );
+	triangles.IndexFormat = DXGI_FORMAT_R32_UINT;
+
+	triangles.Transform3x4 = 0;
+
+	D3D12_RAYTRACING_GEOMETRY_DESC rtrDesc{};
+	rtrDesc.Type = D3D12_RAYTRACING_GEOMETRY_TYPE_TRIANGLES;
+	rtrDesc.Triangles = triangles;
+	rtrDesc.Flags = D3D12_RAYTRACING_GEOMETRY_FLAG_NONE;
+
+	D3D12_BUILD_RAYTRACING_ACCELERATION_STRUCTURE_INPUTS asInputs{};
+	asInputs.Type = D3D12_RAYTRACING_ACCELERATION_STRUCTURE_TYPE_BOTTOM_LEVEL;
+	asInputs.Flags = D3D12_RAYTRACING_ACCELERATION_STRUCTURE_BUILD_FLAG_NONE;
+	asInputs.NumDescs = 1;
+	asInputs.DescsLayout = D3D12_ELEMENTS_LAYOUT_ARRAY;
+	asInputs.pGeometryDescs = &rtrDesc;
+
+	D3D12_RAYTRACING_ACCELERATION_STRUCTURE_PREBUILD_INFO prebuildInfo{};
+	( ( ID3D12Device5* )_device )->GetRaytracingAccelerationStructurePrebuildInfo( &asInputs, &prebuildInfo );
+
+	ID3D12Resource* sbResource;
+	D3D12_RESOURCE_DESC sbResourceDesc{};
+	sbResourceDesc.Dimension = D3D12_RESOURCE_DIMENSION_BUFFER;
+	sbResourceDesc.Alignment = 0;
+	sbResourceDesc.Width = prebuildInfo.ScratchDataSizeInBytes;
+	sbResourceDesc.Height = 1;
+	sbResourceDesc.DepthOrArraySize = 1;
+	sbResourceDesc.MipLevels = 1;
+	sbResourceDesc.Format = DXGI_FORMAT_UNKNOWN;
+	sbResourceDesc.SampleDesc.Count = 1;
+	sbResourceDesc.SampleDesc.Quality = 0;
+	sbResourceDesc.Layout = D3D12_TEXTURE_LAYOUT_ROW_MAJOR;
+	sbResourceDesc.Flags = D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS;
+
+	D3D12_HEAP_PROPERTIES defaultHeapProp = HeapProperties( D3D12_HEAP_TYPE_DEFAULT );
+
+	CHECK_HRESULT( _device->CreateCommittedResource( &defaultHeapProp,
+				   D3D12_HEAP_FLAG_NONE,
+				   &sbResourceDesc,
+				   D3D12_RESOURCE_STATE_COMMON,
+				   nullptr,
+				   IID_PPV_ARGS( &sbResource ) ),
+				   L"Failed to create output buffer." );
+
+	ID3D12Resource* asResource;
+	D3D12_RESOURCE_DESC asResourceDesc{};
+	asResourceDesc.Dimension = D3D12_RESOURCE_DIMENSION_BUFFER;
+	asResourceDesc.Alignment = 0;
+	asResourceDesc.Width = prebuildInfo.ResultDataMaxSizeInBytes;
+	asResourceDesc.Height = 1;
+	asResourceDesc.DepthOrArraySize = 1;
+	asResourceDesc.MipLevels = 1;
+	asResourceDesc.Format = DXGI_FORMAT_UNKNOWN;
+	asResourceDesc.SampleDesc.Count = 1;
+	asResourceDesc.SampleDesc.Quality = 0;
+	asResourceDesc.Layout = D3D12_TEXTURE_LAYOUT_ROW_MAJOR;
+	asResourceDesc.Flags = D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS;
+
+	CHECK_HRESULT( _device->CreateCommittedResource( &defaultHeapProp,
+				   D3D12_HEAP_FLAG_NONE,
+				   &asResourceDesc,
+				   D3D12_RESOURCE_STATE_RAYTRACING_ACCELERATION_STRUCTURE,
+				   nullptr,
+				   IID_PPV_ARGS( &asResource ) ),
+				   L"Failed to create output buffer." );
+
+	D3D12_BUILD_RAYTRACING_ACCELERATION_STRUCTURE_DESC buildDesc{};
+	buildDesc.DestAccelerationStructureData = asResource->GetGPUVirtualAddress();
+	buildDesc.Inputs = asInputs;
+	buildDesc.ScratchAccelerationStructureData = sbResource->GetGPUVirtualAddress();
+
+	cmdList->BuildRaytracingAccelerationStructure( &buildDesc, 0, nullptr );
+
+	CHECK_HRESULT( cmdList->Close(), L"Failed to close command list." );
+
+	ID3D12CommandList* cmdListInterface = cmdList;
+	cmdQueueCtx.cmdQueue->ExecuteCommandLists( 1, &cmdListInterface );
+
+	WaitForFence( cmdQueueCtx );
+
+	return as;
+}
+
+IGPIRayTraceTopLevelASRef GPI_DX12::CreateRayTraceTopLevelAS( const std::vector<IGPIRayTraceBottomLevelASRef>& inBottomLevelAS, const GPIRayTraceTopLevelASDesc& asDesc )
+{
+	std::shared_ptr<GPIRayTraceTopLevelAS_DX12> as = std::make_shared<GPIRayTraceTopLevelAS_DX12>();
+
+	CommandQueueContext& cmdQueueCtx = _cmdQueueCtx[ D3D12_COMMAND_LIST_TYPE_COMPUTE ];
+	ID3D12CommandAllocator* cmdAllocator = cmdQueueCtx.allocator;
+	ID3D12GraphicsCommandList4* cmdList = ( ID3D12GraphicsCommandList4* )*cmdQueueCtx.iCmdList;
+
+	CHECK_HRESULT( cmdAllocator->Reset(), L"Failed to reset allocator." );
+	CHECK_HRESULT( cmdList->Reset( cmdAllocator, nullptr ), L"Failed to reset command list." );
+
+	float matIdentity4x3[ 3 ][ 4 ] = { { 1.0f, 0.0f, 0.0f, 0.0f }, { 0.0f, 1.0f, 0.0f, 0.0f }, { 0.0f, 0.0f, 1.0f, 0.0f } };
+
+	std::vector<D3D12_RAYTRACING_INSTANCE_DESC> instanceDescs( inBottomLevelAS.size() );
+	for( uint32 index = 0; index < inBottomLevelAS.size(); ++index )
+	{
+		std::shared_ptr<GPIRayTraceBottomLevelAS_DX12> bottomLevelAS = std::static_pointer_cast< GPIRayTraceBottomLevelAS_DX12 >( inBottomLevelAS[ index ] );
+
+		D3D12_RAYTRACING_INSTANCE_DESC& desc = instanceDescs[ index ];
+		desc.Transform[ 0 ][ 0 ] = 1.0f; desc.Transform[ 0 ][ 1 ] = 0.0f; desc.Transform[ 0 ][ 2 ] = 0.0f; desc.Transform[ 0 ][ 3 ] = 0.0f;
+		desc.Transform[ 1 ][ 0 ] = 0.0f; desc.Transform[ 1 ][ 1 ] = 1.0f; desc.Transform[ 1 ][ 2 ] = 0.0f; desc.Transform[ 1 ][ 3 ] = 0.0f;
+		desc.Transform[ 2 ][ 0 ] = 0.0f; desc.Transform[ 2 ][ 1 ] = 0.0f; desc.Transform[ 2 ][ 2 ] = 1.0f; desc.Transform[ 2 ][ 3 ] = 0.0f;
+		desc.InstanceID = index;
+		desc.InstanceMask = 0xFF;
+		desc.InstanceContributionToHitGroupIndex = 0;
+		desc.Flags = D3D12_RAYTRACING_INSTANCE_FLAG_NONE;
+		desc.AccelerationStructure = bottomLevelAS->gpuAddress;
+	}
+
+	ID3D12Resource* instanceDescResource;
+	D3D12_RESOURCE_DESC instanceDescResourceDesc{};
+	instanceDescResourceDesc.Dimension = D3D12_RESOURCE_DIMENSION_BUFFER;
+	instanceDescResourceDesc.Alignment = 0;
+	instanceDescResourceDesc.Width = sizeof( D3D12_RAYTRACING_INSTANCE_DESC ) * inBottomLevelAS.size();
+	instanceDescResourceDesc.Height = 1;
+	instanceDescResourceDesc.DepthOrArraySize = 1;
+	instanceDescResourceDesc.MipLevels = 1;
+	instanceDescResourceDesc.Format = DXGI_FORMAT_UNKNOWN;
+	instanceDescResourceDesc.SampleDesc.Count = 1;
+	instanceDescResourceDesc.SampleDesc.Quality = 0;
+	instanceDescResourceDesc.Layout = D3D12_TEXTURE_LAYOUT_ROW_MAJOR;
+	instanceDescResourceDesc.Flags = D3D12_RESOURCE_FLAG_NONE;
+
+	D3D12_HEAP_PROPERTIES defaultHeapProp = HeapProperties( D3D12_HEAP_TYPE_DEFAULT );
+
+	CHECK_HRESULT( _device->CreateCommittedResource( &defaultHeapProp,
+				   D3D12_HEAP_FLAG_NONE,
+				   &instanceDescResourceDesc,
+				   D3D12_RESOURCE_STATE_GENERIC_READ,
+				   nullptr,
+				   IID_PPV_ARGS( &instanceDescResource ) ),
+				   L"Failed to create output buffer." );
+
+	D3D12_BUILD_RAYTRACING_ACCELERATION_STRUCTURE_INPUTS asInputs{};
+	asInputs.Type = D3D12_RAYTRACING_ACCELERATION_STRUCTURE_TYPE_TOP_LEVEL;
+	asInputs.Flags = D3D12_RAYTRACING_ACCELERATION_STRUCTURE_BUILD_FLAG_NONE;
+	asInputs.NumDescs = 1;
+	asInputs.DescsLayout = D3D12_ELEMENTS_LAYOUT_ARRAY;
+	asInputs.InstanceDescs = instanceDescResource->GetGPUVirtualAddress();
+
+	D3D12_RAYTRACING_ACCELERATION_STRUCTURE_PREBUILD_INFO prebuildInfo{};
+	( ( ID3D12Device5* )_device )->GetRaytracingAccelerationStructurePrebuildInfo( &asInputs, &prebuildInfo );
+
+	ID3D12Resource* sbResource;
+	D3D12_RESOURCE_DESC sbResourceDesc{};
+	sbResourceDesc.Dimension = D3D12_RESOURCE_DIMENSION_BUFFER;
+	sbResourceDesc.Alignment = 0;
+	sbResourceDesc.Width = prebuildInfo.ScratchDataSizeInBytes;
+	sbResourceDesc.Height = 1;
+	sbResourceDesc.DepthOrArraySize = 1;
+	sbResourceDesc.MipLevels = 1;
+	sbResourceDesc.Format = DXGI_FORMAT_UNKNOWN;
+	sbResourceDesc.SampleDesc.Count = 1;
+	sbResourceDesc.SampleDesc.Quality = 0;
+	sbResourceDesc.Layout = D3D12_TEXTURE_LAYOUT_ROW_MAJOR;
+	sbResourceDesc.Flags = D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS;
+
+	CHECK_HRESULT( _device->CreateCommittedResource( &defaultHeapProp,
+				   D3D12_HEAP_FLAG_NONE,
+				   &sbResourceDesc,
+				   D3D12_RESOURCE_STATE_COMMON,
+				   nullptr,
+				   IID_PPV_ARGS( &sbResource ) ),
+				   L"Failed to create output buffer." );
+
+	D3D12_RESOURCE_DESC asResourceDesc{};
+	asResourceDesc.Dimension = D3D12_RESOURCE_DIMENSION_BUFFER;
+	asResourceDesc.Alignment = 0;
+	asResourceDesc.Width = prebuildInfo.ResultDataMaxSizeInBytes;
+	asResourceDesc.Height = 1;
+	asResourceDesc.DepthOrArraySize = 1;
+	asResourceDesc.MipLevels = 1;
+	asResourceDesc.Format = DXGI_FORMAT_UNKNOWN;
+	asResourceDesc.SampleDesc.Count = 1;
+	asResourceDesc.SampleDesc.Quality = 0;
+	asResourceDesc.Layout = D3D12_TEXTURE_LAYOUT_ROW_MAJOR;
+	asResourceDesc.Flags = D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS;
+
+	CHECK_HRESULT( _device->CreateCommittedResource( &defaultHeapProp,
+				   D3D12_HEAP_FLAG_NONE,
+				   &asResourceDesc,
+				   D3D12_RESOURCE_STATE_RAYTRACING_ACCELERATION_STRUCTURE,
+				   nullptr,
+				   IID_PPV_ARGS( &as->asResource ) ),
+				   L"Failed to create output buffer." );
+
+	D3D12_BUILD_RAYTRACING_ACCELERATION_STRUCTURE_DESC buildDesc{};
+	buildDesc.DestAccelerationStructureData = as->asResource->GetGPUVirtualAddress();
+	buildDesc.Inputs = asInputs;
+	buildDesc.ScratchAccelerationStructureData = sbResource->GetGPUVirtualAddress();
+
+	cmdList->BuildRaytracingAccelerationStructure( &buildDesc, 0, nullptr );
+
+	CHECK_HRESULT( cmdList->Close(), L"Failed to close command list." );
+
+	ID3D12CommandList* cmdListInterface = cmdList;
+	cmdQueueCtx.cmdQueue->ExecuteCommandLists( 1, &cmdListInterface );
+
+	WaitForFence( cmdQueueCtx );
+
+	as->gpuAddress = as->asResource->GetGPUVirtualAddress();
+
+	return as;
 }
 
 IGPIRenderTargetViewRef GPI_DX12::CreateRenderTargetView( const IGPIResource& inResource, const GPIRenderTargetViewDesc& rtvDesc )
@@ -1534,7 +1767,7 @@ void GPI_DX12::RunCS()
 	//WaitForFence( cmdQueueCtx );
 }
 
-void GPI_DX12::RayCast( const GPIPipelineStateDesc& desc )
+void GPI_DX12::RayTrace( const GPIPipelineStateDesc& desc, const IGPIRayTraceTopLevelASRef& inRTRAS )
 {
 	assert( _pipelineCache.contains( desc.id ) );
 
@@ -1558,6 +1791,8 @@ void GPI_DX12::RayCast( const GPIPipelineStateDesc& desc )
 	{
 		cmdList->SetComputeRootDescriptorTable( rootParamIndex++, pipeline->uavHandle[ index ] );
 	}
+	std::shared_ptr<GPIRayTraceTopLevelAS_DX12> rtrAS = std::static_pointer_cast< GPIRayTraceTopLevelAS_DX12 >( inRTRAS );
+	cmdList->SetComputeRootShaderResourceView( rootParamIndex++, rtrAS->gpuAddress );
 
 	D3D12_DISPATCH_RAYS_DESC dispatchRays{};
 	dispatchRays.RayGenerationShaderRecord.StartAddress = pipeline->raytrace.resource->GetGPUVirtualAddress();

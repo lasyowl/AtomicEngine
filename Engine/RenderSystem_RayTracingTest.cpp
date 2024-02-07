@@ -1,5 +1,6 @@
 #include <Engine/RenderSystem.h>
 #include <Engine/AtomicEngine.h>
+#include <Engine/StaticMesh.h>
 #include <GPI/GPI.h>
 #include <GPI/GPIPipeline.h>
 
@@ -26,5 +27,20 @@ void RenderSystem::RayTracingTest( std::array<std::unique_ptr<IComponentRegistry
 		AtomicEngine::GetGPI()->BindUnorderedAccessView( *pipeline, *_sceneLightUAV, 0 );
 	}
 
-	AtomicEngine::GetGPI()->RayCast( pipelineDesc );
+	static IGPIRayTraceBottomLevelASRef bottomLevelAS = nullptr;
+	static IGPIRayTraceTopLevelASRef topLevelAS = nullptr;
+	if( !bottomLevelAS )
+	{
+		StaticMeshGroupRef& staticMeshGroup = StaticMeshCache::FindStaticMeshGroup( "quad" );
+		StaticMesh& staticMesh = staticMeshGroup->meshes[ 0 ];
+
+		GPIRayTraceBottomLevelASDesc bottomLevelASDesc{};
+		bottomLevelAS = AtomicEngine::GetGPI()->CreateRayTraceBottomLevelAS( bottomLevelASDesc, *staticMesh.pipelineInput.vbv[ 0 ], *staticMesh.pipelineInput.ibv[ 0 ] );
+
+		std::vector<IGPIRayTraceBottomLevelASRef> bottomLevelASs = { bottomLevelAS };
+		GPIRayTraceTopLevelASDesc topLevelASDesc{};
+		topLevelAS = AtomicEngine::GetGPI()->CreateRayTraceTopLevelAS( bottomLevelASs, topLevelASDesc );
+	}
+
+	AtomicEngine::GetGPI()->RayTrace( pipelineDesc, topLevelAS );
 }

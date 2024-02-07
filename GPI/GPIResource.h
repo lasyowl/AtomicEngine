@@ -73,6 +73,14 @@ struct GPISamplerDesc
 
 };
 
+struct GPIRayTraceBottomLevelASDesc
+{
+};
+
+struct GPIRayTraceTopLevelASDesc
+{
+};
+
 ///////////////////////////////
 // Resource Interface
 ///////////////////////////////
@@ -131,6 +139,16 @@ struct IGPIRayTraceView
 	uint32 byteSize;
 };
 
+struct IGPIRayTraceBottomLevelAS
+{
+
+};
+
+struct IGPIRayTraceTopLevelAS
+{
+
+};
+
 using IGPIResourceRef = std::shared_ptr<IGPIResource>;
 using IGPIRenderTargetViewRef = std::shared_ptr<IGPIRenderTargetView>;
 using IGPIDepthStencilViewRef = std::shared_ptr<IGPIDepthStencilView>;
@@ -142,3 +160,5 @@ using IGPISamplerRef = std::shared_ptr<IGPISampler>;
 using IGPIVertexBufferViewRef = std::shared_ptr<IGPIVertexBufferView>;
 using IGPIIndexBufferViewRef = std::shared_ptr<IGPIIndexBufferView>;
 using IGPIRayTraceViewRef = std::shared_ptr<IGPIRayTraceView>;
+using IGPIRayTraceBottomLevelASRef = std::shared_ptr<IGPIRayTraceBottomLevelAS>;
+using IGPIRayTraceTopLevelASRef = std::shared_ptr<IGPIRayTraceTopLevelAS>;
