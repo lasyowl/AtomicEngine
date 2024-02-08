@@ -17,23 +17,26 @@ StaticMeshGroupRef BuildStaticMeshGroup( const StaticMeshDataGroup& dataGroup )
 	{
 		StaticMesh& mesh = meshGroup->meshes[ index ];
 		const StaticMeshData& data = dataGroup.datas[ index ];
-
-		desc.name.assign( data.name.begin(), data.name.end() );
+		std::wstring meshName;
+		meshName.assign( data.name.begin(), data.name.end() );
 
 		mesh.pipelineInput.vbv.resize( 3 );
 
+		desc.name = meshName + L"_Position";
 		desc.width = data.GetPositionByteSize();
 		mesh.positionResource = AtomicEngine::GetGPI()->CreateResource( desc, data.GetPositionPtr(), data.GetPositionByteSize() );
 		mesh.pipelineInput.vbv[ 0 ] = AtomicEngine::GetGPI()->CreateVertexBufferView( *mesh.positionResource, data.GetPositionByteSize(), data.GetPositionStride() );
 
 		if( !data.normal.empty() )
 		{
+			desc.name = meshName + L"_Normal";
 			desc.width = data.GetNormalByteSize();
 			mesh.normalResource = AtomicEngine::GetGPI()->CreateResource( desc, data.GetNormalPtr(), data.GetNormalByteSize() );
 			mesh.pipelineInput.vbv[ 1 ] = AtomicEngine::GetGPI()->CreateVertexBufferView( *mesh.normalResource, data.GetNormalByteSize(), data.GetNormalStride() );
 		}
 		if( !data.uv.empty() )
 		{
+			desc.name = meshName + L"_UV";
 			desc.width = data.GetUVByteSize();
 			mesh.uvResource = AtomicEngine::GetGPI()->CreateResource( desc, data.GetUVPtr(), data.GetUVByteSize() );
 			mesh.pipelineInput.vbv[ 2 ] = AtomicEngine::GetGPI()->CreateVertexBufferView( *mesh.uvResource, data.GetUVByteSize(), data.GetUVStride() );
@@ -41,6 +44,7 @@ StaticMeshGroupRef BuildStaticMeshGroup( const StaticMeshDataGroup& dataGroup )
 
 		for( uint32 index = 0; index < data.GetNumMeshes(); ++index )
 		{
+			desc.name = meshName + L"_Index";
 			desc.width = data.GetIndexByteSize( index );
 			IGPIResourceRef ib = AtomicEngine::GetGPI()->CreateResource( desc, data.GetIndexPtr( index ), data.GetIndexByteSize( index ) );
 			IGPIIndexBufferViewRef ibv = AtomicEngine::GetGPI()->CreateIndexBufferView( *ib, data.GetIndexByteSize( index ) );

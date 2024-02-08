@@ -4,6 +4,7 @@
 #include <GPI/GPIShader_DX12.h>
 #include <GPI/GPIPipeline_DX12.h>
 #include <GPI/GPIUtility_DX12.h>
+#include <GPI/GPIUtility.h>
 
 #include <d3d12.h>
 #include <d3dcommon.h>
@@ -683,7 +684,10 @@ IDxcBlob* CreateShader2( const GPIShaderDesc& shaderDesc )
 		IDxcBlobEncoding* pError;
 		pResult->GetErrorBuffer( &pError );
 		// Output the compilation errors
-		wprintf( L"Errors: %s\n", ( wchar_t* )pError->GetBufferPointer() );
+		std::string errorMsg = ( char* )pError->GetBufferPointer();
+		std::wstring wErrorMsg;
+		wErrorMsg.append( errorMsg.begin(), errorMsg.end() );
+		AEMessageBox( wErrorMsg );
 		return nullptr;
 	}
 }
@@ -1012,29 +1016,42 @@ IGPIPipelineRef GPI_DX12::CreatePipelineState( const GPIPipelineStateDesc& pipel
 	}*/
 	else if( pipelineDesc.pipelineType == PipelineType_RayTrace )
 	{
-		IDxcBlob* shader = CreateShader2( pipelineDesc.raytraceShader );
+		IDxcBlob* shaderBlob = CreateShader2( pipelineDesc.raytraceShader );
 
 		pipelineState->rootSignature = CreateRayTraceRootSignature( ( ID3D12Device5* )_device, pipelineDesc );
 
-		D3D12_EXPORT_DESC rayGenerationExport
+		D3D12_EXPORT_DESC shaderExport[ 3 ]
 		{
-			L"RayGeneration",
-			nullptr,
-			D3D12_EXPORT_FLAG_NONE
+			{ L"RayGeneration", nullptr, D3D12_EXPORT_FLAG_NONE },
+			{ L"Hit", nullptr, D3D12_EXPORT_FLAG_NONE },
+			{ L"Miss", nullptr, D3D12_EXPORT_FLAG_NONE }
 		};
-		D3D12_DXIL_LIBRARY_DESC rayGeneration{};
-		rayGeneration.DXILLibrary.pShaderBytecode = shader->GetBufferPointer();
-		rayGeneration.DXILLibrary.BytecodeLength = shader->GetBufferSize();
-		rayGeneration.NumExports = 1;
-		rayGeneration.pExports = &rayGenerationExport;
-		D3D12_STATE_SUBOBJECT shaders
+		D3D12_DXIL_LIBRARY_DESC shaderLibrary{};
+		shaderLibrary.DXILLibrary.pShaderBytecode = shaderBlob->GetBufferPointer();
+		shaderLibrary.DXILLibrary.BytecodeLength = shaderBlob->GetBufferSize();
+		shaderLibrary.NumExports = 3;
+		shaderLibrary.pExports = shaderExport;
+		D3D12_STATE_SUBOBJECT shader
 		{
 			D3D12_STATE_SUBOBJECT_TYPE_DXIL_LIBRARY,
-			&rayGeneration
+			&shaderLibrary
+		};
+		D3D12_HIT_GROUP_DESC hitGroup
+		{
+			L"HitGroup0",
+			D3D12_HIT_GROUP_TYPE_TRIANGLES,
+			nullptr,
+			L"Hit",
+			nullptr
+		};
+		D3D12_STATE_SUBOBJECT hitGroupObject
+		{
+			D3D12_STATE_SUBOBJECT_TYPE_HIT_GROUP,
+			&hitGroup
 		};
 		D3D12_RAYTRACING_SHADER_CONFIG shaderConfig
 		{
-			0,
+			sizeof( float[ 4 ] ),
 			sizeof( float[ 2 ] )
 		};
 		D3D12_STATE_SUBOBJECT config
@@ -1058,33 +1075,35 @@ IGPIPipelineRef GPI_DX12::CreatePipelineState( const GPIPipelineStateDesc& pipel
 		};
 		D3D12_STATE_SUBOBJECT subObjects[]
 		{
-			shaders,
+			shader,
+			hitGroupObject,
 			config,
 			rootSignature,
 			pipeline
 		};
 		D3D12_STATE_OBJECT_DESC raytracingStateObject{
 			D3D12_STATE_OBJECT_TYPE_RAYTRACING_PIPELINE,
-			4,
+			5,
 			subObjects
 		};
 
-		HRESULT hr = ( ( ID3D12Device5* )_device )->CreateStateObject( &raytracingStateObject, IID_PPV_ARGS( &pipelineState->raytrace.pipelineState ) );
 		CHECK_HRESULT( ( ( ID3D12Device5* )_device )->CreateStateObject( &raytracingStateObject, IID_PPV_ARGS( &pipelineState->raytrace.pipelineState ) ), 
 					   L"Failed to create raytrace PSO." );
 
 		pipelineState->raytrace.pipelineState->QueryInterface( IID_PPV_ARGS( &pipelineState->raytrace.stateProperties ) );
 
-		struct ShaderParam
+		__declspec( align( 256 ) )
+		struct ShaderParam1
 		{
 			uint8 shaderIdentifier[ D3D12_SHADER_IDENTIFIER_SIZE_IN_BYTES ];
 			uint64 rootParams[ 1 ];
 		} shaderParam;
 
+		// ray generation
 		memcpy( shaderParam.shaderIdentifier, pipelineState->raytrace.stateProperties->GetShaderIdentifier( L"RayGeneration" ), D3D12_SHADER_IDENTIFIER_SIZE_IN_BYTES );
 
 		GPIResourceDesc desc{};
-		desc.name = L"RayTraceTest";
+		desc.name = L"RayTraceTest_RayGeneration";
 		desc.dimension = EGPIResourceDimension::Buffer;
 		desc.format = EGPIResourceFormat::Unknown;
 		desc.width = sizeof( shaderParam );
@@ -1095,6 +1114,16 @@ IGPIPipelineRef GPI_DX12::CreatePipelineState( const GPIPipelineStateDesc& pipel
 
 		pipelineState->raytrace.resource = CreateResource_Inner( desc, &shaderParam, sizeof( shaderParam ) );
 		pipelineState->raytrace.resourceByteSize = sizeof( shaderParam );
+
+		// 
+		memcpy( shaderParam.shaderIdentifier, pipelineState->raytrace.stateProperties->GetShaderIdentifier( L"HitGroup0" ), D3D12_SHADER_IDENTIFIER_SIZE_IN_BYTES );
+		desc.name = L"RayTraceTest_HitGroup";
+		pipelineState->raytrace.resource1 = CreateResource_Inner( desc, &shaderParam, sizeof( shaderParam ) );
+
+		// 
+		memcpy( shaderParam.shaderIdentifier, pipelineState->raytrace.stateProperties->GetShaderIdentifier( L"Miss" ), D3D12_SHADER_IDENTIFIER_SIZE_IN_BYTES );
+		desc.name = L"RayTraceTest_Miss";
+		pipelineState->raytrace.resource2 = CreateResource_Inner( desc, &shaderParam, sizeof( shaderParam ) );
 
 		///////////////////////////////////////////////////////////
 		pipelineState->uav.resize( pipelineDesc.numUAVs );
@@ -1215,8 +1244,8 @@ IGPIRayTraceBottomLevelASRef GPI_DX12::CreateRayTraceBottomLevelAS( const GPIRay
 				   nullptr,
 				   IID_PPV_ARGS( &sbResource ) ),
 				   L"Failed to create output buffer." );
+	sbResource->SetName( L"BLAS_SB" );
 
-	ID3D12Resource* asResource;
 	D3D12_RESOURCE_DESC asResourceDesc{};
 	asResourceDesc.Dimension = D3D12_RESOURCE_DIMENSION_BUFFER;
 	asResourceDesc.Alignment = 0;
@@ -1235,11 +1264,15 @@ IGPIRayTraceBottomLevelASRef GPI_DX12::CreateRayTraceBottomLevelAS( const GPIRay
 				   &asResourceDesc,
 				   D3D12_RESOURCE_STATE_RAYTRACING_ACCELERATION_STRUCTURE,
 				   nullptr,
-				   IID_PPV_ARGS( &asResource ) ),
+				   IID_PPV_ARGS( &as->asResource ) ),
 				   L"Failed to create output buffer." );
+	as->asResource->SetName( L"BLAS" );
+
+	const GPIResourceDesc cbDesc = GPIUtil::GetConstantBufferResourceDesc( L"BLASC", 512 );
+	CreateResource( cbDesc );
 
 	D3D12_BUILD_RAYTRACING_ACCELERATION_STRUCTURE_DESC buildDesc{};
-	buildDesc.DestAccelerationStructureData = asResource->GetGPUVirtualAddress();
+	buildDesc.DestAccelerationStructureData = as->asResource->GetGPUVirtualAddress();
 	buildDesc.Inputs = asInputs;
 	buildDesc.ScratchAccelerationStructureData = sbResource->GetGPUVirtualAddress();
 
@@ -1252,12 +1285,20 @@ IGPIRayTraceBottomLevelASRef GPI_DX12::CreateRayTraceBottomLevelAS( const GPIRay
 
 	WaitForFence( cmdQueueCtx );
 
+	as->gpuAddress = as->asResource->GetGPUVirtualAddress();
+
 	return as;
 }
 
 IGPIRayTraceTopLevelASRef GPI_DX12::CreateRayTraceTopLevelAS( const std::vector<IGPIRayTraceBottomLevelASRef>& inBottomLevelAS, const GPIRayTraceTopLevelASDesc& asDesc )
 {
 	std::shared_ptr<GPIRayTraceTopLevelAS_DX12> as = std::make_shared<GPIRayTraceTopLevelAS_DX12>();
+
+	as->bottomLevel.resize( inBottomLevelAS.size() );
+	for( uint32 index = 0; index < inBottomLevelAS.size(); ++index )
+	{
+		as->bottomLevel[ index ] = std::static_pointer_cast< GPIRayTraceBottomLevelAS_DX12 >( inBottomLevelAS[ index ] );
+	}
 
 	CommandQueueContext& cmdQueueCtx = _cmdQueueCtx[ D3D12_COMMAND_LIST_TYPE_COMPUTE ];
 	ID3D12CommandAllocator* cmdAllocator = cmdQueueCtx.allocator;
@@ -1307,6 +1348,30 @@ IGPIRayTraceTopLevelASRef GPI_DX12::CreateRayTraceTopLevelAS( const std::vector<
 				   nullptr,
 				   IID_PPV_ARGS( &instanceDescResource ) ),
 				   L"Failed to create output buffer." );
+	instanceDescResource->SetName( L"TLAS_InstanceDesc" );
+
+	{
+		D3D12_RESOURCE_DESC uploadBufferDesc = instanceDescResource->GetDesc();
+		D3D12_HEAP_PROPERTIES uploadHeapProp = HeapProperties( D3D12_HEAP_TYPE_UPLOAD );
+
+		// Create upload buffer on CPU
+		ID3D12Resource* uploadBuffer;
+		CHECK_HRESULT( _device->CreateCommittedResource( &uploadHeapProp,
+					   D3D12_HEAP_FLAG_NONE,
+					   &uploadBufferDesc,
+					   D3D12_RESOURCE_STATE_GENERIC_READ,
+					   nullptr,
+					   IID_PPV_ARGS( &uploadBuffer ) ),
+					   L"Failed to create upload buffer." );
+
+		CopyMemoryToBuffer( uploadBuffer, instanceDescs.data(), sizeof( D3D12_RAYTRACING_INSTANCE_DESC ) * inBottomLevelAS.size() );
+
+		TransitionResource( cmdList, instanceDescResource, D3D12_RESOURCE_STATE_COMMON, D3D12_RESOURCE_STATE_COPY_DEST );
+
+		cmdList->CopyBufferRegion( instanceDescResource, 0, uploadBuffer, 0, sizeof( D3D12_RAYTRACING_INSTANCE_DESC ) * inBottomLevelAS.size() );
+
+		TransitionResource( cmdList, instanceDescResource, D3D12_RESOURCE_STATE_COPY_DEST, D3D12_RESOURCE_STATE_COMMON );
+	}
 
 	D3D12_BUILD_RAYTRACING_ACCELERATION_STRUCTURE_INPUTS asInputs{};
 	asInputs.Type = D3D12_RAYTRACING_ACCELERATION_STRUCTURE_TYPE_TOP_LEVEL;
@@ -1339,6 +1404,7 @@ IGPIRayTraceTopLevelASRef GPI_DX12::CreateRayTraceTopLevelAS( const std::vector<
 				   nullptr,
 				   IID_PPV_ARGS( &sbResource ) ),
 				   L"Failed to create output buffer." );
+	sbResource->SetName( L"TLAS_SB" );
 
 	D3D12_RESOURCE_DESC asResourceDesc{};
 	asResourceDesc.Dimension = D3D12_RESOURCE_DIMENSION_BUFFER;
@@ -1360,6 +1426,7 @@ IGPIRayTraceTopLevelASRef GPI_DX12::CreateRayTraceTopLevelAS( const std::vector<
 				   nullptr,
 				   IID_PPV_ARGS( &as->asResource ) ),
 				   L"Failed to create output buffer." );
+	as->asResource->SetName( L"TLAS" );
 
 	D3D12_BUILD_RAYTRACING_ACCELERATION_STRUCTURE_DESC buildDesc{};
 	buildDesc.DestAccelerationStructureData = as->asResource->GetGPUVirtualAddress();
@@ -1792,11 +1859,17 @@ void GPI_DX12::RayTrace( const GPIPipelineStateDesc& desc, const IGPIRayTraceTop
 		cmdList->SetComputeRootDescriptorTable( rootParamIndex++, pipeline->uavHandle[ index ] );
 	}
 	std::shared_ptr<GPIRayTraceTopLevelAS_DX12> rtrAS = std::static_pointer_cast< GPIRayTraceTopLevelAS_DX12 >( inRTRAS );
-	cmdList->SetComputeRootShaderResourceView( rootParamIndex++, rtrAS->gpuAddress );
+	cmdList->SetComputeRootShaderResourceView( rootParamIndex++, rtrAS->/*bottomLevel[0]->*/gpuAddress);
 
 	D3D12_DISPATCH_RAYS_DESC dispatchRays{};
 	dispatchRays.RayGenerationShaderRecord.StartAddress = pipeline->raytrace.resource->GetGPUVirtualAddress();
 	dispatchRays.RayGenerationShaderRecord.SizeInBytes = pipeline->raytrace.resourceByteSize;
+	dispatchRays.HitGroupTable.StartAddress = pipeline->raytrace.resource1->GetGPUVirtualAddress();
+	dispatchRays.HitGroupTable.SizeInBytes = pipeline->raytrace.resourceByteSize;
+	dispatchRays.HitGroupTable.StrideInBytes = pipeline->raytrace.resourceByteSize;
+	dispatchRays.MissShaderTable.StartAddress = pipeline->raytrace.resource2->GetGPUVirtualAddress();
+	dispatchRays.MissShaderTable.SizeInBytes = pipeline->raytrace.resourceByteSize;
+	dispatchRays.MissShaderTable.StrideInBytes = pipeline->raytrace.resourceByteSize;
 	dispatchRays.Width = _windowSize.x;
 	dispatchRays.Height = _windowSize.y;
 	dispatchRays.Depth = 1;

@@ -3,6 +3,7 @@
 #include <Engine/StaticMesh.h>
 #include <GPI/GPI.h>
 #include <GPI/GPIPipeline.h>
+#include <GPI/GPIUtility.h>
 
 void RenderSystem::RayTracingTest( std::array<std::unique_ptr<IComponentRegistry>, NUM_COMPONENT_MAX>& componentRegistry )
 {
@@ -29,6 +30,7 @@ void RenderSystem::RayTracingTest( std::array<std::unique_ptr<IComponentRegistry
 
 	static IGPIRayTraceBottomLevelASRef bottomLevelAS = nullptr;
 	static IGPIRayTraceTopLevelASRef topLevelAS = nullptr;
+	static IGPIResourceRef testResource = nullptr;
 	if( !bottomLevelAS )
 	{
 		StaticMeshGroupRef& staticMeshGroup = StaticMeshCache::FindStaticMeshGroup( "quad" );
@@ -40,6 +42,9 @@ void RenderSystem::RayTracingTest( std::array<std::unique_ptr<IComponentRegistry
 		std::vector<IGPIRayTraceBottomLevelASRef> bottomLevelASs = { bottomLevelAS };
 		GPIRayTraceTopLevelASDesc topLevelASDesc{};
 		topLevelAS = AtomicEngine::GetGPI()->CreateRayTraceTopLevelAS( bottomLevelASs, topLevelASDesc );
+
+		const GPIResourceDesc cbDesc = GPIUtil::GetConstantBufferResourceDesc( L"BLASC", 512 );
+		testResource = AtomicEngine::GetGPI()->CreateResource( cbDesc );
 	}
 
 	AtomicEngine::GetGPI()->RayTrace( pipelineDesc, topLevelAS );

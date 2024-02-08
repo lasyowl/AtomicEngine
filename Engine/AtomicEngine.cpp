@@ -19,7 +19,7 @@ namespace
 	void InitGPI( HWND hWnd )
 	{
 		/* todo : Move to somewhere makes sense */
-		HMODULE hm = LoadLibrary( L"C:\\Program Files\\Microsoft PIX\\2208.10\\WinPixGpuCapturer.dll" );
+		HMODULE hm = LoadLibrary( L"C:\\Program Files\\Microsoft PIX\\2312.08\\WinPixGpuCapturer.dll" );
 
 		/* todo : Run graphics API by compatibility */
 

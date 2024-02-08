@@ -6,6 +6,7 @@ namespace SampleMesh
 StaticMeshData GetQuad()
 {
 	StaticMeshData quad;
+	quad.name = "quad";
 	quad.position = { { -1.0f, 1.0f, 0 }, { 1.0f, 1.0f, 0 }, { 1.0f, -1.0f, 0 }, { -1.0f, -1.0f, 0 } };
 	quad.normal = { { 0, 0, -1 }, { 0, 0, -1 }, { 0, 0, -1 }, { 0, 0, -1 } };
 	quad.uv = { { 0, 0 }, { 1, 0 }, { 1, 1 }, { 0, 1 } };
@@ -17,6 +18,7 @@ StaticMeshData GetQuad()
 StaticMeshData GetCube()
 {
 	StaticMeshData cube;
+	cube.name = "cube";
 	cube.position = { 
 		{ -1.0f, 1.0f, 1.0f }, { 1.0f, 1.0f, 1.0f }, { 1.0f, 1.0f, -1.0f }, { -1.0f, 1.0f, -1.0f },
 		{ -1.0f, 1.0f, -1.0f }, { 1.0f, 1.0f, -1.0f }, { 1.0f, -1.0f, -1.0f }, { -1.0f, -1.0f, -1.0f },
@@ -116,6 +118,7 @@ StaticMeshData GetSphere()
 	}
 
 	StaticMeshData sphere;
+	sphere.name = "sphere";
 	sphere.position = vertices;
 	sphere.normal = sphere.position;
 	sphere.uv = { { 0, 0 }, { 1, 0 }, { 1, 1 }, { 0, 1 }, { 0, 0 }, { 1, 0 }, { 1, 1 }, { 0, 1 } }; // invalid

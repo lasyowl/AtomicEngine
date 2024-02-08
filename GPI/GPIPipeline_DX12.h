@@ -13,6 +13,8 @@ struct GPIPipeline_DX12 : public IGPIPipeline
 			ID3D12StateObject* pipelineState;
 			ID3D12StateObjectProperties* stateProperties;
 			ID3D12Resource* resource;
+			ID3D12Resource* resource1;
+			ID3D12Resource* resource2;
 			uint32 resourceByteSize;
 		} raytrace;
 		ID3D12PipelineState* pipelineState;
