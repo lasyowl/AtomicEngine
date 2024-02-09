@@ -1315,9 +1315,9 @@ IGPIRayTraceTopLevelASRef GPI_DX12::CreateRayTraceTopLevelAS( const std::vector<
 		std::shared_ptr<GPIRayTraceBottomLevelAS_DX12> bottomLevelAS = std::static_pointer_cast< GPIRayTraceBottomLevelAS_DX12 >( inBottomLevelAS[ index ] );
 
 		D3D12_RAYTRACING_INSTANCE_DESC& desc = instanceDescs[ index ];
-		desc.Transform[ 0 ][ 0 ] = 1.0f; desc.Transform[ 0 ][ 1 ] = 0.0f; desc.Transform[ 0 ][ 2 ] = 0.0f; desc.Transform[ 0 ][ 3 ] = 0.0f;
-		desc.Transform[ 1 ][ 0 ] = 0.0f; desc.Transform[ 1 ][ 1 ] = 1.0f; desc.Transform[ 1 ][ 2 ] = 0.0f; desc.Transform[ 1 ][ 3 ] = 0.0f;
-		desc.Transform[ 2 ][ 0 ] = 0.0f; desc.Transform[ 2 ][ 1 ] = 0.0f; desc.Transform[ 2 ][ 2 ] = 1.0f; desc.Transform[ 2 ][ 3 ] = 0.0f;
+		desc.Transform[ 0 ][ 0 ] = 0.5f; desc.Transform[ 0 ][ 1 ] = 0.0f; desc.Transform[ 0 ][ 2 ] = 0.0f; desc.Transform[ 0 ][ 3 ] = 0.0f;
+		desc.Transform[ 1 ][ 0 ] = 0.0f; desc.Transform[ 1 ][ 1 ] = 0.5f; desc.Transform[ 1 ][ 2 ] = 0.0f; desc.Transform[ 1 ][ 3 ] = 0.0f;
+		desc.Transform[ 2 ][ 0 ] = 0.0f; desc.Transform[ 2 ][ 1 ] = 0.0f; desc.Transform[ 2 ][ 2 ] = 0.5f; desc.Transform[ 2 ][ 3 ] = 0.0f;
 		desc.InstanceID = index;
 		desc.InstanceMask = 0xFF;
 		desc.InstanceContributionToHitGroupIndex = 0;
@@ -1376,7 +1376,7 @@ IGPIRayTraceTopLevelASRef GPI_DX12::CreateRayTraceTopLevelAS( const std::vector<
 	D3D12_BUILD_RAYTRACING_ACCELERATION_STRUCTURE_INPUTS asInputs{};
 	asInputs.Type = D3D12_RAYTRACING_ACCELERATION_STRUCTURE_TYPE_TOP_LEVEL;
 	asInputs.Flags = D3D12_RAYTRACING_ACCELERATION_STRUCTURE_BUILD_FLAG_NONE;
-	asInputs.NumDescs = 1;
+	asInputs.NumDescs = inBottomLevelAS.size();
 	asInputs.DescsLayout = D3D12_ELEMENTS_LAYOUT_ARRAY;
 	asInputs.InstanceDescs = instanceDescResource->GetGPUVirtualAddress();
 

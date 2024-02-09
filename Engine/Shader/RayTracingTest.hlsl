@@ -38,7 +38,7 @@ void RayGeneration()
         payload
     );
 
-    renderTarget[launchIdx] = renderTarget[launchIdx] * payload.color;
+    renderTarget[launchIdx] = /*renderTarget[launchIdx] **/ payload.color;
 }
 
 [shader("closesthit")]
