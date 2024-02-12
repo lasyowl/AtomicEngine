@@ -218,7 +218,17 @@ constexpr D3D12_SHADER_RESOURCE_VIEW_DESC TranslateSRVDesc( const IGPIResource& 
 	srvDesc.Format = TranslateResourceFormat( desc.format );
 	srvDesc.ViewDimension = TranslateSRVDimension( desc.dimension );
 	srvDesc.Shader4ComponentMapping = D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING;
-	srvDesc.Texture2D.MipLevels = 1;
+
+	//@TODO : all cases of dimension enums should be covered
+	switch( desc.dimension )
+	{
+		case EGPIResourceDimension::Buffer:
+			srvDesc.Buffer.NumElements = desc.numElements;
+			break;
+		case EGPIResourceDimension::Texture2D:
+			srvDesc.Texture2D.MipLevels = 1;
+			break;
+	}
 
 	return srvDesc;
 }

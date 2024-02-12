@@ -15,9 +15,9 @@ public:
 		GeometryPass( componentRegistry );
 		DirectionalLight( componentRegistry );
 		PointLight( componentRegistry );
+		RayTracingTest( componentRegistry );
 		LightCombine( componentRegistry );
 		//PostProcess( componentRegistry );
-		RayTracingTest( componentRegistry );
 		EndFrame( componentRegistry );
 	}
 

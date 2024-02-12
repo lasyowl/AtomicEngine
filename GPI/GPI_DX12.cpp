@@ -924,16 +924,25 @@ ID3D12RootSignature* CreateRayTraceRootSignature( ID3D12Device5* device, const G
 	renderTarget.RegisterSpace = 0;
 	renderTarget.OffsetInDescriptorsFromTableStart = D3D12_DESCRIPTOR_RANGE_OFFSET_APPEND;
 
-	D3D12_ROOT_PARAMETER rootParams[ 2 ]{};
+	D3D12_ROOT_PARAMETER rootParams[ 5 ]{};
 	rootParams[ 0 ].ParameterType = D3D12_ROOT_PARAMETER_TYPE_DESCRIPTOR_TABLE;
 	rootParams[ 0 ].DescriptorTable = { 1, &renderTarget };
 	rootParams[ 0 ].ShaderVisibility = D3D12_SHADER_VISIBILITY_ALL;
 	rootParams[ 1 ].ParameterType = D3D12_ROOT_PARAMETER_TYPE_SRV;
 	rootParams[ 1 ].Descriptor.ShaderRegister = 0;
 	rootParams[ 1 ].ShaderVisibility = D3D12_SHADER_VISIBILITY_ALL;
+	rootParams[ 2 ].ParameterType = D3D12_ROOT_PARAMETER_TYPE_SRV;
+	rootParams[ 2 ].Descriptor.ShaderRegister = 1;
+	rootParams[ 2 ].ShaderVisibility = D3D12_SHADER_VISIBILITY_ALL;
+	rootParams[ 3 ].ParameterType = D3D12_ROOT_PARAMETER_TYPE_SRV;
+	rootParams[ 3 ].Descriptor.ShaderRegister = 2;
+	rootParams[ 3 ].ShaderVisibility = D3D12_SHADER_VISIBILITY_ALL;
+	rootParams[ 4 ].ParameterType = D3D12_ROOT_PARAMETER_TYPE_CBV;
+	rootParams[ 4 ].Descriptor.ShaderRegister = 0;
+	rootParams[ 4 ].ShaderVisibility = D3D12_SHADER_VISIBILITY_ALL;
 
 	D3D12_ROOT_SIGNATURE_DESC rootSignatureDesc{};
-	rootSignatureDesc.NumParameters = 2;
+	rootSignatureDesc.NumParameters = 5;
 	rootSignatureDesc.pParameters = rootParams;
 	rootSignatureDesc.NumStaticSamplers = 0;
 	rootSignatureDesc.pStaticSamplers = nullptr;
@@ -1128,6 +1137,7 @@ IGPIPipelineRef GPI_DX12::CreatePipelineState( const GPIPipelineStateDesc& pipel
 		///////////////////////////////////////////////////////////
 		pipelineState->uav.resize( pipelineDesc.numUAVs );
 		pipelineState->uavHandle.resize( pipelineDesc.numUAVs );
+		pipelineState->cbv.resize( pipelineDesc.numCBVs );
 	}
 
 	return pipelineState;
@@ -1307,17 +1317,15 @@ IGPIRayTraceTopLevelASRef GPI_DX12::CreateRayTraceTopLevelAS( const std::vector<
 	CHECK_HRESULT( cmdAllocator->Reset(), L"Failed to reset allocator." );
 	CHECK_HRESULT( cmdList->Reset( cmdAllocator, nullptr ), L"Failed to reset command list." );
 
-	float matIdentity4x3[ 3 ][ 4 ] = { { 1.0f, 0.0f, 0.0f, 0.0f }, { 0.0f, 1.0f, 0.0f, 0.0f }, { 0.0f, 0.0f, 1.0f, 0.0f } };
-
 	std::vector<D3D12_RAYTRACING_INSTANCE_DESC> instanceDescs( inBottomLevelAS.size() );
 	for( uint32 index = 0; index < inBottomLevelAS.size(); ++index )
 	{
 		std::shared_ptr<GPIRayTraceBottomLevelAS_DX12> bottomLevelAS = std::static_pointer_cast< GPIRayTraceBottomLevelAS_DX12 >( inBottomLevelAS[ index ] );
 
 		D3D12_RAYTRACING_INSTANCE_DESC& desc = instanceDescs[ index ];
-		desc.Transform[ 0 ][ 0 ] = 0.5f; desc.Transform[ 0 ][ 1 ] = 0.0f; desc.Transform[ 0 ][ 2 ] = 0.0f; desc.Transform[ 0 ][ 3 ] = 0.0f;
-		desc.Transform[ 1 ][ 0 ] = 0.0f; desc.Transform[ 1 ][ 1 ] = 0.5f; desc.Transform[ 1 ][ 2 ] = 0.0f; desc.Transform[ 1 ][ 3 ] = 0.0f;
-		desc.Transform[ 2 ][ 0 ] = 0.0f; desc.Transform[ 2 ][ 1 ] = 0.0f; desc.Transform[ 2 ][ 2 ] = 0.5f; desc.Transform[ 2 ][ 3 ] = 0.0f;
+		desc.Transform[ 0 ][ 0 ] = 1.0f; desc.Transform[ 0 ][ 1 ] = 0.0f; desc.Transform[ 0 ][ 2 ] = 0.0f; desc.Transform[ 0 ][ 3 ] = 0.0f;
+		desc.Transform[ 1 ][ 0 ] = 0.0f; desc.Transform[ 1 ][ 1 ] = 1.0f; desc.Transform[ 1 ][ 2 ] = 0.0f; desc.Transform[ 1 ][ 3 ] = 0.0f;
+		desc.Transform[ 2 ][ 0 ] = 0.0f; desc.Transform[ 2 ][ 1 ] = 0.0f; desc.Transform[ 2 ][ 2 ] = 1.0f; desc.Transform[ 2 ][ 3 ] = 0.0f;
 		desc.InstanceID = index;
 		desc.InstanceMask = 0xFF;
 		desc.InstanceContributionToHitGroupIndex = 0;
@@ -1344,7 +1352,7 @@ IGPIRayTraceTopLevelASRef GPI_DX12::CreateRayTraceTopLevelAS( const std::vector<
 	CHECK_HRESULT( _device->CreateCommittedResource( &defaultHeapProp,
 				   D3D12_HEAP_FLAG_NONE,
 				   &instanceDescResourceDesc,
-				   D3D12_RESOURCE_STATE_GENERIC_READ,
+				   D3D12_RESOURCE_STATE_COMMON,
 				   nullptr,
 				   IID_PPV_ARGS( &instanceDescResource ) ),
 				   L"Failed to create output buffer." );
@@ -1834,9 +1842,12 @@ void GPI_DX12::RunCS()
 	//WaitForFence( cmdQueueCtx );
 }
 
-void GPI_DX12::RayTrace( const GPIPipelineStateDesc& desc, const IGPIRayTraceTopLevelASRef& inRTRAS )
+void GPI_DX12::RayTrace( const GPIPipelineStateDesc& desc, const IGPIRayTraceTopLevelASRef& inRTRAS, IGPIShaderResourceViewRef testNormalSRV, IGPIShaderResourceViewRef testIndexSRV )
 {
 	assert( _pipelineCache.contains( desc.id ) );
+
+	std::shared_ptr<GPIShaderResourceView_DX12> testNormalSRV1 = std::static_pointer_cast< GPIShaderResourceView_DX12 >( testNormalSRV );
+	std::shared_ptr<GPIShaderResourceView_DX12> testIndexSRV1 = std::static_pointer_cast< GPIShaderResourceView_DX12 >( testIndexSRV );
 
 	std::shared_ptr<GPIPipeline_DX12>& pipeline = _pipelineCache[ desc.id ];
 
@@ -1859,7 +1870,10 @@ void GPI_DX12::RayTrace( const GPIPipelineStateDesc& desc, const IGPIRayTraceTop
 		cmdList->SetComputeRootDescriptorTable( rootParamIndex++, pipeline->uavHandle[ index ] );
 	}
 	std::shared_ptr<GPIRayTraceTopLevelAS_DX12> rtrAS = std::static_pointer_cast< GPIRayTraceTopLevelAS_DX12 >( inRTRAS );
-	cmdList->SetComputeRootShaderResourceView( rootParamIndex++, rtrAS->/*bottomLevel[0]->*/gpuAddress);
+	cmdList->SetComputeRootShaderResourceView( rootParamIndex++, rtrAS->gpuAddress );
+	cmdList->SetComputeRootShaderResourceView( rootParamIndex++, testNormalSRV1->gpuAddress );
+	cmdList->SetComputeRootShaderResourceView( rootParamIndex++, testIndexSRV1->gpuAddress );
+	cmdList->SetComputeRootConstantBufferView( rootParamIndex++, pipeline->cbv[ 0 ] );
 
 	D3D12_DISPATCH_RAYS_DESC dispatchRays{};
 	dispatchRays.RayGenerationShaderRecord.StartAddress = pipeline->raytrace.resource->GetGPUVirtualAddress();

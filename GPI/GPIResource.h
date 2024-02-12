@@ -60,6 +60,7 @@ struct GPIShaderResourceViewDesc
 {
 	EGPIResourceFormat format;
 	EGPIResourceDimension dimension;
+	uint32 numElements;
 };
 
 struct GPIUnorderedAccessViewDesc
