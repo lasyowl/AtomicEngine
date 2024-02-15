@@ -90,23 +90,32 @@ namespace
 		//ECSAddSystem<LightSystem>();
 
 		{
-			Entity entity0 = ECSCreateEntityWithMetaData( 0 );
-			ECSAddComponent<TransformComponent>( entity0, nullptr );
+			Entity entity0 = ECSCreateEntity();
+			TransformComponent transformComp{};
+			transformComp.scale = Vec3( 1.0f, 1.0f, 1.0f );
+			ECSAddComponent<TransformComponent>( entity0, &transformComp );
 
 			PrimitiveComponent primComp;
 			primComp.staticMeshGroup = StaticMeshCache::AddStaticMeshGroup( "teapot", *AssetLoader::LoadStaticMeshData( "../Resource/teapot.obj" ) );
 			ECSAddComponent<PrimitiveComponent>( entity0, &primComp );
 		}
 
-		/*Entity entity = ECSCreateEntityWithMetaData( 1 );
-		ECSAddComponent<TransformComponent>( entity, nullptr );
-		PrimitiveComponent primComp;
-		primComp.staticMeshGroup = StaticMeshCache::AddStaticMeshGroup( "sponza", *AssetLoader::LoadStaticMeshData( "../Resource/Sponza-master/sponza.obj" ) );
-		ECSAddComponent<PrimitiveComponent>( entity, nullptr );*/
+		{
+			Entity entity = ECSCreateEntity();
+			TransformComponent transformComp{};
+			transformComp.position = Vec3( 0.0f, 0.0f, 0.0f );
+			transformComp.scale = Vec3( 10.0f, 10.0f, 10.0f );
+			ECSAddComponent<TransformComponent>( entity, &transformComp );
+			PrimitiveComponent primComp;
+			primComp.staticMeshGroup = StaticMeshCache::FindStaticMeshGroup( "plane" );
+			ECSAddComponent<PrimitiveComponent>( entity, &primComp );
+		}
 
 		{
-			Entity entityCube = ECSCreateEntityWithMetaData( 2 );
-			ECSAddComponent<TransformComponent>( entityCube, nullptr );
+			Entity entityCube = ECSCreateEntity();
+			TransformComponent transformComp{};
+			transformComp.scale = Vec3( 10.0f, 10.0f, 10.0f );
+			ECSAddComponent<TransformComponent>( entityCube, &transformComp );
 
 			PrimitiveComponent primComp;
 			primComp.staticMeshGroup = StaticMeshCache::FindStaticMeshGroup( "sphere" );

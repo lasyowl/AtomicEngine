@@ -7,9 +7,10 @@ enum class EGPIResourceFormat
 	B8G8R8A8_SRGB,
 	D32_Float,
 	R32_Float,
-	R32_Uint,
 	R32G32_Float,
 	R32G32B32_Float,
+	R32_Uint,
+	R32G32_Uint,
 };
 
 enum class EGPIResourceDimension

@@ -80,6 +80,7 @@ StaticMeshGroupRef& StaticMeshCache::FindStaticMeshGroup( const std::string& nam
 	{
 		_cache[ "cube" ] = BuildStaticMeshGroup( SampleMesh::GetCube() );
 		_cache[ "quad" ] = BuildStaticMeshGroup( SampleMesh::GetQuad() );
+		_cache[ "plane" ] = BuildStaticMeshGroup( SampleMesh::GetPlane() );
 		_cache[ "sphere" ] = BuildStaticMeshGroup( SampleMesh::GetSphere() );
 
 		bInit = false;

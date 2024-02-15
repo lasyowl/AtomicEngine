@@ -5,21 +5,33 @@ namespace SampleMesh
 {
 StaticMeshData GetQuad()
 {
-	StaticMeshData quad;
-	quad.name = "quad";
-	quad.position = { { -1.0f, 1.0f, 0 }, { 1.0f, 1.0f, 0 }, { 1.0f, -1.0f, 0 }, { -1.0f, -1.0f, 0 } };
-	quad.normal = { { 0, 0, -1 }, { 0, 0, -1 }, { 0, 0, -1 }, { 0, 0, -1 } };
-	quad.uv = { { 0, 0 }, { 1, 0 }, { 1, 1 }, { 0, 1 } };
-	quad.indices = { { { 0, 1, 2 }, { 2, 3, 0 } } };
+	StaticMeshData data;
+	data.name = "quad";
+	data.position = { { -1.0f, 1.0f, 0 }, { 1.0f, 1.0f, 0 }, { 1.0f, -1.0f, 0 }, { -1.0f, -1.0f, 0 } };
+	data.normal = { { 0, 0, -1 }, { 0, 0, -1 }, { 0, 0, -1 }, { 0, 0, -1 } };
+	data.uv = { { 0, 0 }, { 1, 0 }, { 1, 1 }, { 0, 1 } };
+	data.indices = { { { 0, 1, 2 }, { 2, 3, 0 } } };
 
-	return quad;
+	return data;
+}
+
+StaticMeshData GetPlane()
+{
+	StaticMeshData data;
+	data.name = "plane";
+	data.position = { { -1, 0, 1 }, { 1, 0, 1 }, { 1, 0, -1 }, { -1, 0, -1 } };
+	data.normal = { { 0, 1, 0 }, { 0, 1, 0 }, { 0, 1, 0 }, { 0, 1, 0 } };
+	data.uv = { { 0, 0 }, { 1, 0 }, { 1, 1 }, { 0, 1 } };
+	data.indices = { { { 0, 1, 2 }, { 2, 3, 0 } } };
+
+	return data;
 }
 
 StaticMeshData GetCube()
 {
-	StaticMeshData cube;
-	cube.name = "cube";
-	cube.position = { 
+	StaticMeshData data;
+	data.name = "cube";
+	data.position = {
 		{ -1.0f, 1.0f, 1.0f }, { 1.0f, 1.0f, 1.0f }, { 1.0f, 1.0f, -1.0f }, { -1.0f, 1.0f, -1.0f },
 		{ -1.0f, 1.0f, -1.0f }, { 1.0f, 1.0f, -1.0f }, { 1.0f, -1.0f, -1.0f }, { -1.0f, -1.0f, -1.0f },
 		{ -1.0f, 1.0f, 1.0f }, { -1.0f, 1.0f, -1.0f }, { -1.0f, -1.0f, -1.0f }, { -1.0f, -1.0f, 1.0f },
@@ -27,7 +39,7 @@ StaticMeshData GetCube()
 		{ 1.0f, 1.0f, -1.0f }, { 1.0f, 1.0f, 1.0f }, { 1.0f, -1.0f, 1.0f }, { 1.0f, -1.0f, -1.0f },
 		{ -1.0f, -1.0f, -1.0f }, { 1.0f, -1.0f, -1.0f }, { 1.0f, -1.0f, 1.0f }, { -1.0f, -1.0f, 1.0f }
 	};
-	cube.normal = { 
+	data.normal = {
 		{ 0.0f, 1.0f, 0.0f }, { 0.0f, 1.0f, 0.0f }, { 0.0f, 1.0f, 0.0f }, { 0.0f, 1.0f, 0.0f },
 		{ 0.0f, 0.0f, -1.0f }, { 0.0f, 0.0f, -1.0f }, { 0.0f, 0.0f, -1.0f }, { 0.0f, 0.0f, -1.0f },
 		{ -1.0f, 0.0f, 0.0f }, { -1.0f, 0.0f, 0.0f }, { -1.0f, 0.0f, 0.0f }, { -1.0f, 0.0f, 0.0f },
@@ -35,8 +47,8 @@ StaticMeshData GetCube()
 		{ 1.0f, 0.0f, 0.0f }, { 1.0f, 0.0f, 0.0f }, { 1.0f, 0.0f, 0.0f }, { 1.0f, 0.0f, 0.0f },
 		{ 0.0f, -1.0f, 0.0f }, { 0.0f, -1.0f, 0.0f }, { 0.0f, -1.0f, 0.0f }, { 0.0f, -1.0f, 0.0f }
 	};
-	cube.uv = { { 0, 0 }, { 1, 0 }, { 1, 1 }, { 0, 1 }, { 0, 0 }, { 1, 0 }, { 1, 1 }, { 0, 1 } }; // invalid
-	cube.indices = { {
+	data.uv = { { 0, 0 }, { 1, 0 }, { 1, 1 }, { 0, 1 }, { 0, 0 }, { 1, 0 }, { 1, 1 }, { 0, 1 } }; // invalid
+	data.indices = { {
 		{ 0, 1, 2 }, { 2, 3, 0 },
 		{ 4, 5, 6 }, { 6, 7, 4 },
 		{ 8, 9, 10 }, { 10, 11, 8 },
@@ -45,7 +57,7 @@ StaticMeshData GetCube()
 		{ 20, 21, 22 }, { 22, 23, 20 } }
 	};
 
-	return cube;
+	return data;
 }
 
 StaticMeshData GetSphere()

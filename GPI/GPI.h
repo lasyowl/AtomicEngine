@@ -54,6 +54,8 @@ public:
 	virtual IGPIVertexBufferViewRef CreateVertexBufferView( const IGPIResource& inResource, const uint32 size, const uint32 stride ) abstract;
 	virtual IGPIIndexBufferViewRef CreateIndexBufferView( const IGPIResource& inResource, const uint32 size ) abstract;
 
+	virtual void CopyBufferRegion( const IGPIResource& inCopyDst, const IGPIResource& inCopySrc, const uint32 copyDstByteOffset, const uint32 copyByteSize ) abstract;
+
 	virtual void BindRenderTargetView( IGPIPipeline& inPipeline, const IGPIRenderTargetView& inRTV, uint32 index ) abstract;
 	virtual void BindConstantBufferView( IGPIPipeline& inPipeline, const IGPIConstantBufferView& inCBV, uint32 index ) abstract;
 	virtual void BindShaderResourceView( IGPIPipeline& inPipeline, const IGPIShaderResourceView& inSRV, uint32 index ) abstract;
@@ -67,7 +69,7 @@ public:
 
 	virtual void RunCS() abstract;
 
-	virtual void RayTrace( const GPIPipelineStateDesc& desc, const IGPIRayTraceTopLevelASRef& inRTRAS, IGPIShaderResourceViewRef testNormalSRV, IGPIShaderResourceViewRef testIndexSRV ) abstract;
+	virtual void RayTrace( const GPIPipelineStateDesc& desc, const IGPIRayTraceTopLevelASRef& inRTRAS, IGPIShaderResourceViewRef testNormalSRV, IGPIShaderResourceViewRef testIndexSRV, IGPIShaderResourceViewRef testIndexOffsetSRV ) abstract;
 
 	void SetWindowSize( const IVec2& size ) { _windowSize = size; }
 	IVec2 GetWindowSize() { return _windowSize; }

@@ -148,6 +148,7 @@
     <ClCompile Include="DebugUtil.cpp" />
     <ClCompile Include="IntVector.cpp" />
     <ClCompile Include="Math.cpp" />
+    <ClCompile Include="Matrix.cpp" />
     <ClCompile Include="Vector.cpp" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />

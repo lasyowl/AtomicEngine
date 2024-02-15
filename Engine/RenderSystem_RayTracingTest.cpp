@@ -4,9 +4,19 @@
 #include <GPI/GPI.h>
 #include <GPI/GPIPipeline.h>
 #include <GPI/GPIUtility.h>
+#include <Core/Math.h>
+#include <Engine/TransformComponent.h>
+#include <Engine/PrimitiveComponent.h>
 
 void RenderSystem::RayTracingTest( std::array<std::unique_ptr<IComponentRegistry>, NUM_COMPONENT_MAX>& componentRegistry )
 {
+	ComponentRegistry<TransformComponent>* transformCompReg = GetRegistry<TransformComponent>( componentRegistry );
+	ComponentRegistry<PrimitiveComponent>* renderCompReg = GetRegistry<PrimitiveComponent>( componentRegistry );
+	if( !transformCompReg || !renderCompReg )
+	{
+		return;
+	}
+
 	static GPIPipelineStateDesc pipelineDesc{};
 	static IGPIPipelineRef pipeline = nullptr;
 	if( !pipeline )
@@ -28,32 +38,102 @@ void RenderSystem::RayTracingTest( std::array<std::unique_ptr<IComponentRegistry
 		AtomicEngine::GetGPI()->BindUnorderedAccessView( *pipeline, *_sceneLightUAV, 0 );
 	}
 
-	static IGPIRayTraceBottomLevelASRef bottomLevelAS = nullptr;
 	static IGPIRayTraceTopLevelASRef topLevelAS = nullptr;
-	static IGPIResourceRef testResource = nullptr;
 	static IGPIShaderResourceViewRef testNormalSRV = nullptr;
 	static IGPIShaderResourceViewRef testIndexSRV = nullptr;
-	if( !bottomLevelAS )
+	static IGPIShaderResourceViewRef testDataOffsetSRV = nullptr;
+	if( !topLevelAS )
 	{
-		StaticMeshGroupRef& staticMeshGroup = StaticMeshCache::FindStaticMeshGroup( "teapot" );
-		StaticMesh& staticMesh = staticMeshGroup->meshes[ 0 ];
+		uint32 testNormalResourceByteSize = 0;
+		uint32 testIndexResourceByteSize = 0;
+		std::vector<IGPIRayTraceBottomLevelASRef> blas;
 
-		GPIRayTraceBottomLevelASDesc bottomLevelASDesc{};
-		bottomLevelAS = AtomicEngine::GetGPI()->CreateRayTraceBottomLevelAS( bottomLevelASDesc, *staticMesh.pipelineInput.vbv[ 0 ], *staticMesh.pipelineInput.ibv[ 0 ] );
+		for( Entity entity = 0; entity < NUM_ENTITY_MAX; ++entity )
+		{
+			if( !renderCompReg->HasComponent( entity ) )
+			{
+				continue;
+			}
 
-		std::vector<IGPIRayTraceBottomLevelASRef> bottomLevelASs = { bottomLevelAS };
+			PrimitiveComponent& primitiveComp = renderCompReg->GetComponent( entity );
+			TransformComponent& transformComp = transformCompReg->GetComponent( entity );
+
+			if( !primitiveComp.staticMeshGroup ) continue;
+
+			StaticMesh& staticMesh = primitiveComp.staticMeshGroup->meshes[ 0 ];
+			testNormalResourceByteSize += staticMesh.pipelineInput.vbv[ 1 ]->size;
+			testIndexResourceByteSize += staticMesh.pipelineInput.ibv[ 0 ]->size;
+
+			GPIRayTraceBottomLevelASDesc bottomLevelASDesc{};
+			bottomLevelASDesc.transform = Mat4x4::identity;
+			bottomLevelASDesc.transform = AEMath::GetTransposedMatrix( AEMath::GetScaleMatrix( transformComp.scale ) * AEMath::GetRotationMatrix( transformComp.rotation ) * AEMath::GetTranslateMatrix( transformComp.position ) );
+			IGPIRayTraceBottomLevelASRef bottomLevelAS = AtomicEngine::GetGPI()->CreateRayTraceBottomLevelAS( bottomLevelASDesc, *staticMesh.pipelineInput.vbv[ 0 ], *staticMesh.pipelineInput.ibv[ 0 ] );
+			blas.push_back( bottomLevelAS );
+		}
+
 		GPIRayTraceTopLevelASDesc topLevelASDesc{};
-		topLevelAS = AtomicEngine::GetGPI()->CreateRayTraceTopLevelAS( bottomLevelASs, topLevelASDesc );
+		topLevelAS = AtomicEngine::GetGPI()->CreateRayTraceTopLevelAS( blas, topLevelASDesc );
+
+		/* Create resource */
+		GPIResourceDesc resourceDesc{};
+		resourceDesc.dimension = EGPIResourceDimension::Buffer;
+		resourceDesc.format = EGPIResourceFormat::Unknown;
+		resourceDesc.width = testNormalResourceByteSize;
+		resourceDesc.height = 1;
+		resourceDesc.depth = 1;
+		resourceDesc.numMips = 1;
+		resourceDesc.flags = GPIResourceFlag_None;
+		resourceDesc.initialState = GPIResourceState_AllShaderResource;
+		topLevelAS->normalResource = AtomicEngine::GetGPI()->CreateResource( resourceDesc );
+
+		resourceDesc.width = testIndexResourceByteSize;
+		topLevelAS->indexResource = AtomicEngine::GetGPI()->CreateResource( resourceDesc );
+
+		uint32 normalResourceOffset = 0;
+		uint32 indexResourceOffset = 0;
+		std::vector<uint32> dataOffset;
+		dataOffset.reserve( blas.size() * 2 );
+
+		for( Entity entity = 0; entity < NUM_ENTITY_MAX; ++entity )
+		{
+			if( !renderCompReg->HasComponent( entity ) )
+			{
+				continue;
+			}
+
+			PrimitiveComponent& primitiveComp = renderCompReg->GetComponent( entity );
+			TransformComponent& transformComp = transformCompReg->GetComponent( entity );
+
+			if( !primitiveComp.staticMeshGroup ) continue;
+
+			StaticMesh& staticMesh = primitiveComp.staticMeshGroup->meshes[ 0 ];
+
+			AtomicEngine::GetGPI()->CopyBufferRegion( *topLevelAS->normalResource, *staticMesh.normalResource, normalResourceOffset, staticMesh.pipelineInput.vbv[ 1 ]->size );
+			AtomicEngine::GetGPI()->CopyBufferRegion( *topLevelAS->indexResource, *staticMesh.indexResource[ 0 ], indexResourceOffset, staticMesh.pipelineInput.ibv[ 0 ]->size );
+
+			dataOffset.emplace_back( normalResourceOffset / 12 );
+			dataOffset.emplace_back( indexResourceOffset / sizeof( uint32 ) );
+			normalResourceOffset += staticMesh.pipelineInput.vbv[ 1 ]->size;
+			indexResourceOffset += staticMesh.pipelineInput.ibv[ 0 ]->size;
+		}
+
+		resourceDesc.width = dataOffset.size() * sizeof( uint32 );
+		topLevelAS->dataOffsetResource = AtomicEngine::GetGPI()->CreateResource( resourceDesc, dataOffset.data(), resourceDesc.width );
 
 		GPIShaderResourceViewDesc srvDesc{};
 		srvDesc.format = EGPIResourceFormat::R32G32B32_Float;
 		srvDesc.dimension = EGPIResourceDimension::Buffer;
-		srvDesc.numElements = staticMesh.pipelineInput.vbv[ 1 ]->size / staticMesh.pipelineInput.vbv[ 1 ]->stride;
-		testNormalSRV = AtomicEngine::GetGPI()->CreateShaderResourceView( *staticMesh.normalResource, srvDesc );
+		srvDesc.numElements = testNormalResourceByteSize / 12;
+		testNormalSRV = AtomicEngine::GetGPI()->CreateShaderResourceView( *topLevelAS->normalResource, srvDesc );
+
 		srvDesc.format = EGPIResourceFormat::R32_Uint;
-		srvDesc.numElements = staticMesh.pipelineInput.ibv[ 0 ]->size / 4;
-		testIndexSRV = AtomicEngine::GetGPI()->CreateShaderResourceView( *staticMesh.indexResource[ 0 ], srvDesc );
+		srvDesc.numElements = testIndexResourceByteSize / 4;
+		testIndexSRV = AtomicEngine::GetGPI()->CreateShaderResourceView( *topLevelAS->indexResource, srvDesc );
+
+		srvDesc.format = EGPIResourceFormat::R32G32_Uint;
+		srvDesc.numElements = dataOffset.size() / 2;
+		testDataOffsetSRV = AtomicEngine::GetGPI()->CreateShaderResourceView( *topLevelAS->dataOffsetResource, srvDesc );
 	}
 
-	AtomicEngine::GetGPI()->RayTrace( pipelineDesc, topLevelAS, testNormalSRV, testIndexSRV );
+	AtomicEngine::GetGPI()->RayTrace( pipelineDesc, topLevelAS, testNormalSRV, testIndexSRV, testDataOffsetSRV );
 }

@@ -46,7 +46,7 @@ float4 PS_DirectionalLight (
     if(gDiffuse.Sample(smp, uv).r == 0) discard;
 
     float3 lightColor = float3(0.4, 0.4, 0.7);
-    float3 lightNormal = normalize(float3(0, 0, 1));
+    float3 lightNormal = normalize(float3(0, -1, 1));
 
     float3 surfaceNormal = normalize(2.0f * gNormal.Sample(smp, uv).xyz - 1.0f);
     float3 diffuse = lightColor * dot(-lightNormal, surfaceNormal);

@@ -6,6 +6,8 @@ struct Mat4x4
 {
 	DirectX::XMMATRIX mat;
 
+	static const Mat4x4 identity;
+
 	void Inverse()
 	{
 		DirectX::XMVECTOR det = DirectX::XMMatrixDeterminant( mat );

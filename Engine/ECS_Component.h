@@ -10,7 +10,7 @@ struct IComponentRegistry
 	virtual ~IComponentRegistry() {}
 
 	virtual uint32 GetComponentSize() abstract;
-	virtual void AddComponent( Entity entity, void* data ) abstract;
+	virtual void AddComponent( Entity entity, const void* data ) abstract;
 	virtual bool HasComponent( Entity entity ) abstract;
 };
 
@@ -24,7 +24,7 @@ struct ComponentRegistry : public IComponentRegistry
 
 	virtual uint32 GetComponentSize() override { return sizeof( T ); }
 
-	virtual void AddComponent( Entity entity, void* data ) override
+	virtual void AddComponent( Entity entity, const void* data ) override
 	{
 		if( data )
 		{

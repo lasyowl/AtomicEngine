@@ -29,7 +29,7 @@ public:
 	uint32 GetComponentSize( ECSComponentType type ) { return _componentRegistry[ type ]->GetComponentSize(); }
 
 	template<typename T>
-	void AddComponent( Entity entity, T* data )
+	void AddComponent( Entity entity, const T* data )
 	{
 		std::unique_ptr<IComponentRegistry>& componentRegistry = _componentRegistry[ T::type ];
 		if( !componentRegistry )
@@ -70,7 +70,7 @@ Entity ECSCreateEntity();
 Entity ECSCreateEntityWithMetaData( uint64 assetHash );
 
 template<typename T>
-void ECSAddComponent( Entity entity, T* data )
+void ECSAddComponent( Entity entity, const T* data )
 {
 	ECS::GetInstance().AddComponent<T>( entity, data );
 }

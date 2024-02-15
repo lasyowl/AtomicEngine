@@ -82,9 +82,10 @@ constexpr DXGI_FORMAT TranslateResourceFormat( const EGPIResourceFormat format )
 		case EGPIResourceFormat::B8G8R8A8_SRGB:		return DXGI_FORMAT_B8G8R8A8_UNORM_SRGB;
 		case EGPIResourceFormat::D32_Float:			return DXGI_FORMAT_D32_FLOAT;
 		case EGPIResourceFormat::R32_Float:			return DXGI_FORMAT_R32_FLOAT;
-		case EGPIResourceFormat::R32_Uint:			return DXGI_FORMAT_R32_UINT;
 		case EGPIResourceFormat::R32G32_Float:		return DXGI_FORMAT_R32G32_FLOAT;
 		case EGPIResourceFormat::R32G32B32_Float:	return DXGI_FORMAT_R32G32B32_FLOAT;
+		case EGPIResourceFormat::R32_Uint:			return DXGI_FORMAT_R32_UINT;
+		case EGPIResourceFormat::R32G32_Uint:		return DXGI_FORMAT_R32G32_UINT;
 	}
 
 	return DXGI_FORMAT_UNKNOWN;

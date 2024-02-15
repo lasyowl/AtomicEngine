@@ -1,6 +1,7 @@
 #pragma once
 
 #include <Core/Vector.h>
+#include <Core/Matrix.h>
 #include "GPIDefine.h"
 
 enum class EGPIResourceFormat;
@@ -76,6 +77,7 @@ struct GPISamplerDesc
 
 struct GPIRayTraceBottomLevelASDesc
 {
+	Mat4x4 transform;
 };
 
 struct GPIRayTraceTopLevelASDesc
@@ -88,7 +90,10 @@ struct GPIRayTraceTopLevelASDesc
 struct IGPIResource
 {
 	virtual ~IGPIResource() {}
+
+	EGPIResourceStates state;
 };
+using IGPIResourceRef = std::shared_ptr<IGPIResource>;
 
 struct IGPIRenderTargetView
 {
@@ -142,15 +147,16 @@ struct IGPIRayTraceView
 
 struct IGPIRayTraceBottomLevelAS
 {
-
+	Mat4x4 transform;
 };
 
 struct IGPIRayTraceTopLevelAS
 {
-
+	IGPIResourceRef normalResource;
+	IGPIResourceRef indexResource;
+	IGPIResourceRef dataOffsetResource;
 };
 
-using IGPIResourceRef = std::shared_ptr<IGPIResource>;
 using IGPIRenderTargetViewRef = std::shared_ptr<IGPIRenderTargetView>;
 using IGPIDepthStencilViewRef = std::shared_ptr<IGPIDepthStencilView>;
 using IGPIConstantBufferViewRef = std::shared_ptr<IGPIConstantBufferView>;

@@ -104,6 +104,8 @@ public:
 	virtual IGPIVertexBufferViewRef CreateVertexBufferView( const IGPIResource& inResource, const uint32 size, const uint32 stride ) override;
 	virtual IGPIIndexBufferViewRef CreateIndexBufferView( const IGPIResource& inResource, const uint32 size ) override;
 
+	virtual void CopyBufferRegion( const IGPIResource& inCopyDst, const IGPIResource& inCopySrc, const uint32 copyDstByteOffset, const uint32 copyByteSize ) override;
+
 	virtual void BindRenderTargetView( IGPIPipeline& inPipeline, const IGPIRenderTargetView& inRTV, uint32 index ) override;
 	virtual void BindConstantBufferView( IGPIPipeline& inPipeline, const IGPIConstantBufferView& inCBV, uint32 index ) override;
 	virtual void BindShaderResourceView( IGPIPipeline& inPipeline, const IGPIShaderResourceView& inSRV, uint32 index ) override;
@@ -117,7 +119,7 @@ public:
 
 	virtual void RunCS() override;
 
-	virtual void RayTrace( const GPIPipelineStateDesc& desc, const IGPIRayTraceTopLevelASRef& inRTRAS, IGPIShaderResourceViewRef testNormalSRV, IGPIShaderResourceViewRef testIndexSRV ) override;
+	virtual void RayTrace( const GPIPipelineStateDesc& desc, const IGPIRayTraceTopLevelASRef& inRTRAS, IGPIShaderResourceViewRef testNormalSRV, IGPIShaderResourceViewRef testIndexSRV, IGPIShaderResourceViewRef testIndexOffsetSRV ) override;
 
 private:
 	void SetGraphicsPipelineState( const GPIPipelineStateDesc& desc, const GPIPipeline_DX12& pipeline );
