@@ -1114,6 +1114,7 @@ IGPIPipelineRef GPI_DX12::CreatePipelineState( const GPIPipelineStateDesc& pipel
 			uint8 shaderIdentifier[ D3D12_SHADER_IDENTIFIER_SIZE_IN_BYTES ];
 			uint64 rootParams[ 1 ];
 		} shaderParam;
+		ShaderParam1 shaderParam1[ 2 ];
 
 		// ray generation
 		memcpy( shaderParam.shaderIdentifier, pipelineState->raytrace.stateProperties->GetShaderIdentifier( L"RayGeneration" ), D3D12_SHADER_IDENTIFIER_SIZE_IN_BYTES );
@@ -1137,10 +1138,11 @@ IGPIPipelineRef GPI_DX12::CreatePipelineState( const GPIPipelineStateDesc& pipel
 		pipelineState->raytrace.resource1 = CreateResource_Inner( desc, &shaderParam, sizeof( shaderParam ) );
 
 		// 
-		memcpy( shaderParam.shaderIdentifier, pipelineState->raytrace.stateProperties->GetShaderIdentifier( L"Miss" ), D3D12_SHADER_IDENTIFIER_SIZE_IN_BYTES );
-		memcpy( shaderParam.shaderIdentifier + D3D12_SHADER_IDENTIFIER_SIZE_IN_BYTES, pipelineState->raytrace.stateProperties->GetShaderIdentifier( L"Miss" ), D3D12_SHADER_IDENTIFIER_SIZE_IN_BYTES );
+		memcpy( shaderParam1[ 0 ].shaderIdentifier, pipelineState->raytrace.stateProperties->GetShaderIdentifier( L"Miss" ), D3D12_SHADER_IDENTIFIER_SIZE_IN_BYTES );
+		memcpy( shaderParam1[ 1 ].shaderIdentifier, pipelineState->raytrace.stateProperties->GetShaderIdentifier( L"ShadowMiss" ), D3D12_SHADER_IDENTIFIER_SIZE_IN_BYTES );
 		desc.name = L"RayTraceTest_Miss";
-		pipelineState->raytrace.resource2 = CreateResource_Inner( desc, &shaderParam, sizeof( shaderParam ) );
+		desc.width = sizeof( shaderParam1 );
+		pipelineState->raytrace.resource2 = CreateResource_Inner( desc, &shaderParam1, sizeof( shaderParam1 ) );
 
 		///////////////////////////////////////////////////////////
 		pipelineState->uav.resize( pipelineDesc.numUAVs );

@@ -41,8 +41,16 @@ struct ShadowPayload
     bool bHit;
 };
 
+float RandomValue(inout uint state)
+{
+    state = state * 747796405 + 2891336453;
+    uint result = ((state >> ((state >> 28) + 4)) ^ state) * 277803737;
+    result = (result >> 22) ^ result;
+    return result / 4294967295.0;
+}
+
 // Generate a ray in world space for a camera pixel corresponding to an index from the dispatched 2D grid.
-inline void GenerateCameraRay(uint2 index, out float3 origin, out float3 direction)
+inline void GenerateCameraRay(uint2 index, out float3 origin, out float3 target)
 {
     float2 xy = index + 0.5f; // center in the middle of the pixel.
     float2 screenPos = xy / DispatchRaysDimensions().xy * 2.0 - 1.0;
@@ -55,7 +63,7 @@ inline void GenerateCameraRay(uint2 index, out float3 origin, out float3 directi
 
     world.xyz /= world.w;
     origin = viewPosition;
-    direction = normalize(world.xyz - origin);
+    target = world.xyz;
 }
 
 [shader("raygeneration")]
@@ -63,32 +71,70 @@ void RayGeneration()
 {
     uint2 rayIdx = DispatchRaysIndex().xy;
 
-    float3 rayDir;
+    float3 target;
     float3 origin;
     
     // Generate a ray for a camera pixel corresponding to an index from the dispatched 2D grid.
-    GenerateCameraRay(rayIdx, origin, rayDir);
+    GenerateCameraRay(rayIdx, origin, target);
+    
+    //float3 rayDir = normalize(target - origin);
 
-    RayDesc ray;
-    ray.Origin = origin;
-    ray.Direction = rayDir;
-    ray.TMin = 0.00001f;
-    ray.TMax = 10000.0f;
+    // RayDesc ray;
+    // ray.Origin = origin;
+    // ray.Direction = rayDir;
+    // ray.TMin = 0.00001f;
+    // ray.TMax = 10000.0f;
 
-    Payload payload;
-    payload.recursion = 3;
-    TraceRay(
-        topLevelAS,
-        RAY_FLAG_NONE,
-        0xFF,
-        0,
-        0,
-        0,
-        ray,
-        payload
-    );
+    // Payload payload;
+    // payload.recursion = 3;
+    // TraceRay(
+    //     topLevelAS,
+    //     RAY_FLAG_NONE,
+    //     0xFF,
+    //     0,
+    //     0,
+    //     0,
+    //     ray,
+    //     payload
+    // );
 
-    renderTarget[rayIdx] = payload.color;
+    //renderTarget[rayIdx] = payload.color;
+
+    { /* Depth of field */
+        float4 color = 0;
+
+        uint seed = rayIdx.x + rayIdx.y * 1920;
+        for(uint iter = 0; iter < 5; ++iter)
+        {
+            //float3 randomDir = normalize(float3(RandomValue(seed), RandomValue(seed), RandomValue(seed)));
+            float2 jitterXY = normalize(float2(RandomValue(seed), RandomValue(seed)));
+            float3 jitter = 0.001f * float3(jitterXY, 0);
+            float3 direction = normalize(target - origin + jitter);
+
+            RayDesc ray;
+            ray.Origin = origin;
+            ray.Direction = direction;//normalize(300 * rayDir + randomDir);
+            ray.TMin = 0.00001f;
+            ray.TMax = 10000.0f;
+
+            Payload payload;
+            payload.recursion = 3;
+            TraceRay(
+                topLevelAS,
+                RAY_FLAG_NONE,
+                0xFF,
+                0,
+                0,
+                0,
+                ray,
+                payload
+            );
+
+            color += payload.color;
+        }
+
+        renderTarget[rayIdx] = color / color.w;
+    }
 }
 
 struct BuiltInAttribute
@@ -170,8 +216,9 @@ void Hit(inout Payload inPayload : SV_Payload, BuiltInAttribute attr)
     float3 normal = normalize(normal0 + attr.barycentrics.x * (normal1 - normal0) + attr.barycentrics.y * (normal2 - normal0));
     normal = mul(float4(normal, 1.0f), instanceContext.matRotation).xyz;
 
+    float rayT = RayTCurrent();
     float3 rayDirection = WorldRayDirection();
-    float3 hitPosition = WorldRayOrigin() + RayTCurrent() * rayDirection;
+    float3 hitPosition = WorldRayOrigin() + rayT * rayDirection;
 
     float3 lightPosition = float3(0, 15, 0);
     float3 lightDirection = normalize(hitPosition - lightPosition);
@@ -193,25 +240,25 @@ void Hit(inout Payload inPayload : SV_Payload, BuiltInAttribute attr)
     
     if(inPayload.recursion > 0 && HitKind() == 254)
     {
-        RayDesc shadowRay;
-        shadowRay.Origin = hitPosition;
-        shadowRay.Direction = -lightDirection;
-        shadowRay.TMin = 0.0001f;
-        shadowRay.TMax = 10000.0f;
+        // RayDesc shadowRay;
+        // shadowRay.Origin = hitPosition;
+        // shadowRay.Direction = -lightDirection;
+        // shadowRay.TMin = 0.0001f;
+        // shadowRay.TMax = length(hitPosition - lightPosition);
 
-        ShadowPayload shadowPayload;
-        shadowPayload.bHit = true;
+        // ShadowPayload shadowPayload;
+        // shadowPayload.bHit = true;
 
-        TraceRay(
-            topLevelAS,
-            RAY_FLAG_NONE,
-            0xFF,
-            1,
-            0,
-            1,
-            shadowRay,
-            shadowPayload
-        );
+        // TraceRay(
+        //     topLevelAS,
+        //     RAY_FLAG_NONE,
+        //     0xFF,
+        //     0,
+        //     0,
+        //     1,
+        //     shadowRay,
+        //     shadowPayload
+        // );
 
         RayDesc reflectionRay;
         reflectionRay.Origin = hitPosition;
@@ -239,8 +286,7 @@ void Hit(inout Payload inPayload : SV_Payload, BuiltInAttribute attr)
         //inPayload.color.xyz *= factor;
     }
 
-    float t = RayTCurrent();
-    inPayload.color = lerp(inPayload.color, float4(0.3f, 0.3f, 0.7f, 1), 1.0f - exp(-0.000002 * t * t * t));
+    inPayload.color = lerp(inPayload.color, float4(0.3f, 0.3f, 0.7f, 1), 1.0f - exp(-0.000002 * rayT * rayT * rayT));
 }
 
 [shader("miss")]
