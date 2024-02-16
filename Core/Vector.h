@@ -47,7 +47,14 @@ struct Vec3
 	float y;
 	float z;
 
+	static const Vec3 one;
+	static const Vec3 zero;
 	static const Vec3 up;
+	static const Vec3 down;
+	static const Vec3 left;
+	static const Vec3 right;
+	static const Vec3 front;
+	static const Vec3 back;
 
 	float Magnitude()
 	{

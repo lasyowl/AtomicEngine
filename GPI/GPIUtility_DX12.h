@@ -225,6 +225,7 @@ constexpr D3D12_SHADER_RESOURCE_VIEW_DESC TranslateSRVDesc( const IGPIResource& 
 	{
 		case EGPIResourceDimension::Buffer:
 			srvDesc.Buffer.NumElements = desc.numElements;
+			srvDesc.Buffer.StructureByteStride = desc.byteStride;
 			break;
 		case EGPIResourceDimension::Texture2D:
 			srvDesc.Texture2D.MipLevels = 1;

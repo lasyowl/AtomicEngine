@@ -69,7 +69,7 @@ public:
 
 	virtual void RunCS() abstract;
 
-	virtual void RayTrace( const GPIPipelineStateDesc& desc, const IGPIRayTraceTopLevelASRef& inRTRAS, IGPIShaderResourceViewRef testNormalSRV, IGPIShaderResourceViewRef testIndexSRV, IGPIShaderResourceViewRef testIndexOffsetSRV ) abstract;
+	virtual void RayTrace( const GPIPipelineStateDesc& desc, const IGPIRayTraceTopLevelASRef& inRTRAS, IGPIShaderResourceViewRef testNormalSRV, IGPIShaderResourceViewRef testIndexSRV, IGPIShaderResourceViewRef testIndexOffsetSRV, IGPIShaderResourceViewRef testMaterialSRV ) abstract;
 
 	void SetWindowSize( const IVec2& size ) { _windowSize = size; }
 	IVec2 GetWindowSize() { return _windowSize; }

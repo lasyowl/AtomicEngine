@@ -72,7 +72,7 @@ StaticMeshData GetSphere()
 		{ mn0, 0, mn1 }, { -mn0, 0, -mn1 }, { mn1, -mn0, 0 }, { -mn1, -mn0, 0 }
 	};
 
-	std::vector<IVec3> triangles = {
+	std::vector<IVec3> indices = {
 		{ 2, 1, 0 }, { 1, 2, 3 }, { 5, 4, 3 }, { 4, 8, 3 },
 		{ 7, 6, 0 }, { 6, 9, 0 }, { 11, 10, 4 }, { 10, 11, 6 },
 		{ 9, 5, 2 }, { 5, 9, 11 }, { 8, 7, 1 }, { 7, 8, 10 },
@@ -80,61 +80,70 @@ StaticMeshData GetSphere()
 		{ 11, 9, 6 }, { 7, 10, 6 }, { 5, 11, 4 }, { 10, 8, 4 }
 	};
 
-	std::map<std::pair<uint32, uint32>, uint32> splits;
-	std::vector<IVec3> trianglesNew;
-
-	for( uint32 index = 0; index < triangles.size(); ++index )
-	{
-		const IVec3& triangle = triangles[ index ];
-		const Vec3 vertex0 = vertices[ triangle.x ];
-		const Vec3 vertex1 = vertices[ triangle.y ];
-		const Vec3 vertex2 = vertices[ triangle.z ];
-
-		std::pair<uint32, uint32> splitKey0 = std::pair<uint32, uint32>( triangle.x, triangle.y );
-		std::pair<uint32, uint32> splitKey1 = std::pair<uint32, uint32>( triangle.y, triangle.z );
-		std::pair<uint32, uint32> splitKey2 = std::pair<uint32, uint32>( triangle.z, triangle.x );
-
-		if( !splits.contains( splitKey0 ) )
+	auto _tesselate = [ &vertices, &indices ]()
 		{
-			const uint32 splitIndex = vertices.size();
-			const Vec3 split = Vec3::Midpoint( vertex0, vertex1 ).Normalize();
-			vertices.push_back( split );
-			splits[ splitKey0 ] = splitIndex;
-		}
-		if( !splits.contains( splitKey1 ) )
-		{
-			const uint32 splitIndex = vertices.size();
-			const Vec3 split = Vec3::Midpoint( vertex1, vertex2 ).Normalize();
-			vertices.push_back( split );
-			splits[ splitKey1 ] = splitIndex;
-		}
-		if( !splits.contains( splitKey2 ) )
-		{
-			const uint32 splitIndex = vertices.size();
-			const Vec3 split = Vec3::Midpoint( vertex2, vertex0 ).Normalize();
-			vertices.push_back( split );
-			splits[ splitKey2 ] = splitIndex;
-		}
+			std::map<std::pair<uint32, uint32>, uint32> splits;
+			std::vector<IVec3> indicesNew;
 
-		uint32 newIndex0 = triangle.x;
-		uint32 newIndex1 = splits[ splitKey0 ];
-		uint32 newIndex2 = splits[ splitKey2 ];
-		uint32 newIndex3 = triangle.y;
-		uint32 newIndex4 = splits[ splitKey1 ];
-		uint32 newIndex5 = triangle.z;
+			for( uint32 index = 0; index < indices.size(); ++index )
+			{
+				const IVec3& triangle = indices[ index ];
+				const Vec3 vertex0 = vertices[ triangle.x ];
+				const Vec3 vertex1 = vertices[ triangle.y ];
+				const Vec3 vertex2 = vertices[ triangle.z ];
 
-		trianglesNew.push_back( IVec3( newIndex0, newIndex1, newIndex2 ) );
-		trianglesNew.push_back( IVec3( newIndex1, newIndex4, newIndex2 ) );
-		trianglesNew.push_back( IVec3( newIndex1, newIndex3, newIndex4 ) );
-		trianglesNew.push_back( IVec3( newIndex2, newIndex4, newIndex5 ) );
-	}
+				std::pair<uint32, uint32> splitKey0 = std::pair<uint32, uint32>( triangle.x, triangle.y );
+				std::pair<uint32, uint32> splitKey1 = std::pair<uint32, uint32>( triangle.y, triangle.z );
+				std::pair<uint32, uint32> splitKey2 = std::pair<uint32, uint32>( triangle.z, triangle.x );
+
+				if( !splits.contains( splitKey0 ) )
+				{
+					const uint32 splitIndex = vertices.size();
+					const Vec3 split = Vec3::Midpoint( vertex0, vertex1 ).Normalize();
+					vertices.push_back( split );
+					splits[ splitKey0 ] = splitIndex;
+				}
+				if( !splits.contains( splitKey1 ) )
+				{
+					const uint32 splitIndex = vertices.size();
+					const Vec3 split = Vec3::Midpoint( vertex1, vertex2 ).Normalize();
+					vertices.push_back( split );
+					splits[ splitKey1 ] = splitIndex;
+				}
+				if( !splits.contains( splitKey2 ) )
+				{
+					const uint32 splitIndex = vertices.size();
+					const Vec3 split = Vec3::Midpoint( vertex2, vertex0 ).Normalize();
+					vertices.push_back( split );
+					splits[ splitKey2 ] = splitIndex;
+				}
+
+				uint32 newIndex0 = triangle.x;
+				uint32 newIndex1 = splits[ splitKey0 ];
+				uint32 newIndex2 = splits[ splitKey2 ];
+				uint32 newIndex3 = triangle.y;
+				uint32 newIndex4 = splits[ splitKey1 ];
+				uint32 newIndex5 = triangle.z;
+
+				indicesNew.push_back( IVec3( newIndex0, newIndex1, newIndex2 ) );
+				indicesNew.push_back( IVec3( newIndex1, newIndex4, newIndex2 ) );
+				indicesNew.push_back( IVec3( newIndex1, newIndex3, newIndex4 ) );
+				indicesNew.push_back( IVec3( newIndex2, newIndex4, newIndex5 ) );
+			}
+
+			std::swap( indices, indicesNew );
+		};
+
+	_tesselate();
+	_tesselate();
+	_tesselate();
 
 	StaticMeshData sphere;
 	sphere.name = "sphere";
 	sphere.position = vertices;
 	sphere.normal = sphere.position;
-	sphere.uv = { { 0, 0 }, { 1, 0 }, { 1, 1 }, { 0, 1 }, { 0, 0 }, { 1, 0 }, { 1, 1 }, { 0, 1 } }; // invalid
-	sphere.indices = { trianglesNew };
+	//sphere.uv = { { 0, 0 }, { 1, 0 }, { 1, 1 }, { 0, 1 }, { 0, 0 }, { 1, 0 }, { 1, 1 }, { 0, 1 } }; // invalid
+	sphere.indices = { indices };
 
 	return sphere;
 }

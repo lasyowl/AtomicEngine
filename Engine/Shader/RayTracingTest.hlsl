@@ -1,3 +1,5 @@
+#define PI 3.14
+
 cbuffer PerFrameConstants : register (b0)
 {
     float4x4 viewProjection;
@@ -5,16 +7,38 @@ cbuffer PerFrameConstants : register (b0)
     float3 viewPosition;
 }
 
+struct RayTraceInstanceContext
+{
+	float4x4 matRotation;
+	uint normalOffset;
+	uint indexOffset;
+    uint2 padding;
+};
+
+struct PBRMaterial
+{
+    float3 baseColor;
+    float3 normal;
+    float roughness;
+    float metalness;
+};
+
 RWTexture2D<float4> renderTarget : register(u0);
 RaytracingAccelerationStructure topLevelAS : register(t0);
 StructuredBuffer<float3> normals : register(t1);
 StructuredBuffer<uint> indices : register(t2);
-StructuredBuffer<uint2> dataOffsets : register(t3);
+StructuredBuffer<RayTraceInstanceContext> instanceContexts : register(t3);
+StructuredBuffer<PBRMaterial> materials : register(t4);
 
 struct Payload
 {
     float4 color;
     uint recursion;
+};
+
+struct ShadowPayload
+{
+    bool bHit;
 };
 
 // Generate a ray in world space for a camera pixel corresponding to an index from the dispatched 2D grid.
@@ -48,11 +72,11 @@ void RayGeneration()
     RayDesc ray;
     ray.Origin = origin;
     ray.Direction = rayDir;
-    ray.TMin = 0.01f;
-    ray.TMax = 1000.0f;
+    ray.TMin = 0.00001f;
+    ray.TMax = 10000.0f;
 
     Payload payload;
-    payload.recursion = 1;
+    payload.recursion = 3;
     TraceRay(
         topLevelAS,
         RAY_FLAG_NONE,
@@ -72,32 +96,128 @@ struct BuiltInAttribute
     float2 barycentrics;
 };
 
+float TrowbridgeReitzGGX(float3 N, float3 H, float roughness)
+{
+    float numerator = roughness * roughness;
+    float NdotH = max(dot(N, H), 0.0f);
+    float denominator = PI * pow(pow(NdotH, 2.0f) * (roughness * roughness - 1.0f) + 1.0f, 2.0f);
+    denominator = max(denominator, 0.000001f);
+
+    return numerator / denominator;
+}
+
+float FresnelSchlickReflectance(float3 V, float3 H, float F0)
+{
+    return F0 + (1.0f - F0) * pow(1 - max(dot(V, H), 0.0f), 5.0f);
+}
+
+float SmithSchlickGGX(float3 N, float3 V, float3 L, float roughness)
+{
+    roughness += 1;
+    float k = (roughness * roughness) / 8.0f;
+
+    float NdotV = max(dot(N, V), 0.0f);
+    float NdotL = max(dot(N, L), 0.0f);
+
+    float ggx0 = NdotV / (NdotV * (1.0f - k) + k);
+    float ggx1 = NdotL / (NdotL * (1.0f - k) + k);
+
+    return ggx0 * ggx1;
+}
+
+float4 PBR(float3 baseColor, float3 lightColor, float3 N, float3 V, float3 L, float distribution, float fresnel, float geometry, float metalness)
+{
+    // float3 N = normalize(normal);
+    // float3 V = normalize(viewDirection);
+    // float3 L = normalize(lightDirection);
+    // float3 H = normalize(V + L);
+    // float R = roughness;
+    // float A = 1.0f - roughness;
+    // float F0 = reflectance;
+
+    // cale emissive
+    float3 emissive = baseColor * 0.2f;
+
+    // calc diffuse
+    float3 lambert = baseColor / PI;
+
+    // calc Ks
+    float ks = fresnel;
+    // calc Kd
+    float kd = (1.0f - ks) * (1.0f - metalness);
+
+    float3 cookTorranceNumerator = distribution * geometry * fresnel;
+    float3 cookTorranceDenominator = max(4.0f * max(dot(V, N), 0.0f) * max(dot(L, N), 0.0f), 0.000001f);
+    float3 cookTorrance = cookTorranceNumerator / cookTorranceDenominator;
+
+    float3 brdf = kd * lambert + cookTorrance;
+    float3 color = emissive + brdf * lightColor * max(dot(L, N), 0.0f);
+
+    return float4(color, 1);
+}
+
 [shader("closesthit")]
 void Hit(inout Payload inPayload : SV_Payload, BuiltInAttribute attr)
 {
-    uint2 dataOffset = dataOffsets[InstanceID()];
-    uint index = dataOffset.y + PrimitiveIndex() * 3;
+    RayTraceInstanceContext instanceContext = instanceContexts[InstanceID()];
+    uint index = instanceContext.indexOffset + PrimitiveIndex() * 3;
     
-    float3 normal0 = normals[dataOffset.x + indices[index + 0]];
-    float3 normal1 = normals[dataOffset.x + indices[index + 1]];
-    float3 normal2 = normals[dataOffset.x + indices[index + 2]];
-    float3 normal = normal0 + attr.barycentrics.x * (normal1 - normal0) + attr.barycentrics.y * (normal2 - normal0);
+    PBRMaterial material = materials[InstanceID()];
 
-    float3 objColor = InstanceID() == 0 ? float3(1, 0, 0) : InstanceID() == 1 ? float3(0, 1, 0) : float3(0, 0, 1);
+    float3 normal0 = normals[instanceContext.normalOffset + indices[index + 0]];
+    float3 normal1 = normals[instanceContext.normalOffset + indices[index + 1]];
+    float3 normal2 = normals[instanceContext.normalOffset + indices[index + 2]];
+    float3 normal = normalize(normal0 + attr.barycentrics.x * (normal1 - normal0) + attr.barycentrics.y * (normal2 - normal0));
+    normal = mul(float4(normal, 1.0f), instanceContext.matRotation).xyz;
 
-    float3 directionalLight = float3(0, -1, 1);
-    float3 diffuse = objColor * max(0, dot(directionalLight, -normal));
-    float3 specular = objColor * max(0, pow(dot(WorldRayDirection(), -normal), 20));
+    float3 rayDirection = WorldRayDirection();
+    float3 hitPosition = WorldRayOrigin() + RayTCurrent() * rayDirection;
 
-    inPayload.color = float4(diffuse + specular, 1.0f);
+    float3 lightPosition = float3(0, 15, 0);
+    float3 lightDirection = normalize(hitPosition - lightPosition);
+    float lightIntensity = max(1.0f / length(hitPosition - lightPosition), 5.0f);
+    //float3 directionalLight = normalize(float3(1, -1, -1));
+    float3 lightColor = lightIntensity * float3(1, 1, 1);
+    
+    float3 H = normalize(-rayDirection - lightDirection);
+    float glossiness = 1.0f - material.roughness;
+    // calc specular(Cook-Torrance, DFG)
+    // D : Trowbridge-Reitz GGX
+    // F : Fresnel-Schlick approximation
+    // G : Smith's Schlick GGX
+    float distribution = TrowbridgeReitzGGX(normal, H, material.roughness);
+    float fresnel = FresnelSchlickReflectance(-rayDirection, H, glossiness);
+    float geometry = SmithSchlickGGX(normal, -rayDirection, -lightDirection, material.roughness);
 
-    if(inPayload.recursion > 0)
+    inPayload.color = PBR(material.baseColor, lightColor, normal, -rayDirection, -lightDirection, distribution, fresnel, geometry, material.metalness);
+    
+    if(inPayload.recursion > 0 && HitKind() == 254)
     {
-        RayDesc ray;
-        ray.Origin = WorldRayOrigin() + RayTCurrent() * WorldRayDirection();
-        ray.Direction = reflect(WorldRayDirection(), normal);
-        ray.TMin = 0.01f;
-        ray.TMax = 1000.0f;
+        RayDesc shadowRay;
+        shadowRay.Origin = hitPosition;
+        shadowRay.Direction = -lightDirection;
+        shadowRay.TMin = 0.0001f;
+        shadowRay.TMax = 10000.0f;
+
+        ShadowPayload shadowPayload;
+        shadowPayload.bHit = true;
+
+        TraceRay(
+            topLevelAS,
+            RAY_FLAG_NONE,
+            0xFF,
+            1,
+            0,
+            1,
+            shadowRay,
+            shadowPayload
+        );
+
+        RayDesc reflectionRay;
+        reflectionRay.Origin = hitPosition;
+        reflectionRay.Direction = reflect(rayDirection, normal);
+        reflectionRay.TMin = 0.0001f;
+        reflectionRay.TMax = 10000.0f;
 
         Payload payload;
         payload.recursion = inPayload.recursion - 1;
@@ -109,16 +229,28 @@ void Hit(inout Payload inPayload : SV_Payload, BuiltInAttribute attr)
             0,
             0,
             0,
-            ray,
+            reflectionRay,
             payload
         );
 
-        inPayload.color += payload.color;
+        inPayload.color.xyz += fresnel * payload.color.xyz;
+
+        //float factor = shadowPayload.bHit ? 0.3f : 1.0f;
+        //inPayload.color.xyz *= factor;
     }
+
+    float t = RayTCurrent();
+    inPayload.color = lerp(inPayload.color, float4(0.3f, 0.3f, 0.7f, 1), 1.0f - exp(-0.000002 * t * t * t));
 }
 
 [shader("miss")]
 void Miss(inout Payload payload : SV_Payload)
 {
-    payload.color = float4(0.2f, 0.2f, 0.6f, 1);
+    payload.color = float4(0.3f, 0.3f, 0.7f, 1);
+}
+
+[shader("miss")]
+void ShadowMiss(inout ShadowPayload payload : SV_Payload)
+{
+    payload.bHit = false;
 }

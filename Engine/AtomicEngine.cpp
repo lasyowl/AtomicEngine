@@ -1,16 +1,8 @@
-#include "AtomicEngine.h"
-#include "System.h"
-#include <Engine/PrimitiveComponent.h>
-#include <Engine/TransformComponent.h>
-#include <Engine/LightComponent.h>
-#include <Engine/EntityInitializeSystem.h>
-#include <Engine/LightSystem.h>
-#include <Engine/RenderSystem.h>
-#include <Engine/KeyInputSystem.h>
-#include <Engine/SceneViewSystem.h>
+#include <Engine/AtomicEngine.h>
 #include <GPI/GPI_DX12.h>
 #include <Core/IntVector.h>
-#include <Engine/AssetLoader.h>
+#include <Engine/TestScene.h>
+#include <Engine/ECS.h>
 
 namespace
 {
@@ -76,54 +68,6 @@ namespace
 		return WindowHandle;
 	}
 
-	void InitWithTestScene()
-	{
-		ECSAddSystem<EntityInitializeSystem>();
-		ECSAddSystem<KeyInputSystem>();
-		ECSAddSystem<SceneViewSystem>();
-		ECSAddSystem<RenderSystem>();
-
-		Entity rootEntity = ECSCreateEntity();
-		ECSAddComponent<KeyInputComponent>( rootEntity, nullptr );
-		ECSAddComponent<SceneViewComponent>( rootEntity, nullptr );
-
-		//ECSAddSystem<LightSystem>();
-
-		{
-			Entity entity0 = ECSCreateEntity();
-			TransformComponent transformComp{};
-			transformComp.scale = Vec3( 1.0f, 1.0f, 1.0f );
-			ECSAddComponent<TransformComponent>( entity0, &transformComp );
-
-			PrimitiveComponent primComp;
-			primComp.staticMeshGroup = StaticMeshCache::AddStaticMeshGroup( "teapot", *AssetLoader::LoadStaticMeshData( "../Resource/teapot.obj" ) );
-			ECSAddComponent<PrimitiveComponent>( entity0, &primComp );
-		}
-
-		{
-			Entity entity = ECSCreateEntity();
-			TransformComponent transformComp{};
-			transformComp.position = Vec3( 0.0f, 0.0f, 0.0f );
-			transformComp.scale = Vec3( 10.0f, 10.0f, 10.0f );
-			ECSAddComponent<TransformComponent>( entity, &transformComp );
-			PrimitiveComponent primComp;
-			primComp.staticMeshGroup = StaticMeshCache::FindStaticMeshGroup( "plane" );
-			ECSAddComponent<PrimitiveComponent>( entity, &primComp );
-		}
-
-		{
-			Entity entityCube = ECSCreateEntity();
-			TransformComponent transformComp{};
-			transformComp.scale = Vec3( 10.0f, 10.0f, 10.0f );
-			ECSAddComponent<TransformComponent>( entityCube, &transformComp );
-
-			PrimitiveComponent primComp;
-			primComp.staticMeshGroup = StaticMeshCache::FindStaticMeshGroup( "sphere" );
-			ECSAddComponent<PrimitiveComponent>( entityCube, &primComp );
-			ECSAddComponent<LightComponent>( entityCube, nullptr );
-		}
-	}
-
 #if defined( _WIN32 ) || defined( _WIN64 )
 	void LoopEngine( HINSTANCE handle )
 	{
@@ -131,7 +75,7 @@ namespace
 
 		InitGPI( hWnd );
 
-		InitWithTestScene();
+		InitTestScene();
 
 		bool ShutOff = false;
 

@@ -62,6 +62,7 @@ struct GPIShaderResourceViewDesc
 	EGPIResourceFormat format;
 	EGPIResourceDimension dimension;
 	uint32 numElements;
+	uint32 byteStride;
 };
 
 struct GPIUnorderedAccessViewDesc
@@ -154,7 +155,8 @@ struct IGPIRayTraceTopLevelAS
 {
 	IGPIResourceRef normalResource;
 	IGPIResourceRef indexResource;
-	IGPIResourceRef dataOffsetResource;
+	IGPIResourceRef instanceContextResource;
+	IGPIResourceRef materialResource;
 };
 
 using IGPIRenderTargetViewRef = std::shared_ptr<IGPIRenderTargetView>;

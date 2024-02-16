@@ -924,7 +924,7 @@ ID3D12RootSignature* CreateRayTraceRootSignature( ID3D12Device5* device, const G
 	renderTarget.RegisterSpace = 0;
 	renderTarget.OffsetInDescriptorsFromTableStart = D3D12_DESCRIPTOR_RANGE_OFFSET_APPEND;
 
-	D3D12_ROOT_PARAMETER rootParams[ 6 ]{};
+	D3D12_ROOT_PARAMETER rootParams[ 7 ]{};
 	rootParams[ 0 ].ParameterType = D3D12_ROOT_PARAMETER_TYPE_DESCRIPTOR_TABLE;
 	rootParams[ 0 ].DescriptorTable = { 1, &renderTarget };
 	rootParams[ 0 ].ShaderVisibility = D3D12_SHADER_VISIBILITY_ALL;
@@ -940,12 +940,15 @@ ID3D12RootSignature* CreateRayTraceRootSignature( ID3D12Device5* device, const G
 	rootParams[ 4 ].ParameterType = D3D12_ROOT_PARAMETER_TYPE_SRV;
 	rootParams[ 4 ].Descriptor.ShaderRegister = 3;
 	rootParams[ 4 ].ShaderVisibility = D3D12_SHADER_VISIBILITY_ALL;
-	rootParams[ 5 ].ParameterType = D3D12_ROOT_PARAMETER_TYPE_CBV;
-	rootParams[ 5 ].Descriptor.ShaderRegister = 0;
+	rootParams[ 5 ].ParameterType = D3D12_ROOT_PARAMETER_TYPE_SRV;
+	rootParams[ 5 ].Descriptor.ShaderRegister = 4;
 	rootParams[ 5 ].ShaderVisibility = D3D12_SHADER_VISIBILITY_ALL;
+	rootParams[ 6 ].ParameterType = D3D12_ROOT_PARAMETER_TYPE_CBV;
+	rootParams[ 6 ].Descriptor.ShaderRegister = 0;
+	rootParams[ 6 ].ShaderVisibility = D3D12_SHADER_VISIBILITY_ALL;
 
 	D3D12_ROOT_SIGNATURE_DESC rootSignatureDesc{};
-	rootSignatureDesc.NumParameters = 6;
+	rootSignatureDesc.NumParameters = 7;
 	rootSignatureDesc.pParameters = rootParams;
 	rootSignatureDesc.NumStaticSamplers = 0;
 	rootSignatureDesc.pStaticSamplers = nullptr;
@@ -1032,16 +1035,17 @@ IGPIPipelineRef GPI_DX12::CreatePipelineState( const GPIPipelineStateDesc& pipel
 
 		pipelineState->rootSignature = CreateRayTraceRootSignature( ( ID3D12Device5* )_device, pipelineDesc );
 
-		D3D12_EXPORT_DESC shaderExport[ 3 ]
+		D3D12_EXPORT_DESC shaderExport[ 4 ]
 		{
 			{ L"RayGeneration", nullptr, D3D12_EXPORT_FLAG_NONE },
 			{ L"Hit", nullptr, D3D12_EXPORT_FLAG_NONE },
-			{ L"Miss", nullptr, D3D12_EXPORT_FLAG_NONE }
+			{ L"Miss", nullptr, D3D12_EXPORT_FLAG_NONE },
+			{ L"ShadowMiss", nullptr, D3D12_EXPORT_FLAG_NONE }
 		};
 		D3D12_DXIL_LIBRARY_DESC shaderLibrary{};
 		shaderLibrary.DXILLibrary.pShaderBytecode = shaderBlob->GetBufferPointer();
 		shaderLibrary.DXILLibrary.BytecodeLength = shaderBlob->GetBufferSize();
-		shaderLibrary.NumExports = 3;
+		shaderLibrary.NumExports = 4;
 		shaderLibrary.pExports = shaderExport;
 		D3D12_STATE_SUBOBJECT shader
 		{
@@ -1134,6 +1138,7 @@ IGPIPipelineRef GPI_DX12::CreatePipelineState( const GPIPipelineStateDesc& pipel
 
 		// 
 		memcpy( shaderParam.shaderIdentifier, pipelineState->raytrace.stateProperties->GetShaderIdentifier( L"Miss" ), D3D12_SHADER_IDENTIFIER_SIZE_IN_BYTES );
+		memcpy( shaderParam.shaderIdentifier + D3D12_SHADER_IDENTIFIER_SIZE_IN_BYTES, pipelineState->raytrace.stateProperties->GetShaderIdentifier( L"Miss" ), D3D12_SHADER_IDENTIFIER_SIZE_IN_BYTES );
 		desc.name = L"RayTraceTest_Miss";
 		pipelineState->raytrace.resource2 = CreateResource_Inner( desc, &shaderParam, sizeof( shaderParam ) );
 
@@ -1886,13 +1891,14 @@ void GPI_DX12::RunCS()
 	//WaitForFence( cmdQueueCtx );
 }
 
-void GPI_DX12::RayTrace( const GPIPipelineStateDesc& desc, const IGPIRayTraceTopLevelASRef& inRTRAS, IGPIShaderResourceViewRef testNormalSRV, IGPIShaderResourceViewRef testIndexSRV, IGPIShaderResourceViewRef testIndexOffsetSRV )
+void GPI_DX12::RayTrace( const GPIPipelineStateDesc& desc, const IGPIRayTraceTopLevelASRef& inRTRAS, IGPIShaderResourceViewRef testNormalSRV, IGPIShaderResourceViewRef testIndexSRV, IGPIShaderResourceViewRef testIndexOffsetSRV, IGPIShaderResourceViewRef testMaterialSRV )
 {
 	assert( _pipelineCache.contains( desc.id ) );
 
 	std::shared_ptr<GPIShaderResourceView_DX12> testNormalSRV1 = std::static_pointer_cast< GPIShaderResourceView_DX12 >( testNormalSRV );
 	std::shared_ptr<GPIShaderResourceView_DX12> testIndexSRV1 = std::static_pointer_cast< GPIShaderResourceView_DX12 >( testIndexSRV );
 	std::shared_ptr<GPIShaderResourceView_DX12> testIndexOffsetSRV1 = std::static_pointer_cast< GPIShaderResourceView_DX12 >( testIndexOffsetSRV );
+	std::shared_ptr<GPIShaderResourceView_DX12> testMaterialSRV1 = std::static_pointer_cast< GPIShaderResourceView_DX12 >( testMaterialSRV );
 
 	std::shared_ptr<GPIPipeline_DX12>& pipeline = _pipelineCache[ desc.id ];
 
@@ -1919,6 +1925,7 @@ void GPI_DX12::RayTrace( const GPIPipelineStateDesc& desc, const IGPIRayTraceTop
 	cmdList->SetComputeRootShaderResourceView( rootParamIndex++, testNormalSRV1->gpuAddress );
 	cmdList->SetComputeRootShaderResourceView( rootParamIndex++, testIndexSRV1->gpuAddress );
 	cmdList->SetComputeRootShaderResourceView( rootParamIndex++, testIndexOffsetSRV1->gpuAddress );
+	cmdList->SetComputeRootShaderResourceView( rootParamIndex++, testMaterialSRV1->gpuAddress );
 	cmdList->SetComputeRootConstantBufferView( rootParamIndex++, pipeline->cbv[ 0 ] );
 
 	D3D12_DISPATCH_RAYS_DESC dispatchRays{};

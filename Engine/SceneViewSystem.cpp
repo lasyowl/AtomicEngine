@@ -21,7 +21,7 @@ void SceneViewSystem::RunSystem( std::array<std::unique_ptr<struct IComponentReg
 			continue;
 		}
 
-		const float camMoveSpeed = 1.0f;
+		const float camMoveSpeed = 0.3f;
 		const float camRotateSpeed = 0.03f;
 		static Vec3 camDirection = Vec3( 0, 0, 1 );
 

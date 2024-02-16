@@ -119,7 +119,7 @@ void RenderSystem::GeometryPass( std::array<std::unique_ptr<IComponentRegistry>,
 		Vec3 earlyTransform = Vec3( 0, 0, 0 );
 		if( entity == 3 )
 		{
-			static float aa = 0;
+			/*static float aa = 0;
 			static float sign = 1;
 			if( aa > 10 || aa < -10 )
 			{
@@ -128,7 +128,7 @@ void RenderSystem::GeometryPass( std::array<std::unique_ptr<IComponentRegistry>,
 			if( bMove )	aa += sign * 0.04f;
 			transformComp.position = Vec3( aa, 1, -3 );
 			transformComp.rotation = Vec3( 0, 0, 0 );
-			transformComp.scale = Vec3( 0.5f, 0.5f, 0.5f );
+			transformComp.scale = Vec3( 0.5f, 0.5f, 0.5f );*/
 		}
 		else
 		{
