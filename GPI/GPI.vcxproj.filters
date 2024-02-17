@@ -56,9 +56,6 @@
     <ClInclude Include="GPIShader.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="GPIShader_DX12.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
     <ClInclude Include="GPIUtility.h">
       <Filter>Header Files</Filter>
     </ClInclude>

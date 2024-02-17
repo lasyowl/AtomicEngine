@@ -117,27 +117,6 @@ void RenderSystem::GeometryPass( std::array<std::unique_ptr<IComponentRegistry>,
 		if( !primitiveComp.staticMeshGroup ) continue;
 
 		Vec3 earlyTransform = Vec3( 0, 0, 0 );
-		if( entity == 3 )
-		{
-			/*static float aa = 0;
-			static float sign = 1;
-			if( aa > 10 || aa < -10 )
-			{
-				sign = -sign;
-			}
-			if( bMove )	aa += sign * 0.04f;
-			transformComp.position = Vec3( aa, 1, -3 );
-			transformComp.rotation = Vec3( 0, 0, 0 );
-			transformComp.scale = Vec3( 0.5f, 0.5f, 0.5f );*/
-		}
-		else
-		{
-			/*static float aa = 0;
-			aa += 0.001f;
-			transformComp.position = Vec3( 0, 0, 0 );
-			transformComp.rotation = Vec3( 0, aa, 0 );
-			transformComp.scale = Vec3( 1, 1, 1 );*/
-		}
 
 		PrimitiveConstantBuffer constBuffer;
 		constBuffer.matModel = AEMath::GetTransposedMatrix( AEMath::GetScaleMatrix( transformComp.scale ) * AEMath::GetTranslateMatrix( earlyTransform ) * AEMath::GetRotationMatrix( transformComp.rotation ) * AEMath::GetTranslateMatrix( transformComp.position ) );

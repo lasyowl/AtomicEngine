@@ -1,7 +1,6 @@
 #include "GPI_DX12.h"
 
 #include <Core/DebugUtil.h>
-#include <GPI/GPIShader_DX12.h>
 #include <GPI/GPIPipeline_DX12.h>
 #include <GPI/GPIUtility_DX12.h>
 #include <GPI/GPIUtility.h>

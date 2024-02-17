@@ -58,9 +58,6 @@ struct GPIPipelineStateDesc
 
 struct IGPIPipeline
 {
-	IGPIShader vertexShader;
-	IGPIShader pixelShader;
-	IGPIShader computeShader;
 };
 
 typedef std::shared_ptr<IGPIPipeline> IGPIPipelineRef;

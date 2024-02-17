@@ -35,5 +35,4 @@ struct GPIShaderDesc
 
 struct IGPIShader
 {
-
 };

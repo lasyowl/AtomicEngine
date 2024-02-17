@@ -148,7 +148,6 @@
     <ClInclude Include="GPIResource.h" />
     <ClInclude Include="GPIResource_DX12.h" />
     <ClInclude Include="GPIShader.h" />
-    <ClInclude Include="GPIShader_DX12.h" />
     <ClInclude Include="GPIUtility.h" />
     <ClInclude Include="GPIUtility_DX12.h" />
     <ClInclude Include="GPI_DX12.h" />

@@ -67,7 +67,6 @@ void RenderSystem::RayTracingTest( std::array<std::unique_ptr<IComponentRegistry
 			testIndexResourceByteSize += staticMesh.pipelineInput.ibv[ 0 ]->size;
 
 			GPIRayTraceBottomLevelASDesc bottomLevelASDesc{};
-			bottomLevelASDesc.transform = Mat4x4::identity;
 			bottomLevelASDesc.transform = AEMath::GetTransposedMatrix( AEMath::GetScaleMatrix( transformComp.scale ) * AEMath::GetRotationMatrix( transformComp.rotation ) * AEMath::GetTranslateMatrix( transformComp.position ) );
 			IGPIRayTraceBottomLevelASRef bottomLevelAS = AtomicEngine::GetGPI()->CreateRayTraceBottomLevelAS( bottomLevelASDesc, *staticMesh.pipelineInput.vbv[ 0 ], *staticMesh.pipelineInput.ibv[ 0 ] );
 			blas.push_back( bottomLevelAS );
