@@ -108,7 +108,7 @@ void RayGeneration()
         {
             //float3 randomDir = normalize(float3(RandomValue(seed), RandomValue(seed), RandomValue(seed)));
             float2 jitterXY = normalize(float2(RandomValue(seed), RandomValue(seed)));
-            float3 jitter = 0.001f * float3(jitterXY, 0);
+            float3 jitter = 0.0001f * float3(jitterXY, 0);
             float3 direction = normalize(target - origin + jitter);
 
             RayDesc ray;
@@ -220,7 +220,7 @@ void Hit(inout Payload inPayload : SV_Payload, BuiltInAttribute attr)
     float3 rayDirection = WorldRayDirection();
     float3 hitPosition = WorldRayOrigin() + rayT * rayDirection;
 
-    float3 lightPosition = float3(0, 15, 0);
+    float3 lightPosition = float3(0, 10, 5);
     float3 lightDirection = normalize(hitPosition - lightPosition);
     float lightIntensity = max(1.0f / length(hitPosition - lightPosition), 5.0f);
     //float3 directionalLight = normalize(float3(1, -1, -1));

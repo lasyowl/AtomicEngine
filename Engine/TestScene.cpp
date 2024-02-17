@@ -18,38 +18,57 @@ void InitTestScene()
 
 	Entity rootEntity = ECSCreateEntity();
 	ECSAddComponent<KeyInputComponent>( rootEntity, nullptr );
-	ECSAddComponent<SceneViewComponent>( rootEntity, nullptr );
+	SceneViewComponent sceneViewComp{};
+	sceneViewComp.position = Vec3( -5, 13, -15 );
+	sceneViewComp.direction = Vec3( 0.5f, -0.7f, 1 );
+	ECSAddComponent<SceneViewComponent>( rootEntity, &sceneViewComp );
 
 	//ECSAddSystem<LightSystem>();
 
 	{
-		Entity entity0 = ECSCreateEntity();
+		Entity entity = ECSCreateEntity();
 		TransformComponent transformComp{};
 		transformComp.scale = Vec3( 1.0f, 1.0f, 1.0f );
-		ECSAddComponent<TransformComponent>( entity0, &transformComp );
+		ECSAddComponent<TransformComponent>( entity, &transformComp );
 
 		PrimitiveComponent primComp;
 		primComp.staticMeshGroup = StaticMeshCache::AddStaticMeshGroup( "teapot", *AssetLoader::LoadStaticMeshData( "../Resource/teapot.obj" ) );
 		primComp.material.baseColor = Vec3::right;
 		primComp.material.metalness = 0.75f;
 		primComp.material.roughness = 0.7f;
-		ECSAddComponent<PrimitiveComponent>( entity0, &primComp );
+		ECSAddComponent<PrimitiveComponent>( entity, &primComp );
 	}
 
 	{
-		Entity entityCube = ECSCreateEntity();
+		Entity entity = ECSCreateEntity();
 		TransformComponent transformComp{};
 		transformComp.position = Vec3( 3.0f, 2.0f, -2.0f );
 		transformComp.scale = Vec3::one;
-		ECSAddComponent<TransformComponent>( entityCube, &transformComp );
+		ECSAddComponent<TransformComponent>( entity, &transformComp );
 
 		PrimitiveComponent primComp;
 		primComp.staticMeshGroup = StaticMeshCache::FindStaticMeshGroup( "sphere" );
 		primComp.material.baseColor = Vec3::front;
 		primComp.material.metalness = 0.2f;
 		primComp.material.roughness = 0.5f;
-		ECSAddComponent<PrimitiveComponent>( entityCube, &primComp );
-		ECSAddComponent<LightComponent>( entityCube, nullptr );
+		ECSAddComponent<PrimitiveComponent>( entity, &primComp );
+		ECSAddComponent<LightComponent>( entity, nullptr );
+	}
+
+	{
+		Entity entity = ECSCreateEntity();
+		TransformComponent transformComp{};
+		transformComp.position = Vec3( -8.0f, 1.0f, 8.0f );
+		transformComp.scale = Vec3::one;
+		ECSAddComponent<TransformComponent>( entity, &transformComp );
+
+		PrimitiveComponent primComp;
+		primComp.staticMeshGroup = StaticMeshCache::FindStaticMeshGroup( "cube" );
+		primComp.material.baseColor = Vec3::front;
+		primComp.material.metalness = 0.5f;
+		primComp.material.roughness = 1.0f;
+		//primComp.material2.baseColorResource = 
+		ECSAddComponent<PrimitiveComponent>( entity, &primComp );
 	}
 
 	{ // bottom cover
@@ -61,8 +80,8 @@ void InitTestScene()
 		PrimitiveComponent primComp;
 		primComp.staticMeshGroup = StaticMeshCache::FindStaticMeshGroup( "plane" );
 		primComp.material.baseColor = Vec3::one;
-		primComp.material.metalness = 0.9f;
-		primComp.material.roughness = 0.1f;
+		primComp.material.metalness = 1.0f;
+		primComp.material.roughness = 0.6f;
 		ECSAddComponent<PrimitiveComponent>( entity, &primComp );
 	}
 

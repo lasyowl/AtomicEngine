@@ -23,7 +23,6 @@ void SceneViewSystem::RunSystem( std::array<std::unique_ptr<struct IComponentReg
 
 		const float camMoveSpeed = 0.3f;
 		const float camRotateSpeed = 0.03f;
-		static Vec3 camDirection = Vec3( 0, 0, 1 );
 
 		SceneViewComponent& sceneView = viewCompReg->GetComponent( entity );
 
@@ -53,21 +52,21 @@ void SceneViewSystem::RunSystem( std::array<std::unique_ptr<struct IComponentReg
 		}
 		if( keyInputComp.keyPressed[ KeyType_J ] )
 		{
-			camDirection.x -= camRotateSpeed;
+			sceneView.direction.x -= camRotateSpeed;
 		}
 		if( keyInputComp.keyPressed[ KeyType_L ] )
 		{
-			camDirection.x += camRotateSpeed;
+			sceneView.direction.x += camRotateSpeed;
 		}
 		if( keyInputComp.keyPressed[ KeyType_I ] )
 		{
-			camDirection.y += camRotateSpeed;
+			sceneView.direction.y += camRotateSpeed;
 		}
 		if( keyInputComp.keyPressed[ KeyType_K ] )
 		{
-			camDirection.y -= camRotateSpeed;
+			sceneView.direction.y -= camRotateSpeed;
 		}
-		sceneView.direction = camDirection.Normalize();
+		sceneView.direction.Normalize();
 
 		sceneView.matView = AEMath::GetViewMatrix( sceneView.position, sceneView.position + sceneView.direction, Vec3::up );
 		sceneView.matProjection = AEMath::GetPerspectiveMatrixFOV( 0.25f * 3.14f, 1920.0f / 1080.0f, 0.1f, 5000.0f );
