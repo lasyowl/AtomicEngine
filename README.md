@@ -3,6 +3,10 @@ Cross Platform Rendering Engine
 * Dec.2023 ~ Present
 * For personal study
 * Based on ECS
+* Dev environment :
+  * v143, c++20, SDK 10.0.22621.0
+* Third parties :
+  * Assimp, FreeImage
 * Currently implemented :
   * Interface for various graphics APIs (DX12 currently)
   * Simple deferred renderer with conventional lighting
