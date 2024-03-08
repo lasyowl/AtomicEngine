@@ -2,7 +2,7 @@
 
 #include "ECS.h"
 #include <Core/Vector.h>
-#include <GPI/GPIResource.h>
+#include <RHI/RHIResource.h>
 
 class LightSystem : public ISystem
 {

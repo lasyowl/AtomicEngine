@@ -1,14 +1,14 @@
 #include <Engine/AtomicEngine.h>
-#include <GPI/GPI_DX12.h>
+#include <RHI/RHI_DX12.h>
 #include <Core/IntVector.h>
 #include <Engine/TestScene.h>
 #include <Engine/ECS.h>
 
 namespace
 {
-	std::unique_ptr<IGPI> _gpi;
+	std::unique_ptr<IRHI> _RHI;
 
-	void InitGPI( HWND hWnd )
+	void InitRHI( HWND hWnd )
 	{
 		/* todo : Move to somewhere makes sense */
 		HMODULE hm = LoadLibrary( L"C:\\Program Files\\Microsoft PIX\\2312.08\\WinPixGpuCapturer.dll" );
@@ -16,9 +16,9 @@ namespace
 		/* todo : Run graphics API by compatibility */
 
 		IVec2 windowSize = IVec2( 1920, 1080 );
-		_gpi = std::make_unique<GPI_DX12>( hWnd, windowSize );
-		_gpi->Initialize();
-		_gpi->SetWindowSize( windowSize );
+		_RHI = std::make_unique<RHI_DX12>( hWnd, windowSize );
+		_RHI->Initialize();
+		_RHI->SetWindowSize( windowSize );
 	}
 
 	LRESULT CALLBACK WindowMessageProcessor( HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam )
@@ -73,7 +73,7 @@ namespace
 	{
 		HWND hWnd = CreateClientWindow( handle );
 
-		InitGPI( hWnd );
+		InitRHI( hWnd );
 
 		InitTestScene();
 
@@ -99,7 +99,7 @@ namespace
 
 		ecsThread.wait();
 
-		_gpi.reset();
+		_RHI.reset();
 	}
 #endif
 }
@@ -113,8 +113,8 @@ namespace AtomicEngine
 #endif
 	}
 
-	std::unique_ptr<IGPI>& GetGPI()
+	std::unique_ptr<IRHI>& GetRHI()
 	{
-		return _gpi;
+		return _RHI;
 	}
 }

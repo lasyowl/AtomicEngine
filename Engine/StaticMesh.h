@@ -2,8 +2,8 @@
 
 #include <Core/Vector.h>
 #include <Core/IntVector.h>
-#include <GPI/GPIResource.h>
-#include <GPI/GPIPipeline.h>
+#include <RHI/RHIResource.h>
+#include <RHI/RHIPipeline.h>
 
 struct StaticMeshData
 {
@@ -45,12 +45,12 @@ struct StaticMeshDataGroup
 
 struct StaticMesh
 {
-	IGPIResourceRef positionResource;
-	IGPIResourceRef normalResource;
-	IGPIResourceRef uvResource;
-	std::vector<IGPIResourceRef> indexResource;
+	IRHIResourceRef positionResource;
+	IRHIResourceRef normalResource;
+	IRHIResourceRef uvResource;
+	std::vector<IRHIResourceRef> indexResource;
 
-	GPIPipelineInput pipelineInput;
+	RHIPipelineInput pipelineInput;
 };
 
 struct StaticMeshGroup

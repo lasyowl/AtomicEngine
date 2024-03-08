@@ -1,9 +1,9 @@
 #pragma once
 
-#include "GPIPipeline.h"
-#include "GPIResource_DX12.h"
+#include "RHIPipeline.h"
+#include "RHIResource_DX12.h"
 
-struct GPIPipeline_DX12 : public IGPIPipeline
+struct RHIPipeline_DX12 : public IRHIPipeline
 {
 	ID3D12RootSignature* rootSignature;
 	union
@@ -26,7 +26,7 @@ struct GPIPipeline_DX12 : public IGPIPipeline
 	std::vector<D3D12_GPU_VIRTUAL_ADDRESS> srv;
 	std::vector<D3D12_GPU_VIRTUAL_ADDRESS> uav;
 	std::vector<D3D12_GPU_DESCRIPTOR_HANDLE> uavHandle;
-	std::vector<GPISampler_DX12*> sampler;
+	std::vector<RHISampler_DX12*> sampler;
 	D3D12_CPU_DESCRIPTOR_HANDLE dsv;
 
 	std::vector<D3D12_GPU_DESCRIPTOR_HANDLE> textureTables;

@@ -2,11 +2,11 @@
 
 #include "Singleton.h"
 
-class IGPI;
+class IRHI;
 
 namespace AtomicEngine
 {
 	void Launch( void* AppEntryParam );
 
-	std::unique_ptr<IGPI>& GetGPI();
+	std::unique_ptr<IRHI>& GetRHI();
 };

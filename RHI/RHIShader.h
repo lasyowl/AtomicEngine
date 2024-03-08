@@ -18,21 +18,21 @@ constexpr bool IsValidShaderPermutation( EShaderType flags )
 	return bComputePipeline != bGraphicsPipeline;
 }
 
-struct GPIShaderMacro
+struct RHIShaderMacro
 {
 	std::string name;
 	std::string value;
 };
 
-struct GPIShaderDesc
+struct RHIShaderDesc
 {
 	uint32 hash; // temp
 	EShaderType type;
 	std::string file;
 	std::string entry;
-	std::vector<GPIShaderMacro> macros;
+	std::vector<RHIShaderMacro> macros;
 };
 
-struct IGPIShader
+struct IRHIShader
 {
 };

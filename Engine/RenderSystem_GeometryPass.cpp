@@ -5,9 +5,9 @@
 #include "TransformComponent.h"
 #include "PrimitiveComponent.h"
 #include "KeyInputSystem.h"
-#include <GPI/GPI.h>
-#include <GPI/GPIPipeline.h>
-#include <GPI/GPIUtility.h>
+#include <RHI/RHI.h>
+#include <RHI/RHIPipeline.h>
+#include <RHI/RHIUtility.h>
 #include <Core/Math.h>
 #include <Core/Matrix.h>
 
@@ -32,8 +32,8 @@ void RenderSystem::GeometryPass( std::array<std::unique_ptr<IComponentRegistry>,
 		return;
 	}
 
-	static GPIPipelineStateDesc pipelineDesc{};
-	static IGPIPipelineRef pipeline = nullptr;
+	static RHIPipelineStateDesc pipelineDesc{};
+	static IRHIPipelineRef pipeline = nullptr;
 	if( !pipeline )
 	{
 		pipelineDesc.id = 0;
@@ -41,16 +41,16 @@ void RenderSystem::GeometryPass( std::array<std::unique_ptr<IComponentRegistry>,
 		pipelineDesc.bBindDepth = true;
 
 		pipelineDesc.rtvFormats = {
-			EGPIResourceFormat::B8G8R8A8_SRGB,
-			EGPIResourceFormat::B8G8R8A8_SRGB,
-			EGPIResourceFormat::B8G8R8A8_SRGB,
-			EGPIResourceFormat::B8G8R8A8_SRGB
+			ERHIResourceFormat::B8G8R8A8_SRGB,
+			ERHIResourceFormat::B8G8R8A8_SRGB,
+			ERHIResourceFormat::B8G8R8A8_SRGB,
+			ERHIResourceFormat::B8G8R8A8_SRGB
 		};
 
 		pipelineDesc.inputDesc.resize( 3 );
-		pipelineDesc.inputDesc[ 0 ] = { "POSITION", EGPIResourceFormat::R32G32B32_Float, GPIInputClass_PerVertex, 0 };
-		pipelineDesc.inputDesc[ 1 ] = { "NORMAL", EGPIResourceFormat::R32G32B32_Float, GPIInputClass_PerVertex, 1 };
-		pipelineDesc.inputDesc[ 2 ] = { "TEXCOORD", EGPIResourceFormat::R32G32_Float, GPIInputClass_PerVertex, 2 };
+		pipelineDesc.inputDesc[ 0 ] = { "POSITION", ERHIResourceFormat::R32G32B32_Float, RHIInputClass_PerVertex, 0 };
+		pipelineDesc.inputDesc[ 1 ] = { "NORMAL", ERHIResourceFormat::R32G32B32_Float, RHIInputClass_PerVertex, 1 };
+		pipelineDesc.inputDesc[ 2 ] = { "TEXCOORD", ERHIResourceFormat::R32G32_Float, RHIInputClass_PerVertex, 2 };
 
 		pipelineDesc.vertexShader.hash = 0;
 		pipelineDesc.vertexShader.type = ShaderType_VertexShader;
@@ -68,15 +68,15 @@ void RenderSystem::GeometryPass( std::array<std::unique_ptr<IComponentRegistry>,
 		
 		pipelineDesc.numCBVs = 2;
 
-		pipeline = AtomicEngine::GetGPI()->CreatePipelineState( pipelineDesc );
+		pipeline = AtomicEngine::GetRHI()->CreatePipelineState( pipelineDesc );
 	}
 
 	{// @TODO: move to somewhere makes sense
-		AtomicEngine::GetGPI()->BindRenderTargetView( *pipeline, *_gBufferDiffuseRTV, 0 );
-		AtomicEngine::GetGPI()->BindRenderTargetView( *pipeline, *_gBufferNormalRTV, 1 );
-		AtomicEngine::GetGPI()->BindRenderTargetView( *pipeline, *_gBufferUnknown0RTV, 2 );
-		AtomicEngine::GetGPI()->BindRenderTargetView( *pipeline, *_gBufferUnknown1RTV, 3 );
-		AtomicEngine::GetGPI()->BindDepthStencilView( *pipeline, *_swapChainDepthDSV );
+		AtomicEngine::GetRHI()->BindRenderTargetView( *pipeline, *_gBufferDiffuseRTV, 0 );
+		AtomicEngine::GetRHI()->BindRenderTargetView( *pipeline, *_gBufferNormalRTV, 1 );
+		AtomicEngine::GetRHI()->BindRenderTargetView( *pipeline, *_gBufferUnknown0RTV, 2 );
+		AtomicEngine::GetRHI()->BindRenderTargetView( *pipeline, *_gBufferUnknown1RTV, 3 );
+		AtomicEngine::GetRHI()->BindDepthStencilView( *pipeline, *_swapChainDepthDSV );
 	}
 
 	__declspec( align( 256 ) )
@@ -86,22 +86,22 @@ void RenderSystem::GeometryPass( std::array<std::unique_ptr<IComponentRegistry>,
 		Mat4x4 matRotation;
 	};
 
-	static IGPIResourceRef modelCBResource = nullptr;
-	static IGPIConstantBufferViewRef modelCBV;
+	static IRHIResourceRef modelCBResource = nullptr;
+	static IRHIConstantBufferViewRef modelCBV;
 	if( !modelCBResource )
 	{
-		const GPIResourceDesc cbDesc = GPIUtil::GetConstantBufferResourceDesc( L"ModelConstant", sizeof( PrimitiveConstantBuffer ) );
-		modelCBResource = AtomicEngine::GetGPI()->CreateResource( cbDesc );
+		const RHIResourceDesc cbDesc = RHIUtil::GetConstantBufferResourceDesc( L"ModelConstant", sizeof( PrimitiveConstantBuffer ) );
+		modelCBResource = AtomicEngine::GetRHI()->CreateResource( cbDesc );
 
-		GPIConstantBufferViewDesc cbvDesc{};
+		RHIConstantBufferViewDesc cbvDesc{};
 		cbvDesc.sizeInBytes = sizeof( PrimitiveConstantBuffer );
 
-		modelCBV = AtomicEngine::GetGPI()->CreateConstantBufferView( *modelCBResource, cbvDesc );
+		modelCBV = AtomicEngine::GetRHI()->CreateConstantBufferView( *modelCBResource, cbvDesc );
 	}
 
 	{// @TODO: move to somewhere makes sense
-		AtomicEngine::GetGPI()->BindConstantBufferView( *pipeline, *_viewCBV, 0 );
-		AtomicEngine::GetGPI()->BindConstantBufferView( *pipeline, *modelCBV, 1 );
+		AtomicEngine::GetRHI()->BindConstantBufferView( *pipeline, *_viewCBV, 0 );
+		AtomicEngine::GetRHI()->BindConstantBufferView( *pipeline, *modelCBV, 1 );
 	}
 
 	for( Entity entity = 0; entity < NUM_ENTITY_MAX; ++entity )
@@ -122,15 +122,15 @@ void RenderSystem::GeometryPass( std::array<std::unique_ptr<IComponentRegistry>,
 		constBuffer.matModel = AEMath::GetTransposedMatrix( AEMath::GetScaleMatrix( transformComp.scale ) * AEMath::GetTranslateMatrix( earlyTransform ) * AEMath::GetRotationMatrix( transformComp.rotation ) * AEMath::GetTranslateMatrix( transformComp.position ) );
 		constBuffer.matRotation = AEMath::GetTransposedMatrix( AEMath::GetRotationMatrix( transformComp.rotation ) );
 
-		AtomicEngine::GetGPI()->UpdateResourceData( *modelCBResource, &constBuffer, sizeof( constBuffer ) );
+		AtomicEngine::GetRHI()->UpdateResourceData( *modelCBResource, &constBuffer, sizeof( constBuffer ) );
 
-		AtomicEngine::GetGPI()->SetPipelineState( pipelineDesc );
+		AtomicEngine::GetRHI()->SetPipelineState( pipelineDesc );
 
 		for( const StaticMesh& mesh : primitiveComp.staticMeshGroup->meshes )
 		{
-			AtomicEngine::GetGPI()->Render( mesh.pipelineInput );
+			AtomicEngine::GetRHI()->Render( mesh.pipelineInput );
 		}
 
-		AtomicEngine::GetGPI()->ExecuteCommandList();
+		AtomicEngine::GetRHI()->ExecuteCommandList();
 	}
 }

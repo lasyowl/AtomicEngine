@@ -1,6 +1,6 @@
 #pragma once
 
-#include <GPI/GPIResource.h>
+#include <RHI/RHIResource.h>
 #include <Core/Vector.h>
 
 struct PBRMaterialConstant
@@ -15,8 +15,8 @@ struct PBRMaterial
 {
 	PBRMaterialConstant constants;
 
-	IGPIResourceRef baseColor;
-	IGPIResourceRef normal;
-	IGPIResourceRef roughness;
-	IGPIResourceRef metalness;
+	IRHIResourceRef baseColor;
+	IRHIResourceRef normal;
+	IRHIResourceRef roughness;
+	IRHIResourceRef metalness;
 };

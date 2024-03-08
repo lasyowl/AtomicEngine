@@ -1,9 +1,9 @@
 #include <Engine/RenderSystem.h>
 #include <Engine/AtomicEngine.h>
 #include <Engine/StaticMesh.h>
-#include <GPI/GPI.h>
-#include <GPI/GPIPipeline.h>
-#include <GPI/GPIUtility.h>
+#include <RHI/RHI.h>
+#include <RHI/RHIPipeline.h>
+#include <RHI/RHIUtility.h>
 #include <Core/Math.h>
 #include <Core/IntVector.h>
 #include <Engine/TransformComponent.h>
@@ -20,8 +20,8 @@ void RenderSystem::RayTracingTest( std::array<std::unique_ptr<IComponentRegistry
 		return;
 	}
 
-	static GPIPipelineStateDesc pipelineDesc{};
-	static IGPIPipelineRef pipeline = nullptr;
+	static RHIPipelineStateDesc pipelineDesc{};
+	static IRHIPipelineRef pipeline = nullptr;
 	if( !pipeline )
 	{
 		pipelineDesc.id = 4;
@@ -35,24 +35,24 @@ void RenderSystem::RayTracingTest( std::array<std::unique_ptr<IComponentRegistry
 		pipelineDesc.numCBVs = 1;
 		pipelineDesc.numUAVs = 1;
 
-		pipeline = AtomicEngine::GetGPI()->CreatePipelineState( pipelineDesc );
+		pipeline = AtomicEngine::GetRHI()->CreatePipelineState( pipelineDesc );
 
-		AtomicEngine::GetGPI()->BindConstantBufferView( *pipeline, *_viewCBV, 0 );
-		AtomicEngine::GetGPI()->BindUnorderedAccessView( *pipeline, *_sceneLightUAV, 0 );
+		AtomicEngine::GetRHI()->BindConstantBufferView( *pipeline, *_viewCBV, 0 );
+		AtomicEngine::GetRHI()->BindUnorderedAccessView( *pipeline, *_sceneLightUAV, 0 );
 	}
 
-	static IGPIRayTraceTopLevelASRef topLevelAS = nullptr;
-	static IGPIShaderResourceViewRef testNormalSRV = nullptr;
-	static IGPIShaderResourceViewRef testIndexSRV = nullptr;
-	static IGPIShaderResourceViewRef testInstanceContextSRV = nullptr;
-	static IGPIShaderResourceViewRef testMaterialSRV = nullptr;
-	static IGPIDescriptorTableViewRef descTableView = nullptr;
-	static IGPIResourceRef testTexResource = nullptr;
+	static IRHIRayTraceTopLevelASRef topLevelAS = nullptr;
+	static IRHIShaderResourceViewRef testNormalSRV = nullptr;
+	static IRHIShaderResourceViewRef testIndexSRV = nullptr;
+	static IRHIShaderResourceViewRef testInstanceContextSRV = nullptr;
+	static IRHIShaderResourceViewRef testMaterialSRV = nullptr;
+	static IRHIDescriptorTableViewRef descTableView = nullptr;
+	static IRHIResourceRef testTexResource = nullptr;
 	if( !topLevelAS )
 	{
 		uint32 testNormalResourceByteSize = 0;
 		uint32 testIndexResourceByteSize = 0;
-		std::vector<IGPIRayTraceBottomLevelASRef> blas;
+		std::vector<IRHIRayTraceBottomLevelASRef> blas;
 
 		for( Entity entity = 0; entity < NUM_ENTITY_MAX; ++entity )
 		{
@@ -70,29 +70,29 @@ void RenderSystem::RayTracingTest( std::array<std::unique_ptr<IComponentRegistry
 			testNormalResourceByteSize += staticMesh.pipelineInput.vbv[ 1 ]->size;
 			testIndexResourceByteSize += staticMesh.pipelineInput.ibv[ 0 ]->size;
 
-			GPIRayTraceBottomLevelASDesc bottomLevelASDesc{};
+			RHIRayTraceBottomLevelASDesc bottomLevelASDesc{};
 			bottomLevelASDesc.transform = AEMath::GetTransposedMatrix( AEMath::GetScaleMatrix( transformComp.scale ) * AEMath::GetRotationMatrix( transformComp.rotation ) * AEMath::GetTranslateMatrix( transformComp.position ) );
-			IGPIRayTraceBottomLevelASRef bottomLevelAS = AtomicEngine::GetGPI()->CreateRayTraceBottomLevelAS( bottomLevelASDesc, *staticMesh.pipelineInput.vbv[ 0 ], *staticMesh.pipelineInput.ibv[ 0 ] );
+			IRHIRayTraceBottomLevelASRef bottomLevelAS = AtomicEngine::GetRHI()->CreateRayTraceBottomLevelAS( bottomLevelASDesc, *staticMesh.pipelineInput.vbv[ 0 ], *staticMesh.pipelineInput.ibv[ 0 ] );
 			blas.push_back( bottomLevelAS );
 		}
 
-		GPIRayTraceTopLevelASDesc topLevelASDesc{};
-		topLevelAS = AtomicEngine::GetGPI()->CreateRayTraceTopLevelAS( blas, topLevelASDesc );
+		RHIRayTraceTopLevelASDesc topLevelASDesc{};
+		topLevelAS = AtomicEngine::GetRHI()->CreateRayTraceTopLevelAS( blas, topLevelASDesc );
 
 		/* Create resource */
-		GPIResourceDesc resourceDesc{};
-		resourceDesc.dimension = EGPIResourceDimension::Buffer;
-		resourceDesc.format = EGPIResourceFormat::Unknown;
+		RHIResourceDesc resourceDesc{};
+		resourceDesc.dimension = ERHIResourceDimension::Buffer;
+		resourceDesc.format = ERHIResourceFormat::Unknown;
 		resourceDesc.width = testNormalResourceByteSize;
 		resourceDesc.height = 1;
 		resourceDesc.depth = 1;
 		resourceDesc.numMips = 1;
-		resourceDesc.flags = GPIResourceFlag_None;
-		resourceDesc.initialState = GPIResourceState_AllShaderResource;
-		topLevelAS->normalResource = AtomicEngine::GetGPI()->CreateResource( resourceDesc );
+		resourceDesc.flags = RHIResourceFlag_None;
+		resourceDesc.initialState = RHIResourceState_AllShaderResource;
+		topLevelAS->normalResource = AtomicEngine::GetRHI()->CreateResource( resourceDesc );
 
 		resourceDesc.width = testIndexResourceByteSize;
-		topLevelAS->indexResource = AtomicEngine::GetGPI()->CreateResource( resourceDesc );
+		topLevelAS->indexResource = AtomicEngine::GetRHI()->CreateResource( resourceDesc );
 
 		struct RayTraceInstanceContext
 		{
@@ -123,8 +123,8 @@ void RenderSystem::RayTracingTest( std::array<std::unique_ptr<IComponentRegistry
 
 			StaticMesh& staticMesh = primitiveComp.staticMeshGroup->meshes[ 0 ];
 
-			AtomicEngine::GetGPI()->CopyBufferRegion( *topLevelAS->normalResource, *staticMesh.normalResource, normalResourceOffset, staticMesh.pipelineInput.vbv[ 1 ]->size );
-			AtomicEngine::GetGPI()->CopyBufferRegion( *topLevelAS->indexResource, *staticMesh.indexResource[ 0 ], indexResourceOffset, staticMesh.pipelineInput.ibv[ 0 ]->size );
+			AtomicEngine::GetRHI()->CopyBufferRegion( *topLevelAS->normalResource, *staticMesh.normalResource, normalResourceOffset, staticMesh.pipelineInput.vbv[ 1 ]->size );
+			AtomicEngine::GetRHI()->CopyBufferRegion( *topLevelAS->indexResource, *staticMesh.indexResource[ 0 ], indexResourceOffset, staticMesh.pipelineInput.ibv[ 0 ]->size );
 
 			RayTraceInstanceContext instanceContext;
 			instanceContext.matRotation = AEMath::GetTransposedMatrix( AEMath::GetRotationMatrix( transformComp.rotation ) );
@@ -137,61 +137,61 @@ void RenderSystem::RayTracingTest( std::array<std::unique_ptr<IComponentRegistry
 		}
 
 		resourceDesc.width = instanceContexts.size() * sizeof( RayTraceInstanceContext );
-		topLevelAS->instanceContextResource = AtomicEngine::GetGPI()->CreateResource( resourceDesc, instanceContexts.data(), resourceDesc.width );
+		topLevelAS->instanceContextResource = AtomicEngine::GetRHI()->CreateResource( resourceDesc, instanceContexts.data(), resourceDesc.width );
 
 		resourceDesc.width = materialConstants.size() * sizeof( PBRMaterialConstant );
-		topLevelAS->materialResource = AtomicEngine::GetGPI()->CreateResource( resourceDesc, materialConstants.data(), resourceDesc.width );
+		topLevelAS->materialResource = AtomicEngine::GetRHI()->CreateResource( resourceDesc, materialConstants.data(), resourceDesc.width );
 
-		GPIShaderResourceViewDesc srvDesc{};
-		srvDesc.format = EGPIResourceFormat::R32G32B32_Float;
-		srvDesc.dimension = EGPIResourceDimension::Buffer;
+		RHIShaderResourceViewDesc srvDesc{};
+		srvDesc.format = ERHIResourceFormat::R32G32B32_Float;
+		srvDesc.dimension = ERHIResourceDimension::Buffer;
 		srvDesc.numElements = testNormalResourceByteSize / sizeof( Vec3 );
-		testNormalSRV = AtomicEngine::GetGPI()->CreateShaderResourceView( *topLevelAS->normalResource, srvDesc );
+		testNormalSRV = AtomicEngine::GetRHI()->CreateShaderResourceView( *topLevelAS->normalResource, srvDesc );
 
-		srvDesc.format = EGPIResourceFormat::R32_Uint;
+		srvDesc.format = ERHIResourceFormat::R32_Uint;
 		srvDesc.numElements = testIndexResourceByteSize / sizeof( uint32 );
-		testIndexSRV = AtomicEngine::GetGPI()->CreateShaderResourceView( *topLevelAS->indexResource, srvDesc );
+		testIndexSRV = AtomicEngine::GetRHI()->CreateShaderResourceView( *topLevelAS->indexResource, srvDesc );
 
-		srvDesc.format = EGPIResourceFormat::Unknown;
+		srvDesc.format = ERHIResourceFormat::Unknown;
 		srvDesc.numElements = instanceContexts.size();
 		srvDesc.byteStride = sizeof( RayTraceInstanceContext );
-		testInstanceContextSRV = AtomicEngine::GetGPI()->CreateShaderResourceView( *topLevelAS->instanceContextResource, srvDesc );
+		testInstanceContextSRV = AtomicEngine::GetRHI()->CreateShaderResourceView( *topLevelAS->instanceContextResource, srvDesc );
 
-		srvDesc.format = EGPIResourceFormat::Unknown;
+		srvDesc.format = ERHIResourceFormat::Unknown;
 		srvDesc.numElements = materialConstants.size();
 		srvDesc.byteStride = sizeof( PBRMaterialConstant );
-		testMaterialSRV = AtomicEngine::GetGPI()->CreateShaderResourceView( *topLevelAS->materialResource, srvDesc );
+		testMaterialSRV = AtomicEngine::GetRHI()->CreateShaderResourceView( *topLevelAS->materialResource, srvDesc );
 
 		// temp texture
 		TextureDataRef baseColorTexture = AssetLoader::LoadTextureData( "../Resource/brick-wall/brick-wall_albedo.png" );
-		GPIResourceDesc desc{};
+		RHIResourceDesc desc{};
 		desc.name = L"testpng";
-		desc.dimension = EGPIResourceDimension::Texture2D;
-		desc.format = EGPIResourceFormat::B8G8R8A8;
+		desc.dimension = ERHIResourceDimension::Texture2D;
+		desc.format = ERHIResourceFormat::B8G8R8A8;
 		desc.width = baseColorTexture->width;
 		desc.height = baseColorTexture->height;
 		desc.depth = 1;
 		desc.numMips = 1;
-		desc.flags = GPIResourceFlag_None;
-		desc.initialState = GPIResourceState_AllShaderResource;
-		testTexResource = AtomicEngine::GetGPI()->CreateResource( desc );
-		AtomicEngine::GetGPI()->UpdateTextureData( *testTexResource, baseColorTexture->data.data(), baseColorTexture->width, baseColorTexture->height );
+		desc.flags = RHIResourceFlag_None;
+		desc.initialState = RHIResourceState_AllShaderResource;
+		testTexResource = AtomicEngine::GetRHI()->CreateResource( desc );
+		AtomicEngine::GetRHI()->UpdateTextureData( *testTexResource, baseColorTexture->data.data(), baseColorTexture->width, baseColorTexture->height );
 
-		std::vector<const IGPIResource*> resources = 
+		std::vector<const IRHIResource*> resources = 
 		{
 			testTexResource.get(), _sceneLightResource.get()
 		};
-		std::vector<GPIConstantBufferViewDesc> cbvDescs;
-		std::vector<GPIShaderResourceViewDesc> srvDescs =
+		std::vector<RHIConstantBufferViewDesc> cbvDescs;
+		std::vector<RHIShaderResourceViewDesc> srvDescs =
 		{
-			{ EGPIResourceFormat::B8G8R8A8, EGPIResourceDimension::Texture2D, 0, 0 }
+			{ ERHIResourceFormat::B8G8R8A8, ERHIResourceDimension::Texture2D, 0, 0 }
 		};
-		std::vector<GPIUnorderedAccessViewDesc> uavDescs =
+		std::vector<RHIUnorderedAccessViewDesc> uavDescs =
 		{
-			{ EGPIResourceFormat::B8G8R8A8, EGPIResourceDimension::Texture2D }
+			{ ERHIResourceFormat::B8G8R8A8, ERHIResourceDimension::Texture2D }
 		};
-		descTableView = AtomicEngine::GetGPI()->CreateDescriptorTableView( resources, cbvDescs, srvDescs, uavDescs );
+		descTableView = AtomicEngine::GetRHI()->CreateDescriptorTableView( resources, cbvDescs, srvDescs, uavDescs );
 	}
 
-	AtomicEngine::GetGPI()->RayTrace( pipelineDesc, topLevelAS, descTableView, testNormalSRV, testIndexSRV, testInstanceContextSRV, testMaterialSRV );
+	AtomicEngine::GetRHI()->RayTrace( pipelineDesc, topLevelAS, descTableView, testNormalSRV, testIndexSRV, testInstanceContextSRV, testMaterialSRV );
 }

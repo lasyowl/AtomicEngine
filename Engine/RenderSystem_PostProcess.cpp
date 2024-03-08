@@ -1,7 +1,7 @@
 #include "RenderSystem.h"
 #include "AtomicEngine.h"
-#include <GPI/GPI.h>
-#include <GPI/GPIPipeline.h>
+#include <RHI/RHI.h>
+#include <RHI/RHIPipeline.h>
 #include <Core/Vector.h>
 #include "StaticMesh.h"
 #include "SampleMesh.h"
@@ -10,7 +10,7 @@ void RenderSystem::PostProcess( std::array<std::unique_ptr<IComponentRegistry>, 
 {
 	return;
 
-	/*static GPIPipelineStateDesc pipelineDesc{};
+	/*static RHIPipelineStateDesc pipelineDesc{};
 	if( pipelineDesc.id == 0 )
 	{
 		pipelineDesc.id = 2;
@@ -18,11 +18,11 @@ void RenderSystem::PostProcess( std::array<std::unique_ptr<IComponentRegistry>, 
 		pipelineDesc.bRenderSwapChainBuffer = true;
 		pipelineDesc.bBindDepth = false;
 
-		pipelineDesc.rtvFormats = { EGPIResourceFormat::B8G8R8A8_SRGB, };
+		pipelineDesc.rtvFormats = { ERHIResourceFormat::B8G8R8A8_SRGB, };
 
 		pipelineDesc.inputDesc.resize( 2 );
-		pipelineDesc.inputDesc[ 0 ] = { "POSITION", EGPIResourceFormat::R32G32B32_Float, GPIInputClass_PerVertex, 0 };
-		pipelineDesc.inputDesc[ 1 ] = { "TEXCOORD", EGPIResourceFormat::R32G32_Float, GPIInputClass_PerVertex, 2 };
+		pipelineDesc.inputDesc[ 0 ] = { "POSITION", ERHIResourceFormat::R32G32B32_Float, RHIInputClass_PerVertex, 0 };
+		pipelineDesc.inputDesc[ 1 ] = { "TEXCOORD", ERHIResourceFormat::R32G32_Float, RHIInputClass_PerVertex, 2 };
 
 		pipelineDesc.vertexShader.hash = 3;
 		pipelineDesc.vertexShader.type = ShaderType_VertexShader;
@@ -34,9 +34,9 @@ void RenderSystem::PostProcess( std::array<std::unique_ptr<IComponentRegistry>, 
 		pipelineDesc.pixelShader.file = "Engine/Shader/PostProcess.hlsl";
 		pipelineDesc.pixelShader.entry = "PS_main";
 
-		AtomicEngine::GetGPI()->CreatePipelineState( pipelineDesc );
+		AtomicEngine::GetRHI()->CreatePipelineState( pipelineDesc );
 	}
-	AtomicEngine::GetGPI()->SetPipelineState( pipelineDesc );
+	AtomicEngine::GetRHI()->SetPipelineState( pipelineDesc );
 
 	static IVertexBufferRef positionBuffer = nullptr;
 	static IVertexBufferRef uvBuffer = nullptr;
@@ -46,12 +46,12 @@ void RenderSystem::PostProcess( std::array<std::unique_ptr<IComponentRegistry>, 
 	{
 		static StaticMesh staticMesh = SampleMesh::GetQuad();
 
-		positionBuffer = AtomicEngine::GetGPI()->CreateVertexBuffer( staticMesh.GetPositionPtr(), staticMesh.GetPositionStride(), staticMesh.GetPositionByteSize() );
-		uvBuffer = AtomicEngine::GetGPI()->CreateVertexBuffer( staticMesh.GetUVPtr(), staticMesh.GetUVStride(), staticMesh.GetUVByteSize() );
-		indexBuffer = AtomicEngine::GetGPI()->CreateIndexBuffer( staticMesh.GetIndexPtr( 0 ), staticMesh.GetIndexByteSize( 0 ) );
+		positionBuffer = AtomicEngine::GetRHI()->CreateVertexBuffer( staticMesh.GetPositionPtr(), staticMesh.GetPositionStride(), staticMesh.GetPositionByteSize() );
+		uvBuffer = AtomicEngine::GetRHI()->CreateVertexBuffer( staticMesh.GetUVPtr(), staticMesh.GetUVStride(), staticMesh.GetUVByteSize() );
+		indexBuffer = AtomicEngine::GetRHI()->CreateIndexBuffer( staticMesh.GetIndexPtr( 0 ), staticMesh.GetIndexByteSize( 0 ) );
 	}
 
-	AtomicEngine::GetGPI()->Render( positionBuffer.get(), uvBuffer.get(), nullptr, indexBuffer.get() );
+	AtomicEngine::GetRHI()->Render( positionBuffer.get(), uvBuffer.get(), nullptr, indexBuffer.get() );
 
-	AtomicEngine::GetGPI()->ExecuteCommandList();*/
+	AtomicEngine::GetRHI()->ExecuteCommandList();*/
 }

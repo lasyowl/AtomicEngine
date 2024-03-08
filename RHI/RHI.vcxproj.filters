@@ -15,16 +15,16 @@
     </Filter>
   </ItemGroup>
   <ItemGroup>
-    <ClCompile Include="GPIResource_DX12.cpp">
+    <ClCompile Include="RHIHeapAllocator_DX12.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="GPIUtility.cpp">
+    <ClCompile Include="RHIResource_DX12.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="GPI_DX12.cpp">
+    <ClCompile Include="RHIUtility.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="GPIHeapAllocator_DX12.cpp">
+    <ClCompile Include="RHI_DX12.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
   </ItemGroup>
@@ -32,34 +32,34 @@
     <ClInclude Include="stdafx.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="GPI.h">
+    <ClInclude Include="RHI.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="GPI_DX12.h">
+    <ClInclude Include="RHIDefine.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="GPIDefine.h">
+    <ClInclude Include="RHIPipeline.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="GPIPipeline.h">
+    <ClInclude Include="RHIPipeline_DX12.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="GPIPipeline_DX12.h">
+    <ClInclude Include="RHIResource.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="GPIResource.h">
+    <ClInclude Include="RHIResource_DX12.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="GPIResource_DX12.h">
+    <ClInclude Include="RHIShader.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="GPIShader.h">
+    <ClInclude Include="RHIUtility.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="GPIUtility.h">
+    <ClInclude Include="RHIUtility_DX12.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="GPIUtility_DX12.h">
+    <ClInclude Include="RHI_DX12.h">
       <Filter>Header Files</Filter>
     </ClInclude>
   </ItemGroup>

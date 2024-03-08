@@ -1,9 +1,9 @@
-#include "GPI_DX12.h"
+#include "RHI_DX12.h"
 
 #include <Core/DebugUtil.h>
-#include <GPI/GPIPipeline_DX12.h>
-#include <GPI/GPIUtility_DX12.h>
-#include <GPI/GPIUtility.h>
+#include <RHI/RHIPipeline_DX12.h>
+#include <RHI/RHIUtility_DX12.h>
+#include <RHI/RHIUtility.h>
 
 #include <d3d12.h>
 #include <d3dcommon.h>
@@ -45,23 +45,23 @@ const char* ShaderTypeToString( EShaderType type )
 	return nullptr;
 }
 
-D3D12_INPUT_ELEMENT_DESC TranslateInputDesc( const GPIPipelineInputDesc& inputDesc )
+D3D12_INPUT_ELEMENT_DESC TranslateInputDesc( const RHIPipelineInputDesc& inputDesc )
 {
 	D3D12_INPUT_ELEMENT_DESC d3dInputDesc =
 	{
 		inputDesc.semanticName.c_str(),
 		0,
-		GPIUtil::TranslateResourceFormat( inputDesc.format ),
+		RHIUtil::TranslateResourceFormat( inputDesc.format ),
 		inputDesc.inputSlot,
 		0,
-		inputDesc.inputClass == GPIInputClass_PerInstance ? D3D12_INPUT_CLASSIFICATION_PER_INSTANCE_DATA : D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA,
+		inputDesc.inputClass == RHIInputClass_PerInstance ? D3D12_INPUT_CLASSIFICATION_PER_INSTANCE_DATA : D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA,
 		0
 	};
 
 	return d3dInputDesc;
 }
 
-std::vector<D3D_SHADER_MACRO> TranslateShaderMacros( const std::vector<GPIShaderMacro>& inMacros )
+std::vector<D3D_SHADER_MACRO> TranslateShaderMacros( const std::vector<RHIShaderMacro>& inMacros )
 {
 	std::vector<D3D_SHADER_MACRO> macros;
 	macros.resize( inMacros.size() + 1 );
@@ -112,9 +112,9 @@ void CopyMemoryToBuffer( ID3D12Resource* buffer, const void* data, uint64 size )
 }
 
 ////////////////////////////////
-// GPIResourceAllocator_DX12
+// RHIResourceAllocator_DX12
 ////////////////////////////////
-void GPIResourceAllocator_DX12::Initialize()
+void RHIResourceAllocator_DX12::Initialize()
 {
 	constexpr uint32 NUM_RESOURCES = 10000;
 	for( uint32 iter = 0; iter < NUM_RESOURCES; ++iter )
@@ -123,7 +123,7 @@ void GPIResourceAllocator_DX12::Initialize()
 	}
 }
 
-uint32 GPIResourceAllocator_DX12::AllocateUniqueResourceID( ID3D12Resource* resource )
+uint32 RHIResourceAllocator_DX12::AllocateUniqueResourceID( ID3D12Resource* resource )
 {
 	uint32 resourceID = _freeResourceIDs.front();
 	_freeResourceIDs.pop();
@@ -134,23 +134,23 @@ uint32 GPIResourceAllocator_DX12::AllocateUniqueResourceID( ID3D12Resource* reso
 	return resourceID;
 }
 
-void GPIResourceAllocator_DX12::ReleaseUniqueResourceID( uint32 resourceID )
+void RHIResourceAllocator_DX12::ReleaseUniqueResourceID( uint32 resourceID )
 {
 	_freeResourceIDs.push( resourceID );
 }
 
-uint32 GPIResourceAllocator_DX12::CreateResource( ID3D12Device* device, const GPIResourceDesc& desc )
+uint32 RHIResourceAllocator_DX12::CreateResource( ID3D12Device* device, const RHIResourceDesc& desc )
 {
 	// todo : set clear value for depthstencil and others..
 
-	D3D12_RESOURCE_DESC translatedDesc = GPIUtil::TranslateResourceDesc( desc );
+	D3D12_RESOURCE_DESC translatedDesc = RHIUtil::TranslateResourceDesc( desc );
 	D3D12_HEAP_PROPERTIES defaultHeapProp = HeapProperties( D3D12_HEAP_TYPE_DEFAULT );
 
 	ID3D12Resource* resource;
 	CHECK_HRESULT( device->CreateCommittedResource( &defaultHeapProp,
 				   D3D12_HEAP_FLAG_NONE,
 				   &translatedDesc,
-				   GPIUtil::TranslateResourceState( desc.initialState ),
+				   RHIUtil::TranslateResourceState( desc.initialState ),
 				   nullptr,
 				   IID_PPV_ARGS( &resource ) ),
 				   L"Failed to create output buffer." );
@@ -158,7 +158,7 @@ uint32 GPIResourceAllocator_DX12::CreateResource( ID3D12Device* device, const GP
 	return AllocateUniqueResourceID( resource );
 }
 
-ID3D12Resource* GPIResourceAllocator_DX12::GetResource( uint32 resourceID )
+ID3D12Resource* RHIResourceAllocator_DX12::GetResource( uint32 resourceID )
 {
 	assert( _resourceCache.contains( resourceID ) );
 
@@ -166,9 +166,9 @@ ID3D12Resource* GPIResourceAllocator_DX12::GetResource( uint32 resourceID )
 }
 
 ///////////////////////////////////////
-// GPI_DX12
+// RHI_DX12
 ///////////////////////////////////////
-GPI_DX12::GPI_DX12( const HWND hWnd, const IVec2& windowSize )
+RHI_DX12::RHI_DX12( const HWND hWnd, const IVec2& windowSize )
 	: _device( nullptr )
 	, _swapChain( nullptr )
 	, _swapChainIndex( 0 )
@@ -179,7 +179,7 @@ GPI_DX12::GPI_DX12( const HWND hWnd, const IVec2& windowSize )
 	SetWindowSize( windowSize );
 }
 
-GPI_DX12::~GPI_DX12()
+RHI_DX12::~RHI_DX12()
 {
 #define CHECKED_RELEASE(ref)\
 	if(ref) ref->Release();
@@ -192,7 +192,7 @@ GPI_DX12::~GPI_DX12()
 #undef CHECKED_RELEASE
 }
 
-void GPI_DX12::Initialize()
+void RHI_DX12::Initialize()
 {
 	/* Cretate and enable debug layer */
 	CHECK_HRESULT( D3D12GetDebugInterface( IID_PPV_ARGS( &_debugInterface ) ), L"Failed to create debug layer." );
@@ -271,11 +271,11 @@ void GPI_DX12::Initialize()
 	_resource.Initialize();
 }
 
-void GPI_DX12::BeginFrame( const IGPIResource& inSwapChainResource, const IGPIRenderTargetView& inSwapChainRTV, const IGPIDepthStencilView& inSwapChainDSV )
+void RHI_DX12::BeginFrame( const IRHIResource& inSwapChainResource, const IRHIRenderTargetView& inSwapChainRTV, const IRHIDepthStencilView& inSwapChainDSV )
 {
-	const GPIResource_DX12& swapChainResource = static_cast< const GPIResource_DX12& >( inSwapChainResource );
-	const GPIRenderTargetView_DX12& swapChainRTV = static_cast< const GPIRenderTargetView_DX12& >( inSwapChainRTV );
-	const GPIDepthStencilView_DX12& swapChainDSV = static_cast< const GPIDepthStencilView_DX12& >( inSwapChainDSV );
+	const RHIResource_DX12& swapChainResource = static_cast< const RHIResource_DX12& >( inSwapChainResource );
+	const RHIRenderTargetView_DX12& swapChainRTV = static_cast< const RHIRenderTargetView_DX12& >( inSwapChainRTV );
+	const RHIDepthStencilView_DX12& swapChainDSV = static_cast< const RHIDepthStencilView_DX12& >( inSwapChainDSV );
 
 	CommandQueueContext& cmdQueueCtx = _cmdQueueCtx[ D3D12_COMMAND_LIST_TYPE_DIRECT ];
 	ID3D12CommandAllocator* cmdAllocator = cmdQueueCtx.allocator;
@@ -299,9 +299,9 @@ void GPI_DX12::BeginFrame( const IGPIResource& inSwapChainResource, const IGPIRe
 	WaitForFence( cmdQueueCtx );
 }
 
-void GPI_DX12::EndFrame( const IGPIResource& inSwapChainResource )
+void RHI_DX12::EndFrame( const IRHIResource& inSwapChainResource )
 {
-	const GPIResource_DX12& swapChainResource = static_cast< const GPIResource_DX12& >( inSwapChainResource );
+	const RHIResource_DX12& swapChainResource = static_cast< const RHIResource_DX12& >( inSwapChainResource );
 
 	CommandQueueContext& cmdQueueCtx = _cmdQueueCtx[ D3D12_COMMAND_LIST_TYPE_DIRECT ];
 	ID3D12CommandAllocator* cmdAllocator = cmdQueueCtx.allocator;
@@ -329,9 +329,9 @@ void GPI_DX12::EndFrame( const IGPIResource& inSwapChainResource )
 	}
 }
 
-void GPI_DX12::ClearSwapChain( const IGPIRenderTargetView& inRTV )
+void RHI_DX12::ClearSwapChain( const IRHIRenderTargetView& inRTV )
 {
-	const GPIRenderTargetView_DX12& rtv = static_cast< const GPIRenderTargetView_DX12& >( inRTV );
+	const RHIRenderTargetView_DX12& rtv = static_cast< const RHIRenderTargetView_DX12& >( inRTV );
 
 	CommandQueueContext& cmdQueueCtx = _cmdQueueCtx[ D3D12_COMMAND_LIST_TYPE_DIRECT ];
 	ID3D12CommandAllocator* cmdAllocator = cmdQueueCtx.allocator;
@@ -355,9 +355,9 @@ void GPI_DX12::ClearSwapChain( const IGPIRenderTargetView& inRTV )
 	WaitForFence( cmdQueueCtx );
 }
 
-void GPI_DX12::ClearRenderTarget( const IGPIRenderTargetView& inRTV )
+void RHI_DX12::ClearRenderTarget( const IRHIRenderTargetView& inRTV )
 {
-	const GPIRenderTargetView_DX12& rtv = static_cast< const GPIRenderTargetView_DX12& >( inRTV );
+	const RHIRenderTargetView_DX12& rtv = static_cast< const RHIRenderTargetView_DX12& >( inRTV );
 
 	CommandQueueContext& cmdQueueCtx = _cmdQueueCtx[ D3D12_COMMAND_LIST_TYPE_DIRECT ];
 	ID3D12CommandAllocator* cmdAllocator = cmdQueueCtx.allocator;
@@ -381,9 +381,9 @@ void GPI_DX12::ClearRenderTarget( const IGPIRenderTargetView& inRTV )
 	WaitForFence( cmdQueueCtx );
 }
 
-void GPI_DX12::ClearRenderTarget( const IGPIUnorderedAccessView& inUAV )
+void RHI_DX12::ClearRenderTarget( const IRHIUnorderedAccessView& inUAV )
 {
-	const GPIUnorderedAccessView_DX12& uav = static_cast< const GPIUnorderedAccessView_DX12& >( inUAV );
+	const RHIUnorderedAccessView_DX12& uav = static_cast< const RHIUnorderedAccessView_DX12& >( inUAV );
 
 	CommandQueueContext& cmdQueueCtx = _cmdQueueCtx[ D3D12_COMMAND_LIST_TYPE_DIRECT ];
 	ID3D12CommandAllocator* cmdAllocator = cmdQueueCtx.allocator;
@@ -407,7 +407,7 @@ void GPI_DX12::ClearRenderTarget( const IGPIUnorderedAccessView& inUAV )
 	WaitForFence( cmdQueueCtx );
 }
 
-void GPI_DX12::SetGraphicsPipelineState( const GPIPipelineStateDesc& desc, const GPIPipeline_DX12& pipeline )
+void RHI_DX12::SetGraphicsPipelineState( const RHIPipelineStateDesc& desc, const RHIPipeline_DX12& pipeline )
 {
 	CommandQueueContext& cmdQueueCtx = _cmdQueueCtx[ D3D12_COMMAND_LIST_TYPE_DIRECT ];
 	ID3D12CommandAllocator* cmdAllocator = cmdQueueCtx.allocator;
@@ -447,7 +447,7 @@ void GPI_DX12::SetGraphicsPipelineState( const GPIPipelineStateDesc& desc, const
 		cmdList->SetGraphicsRootUnorderedAccessView( rootParamIndex++, gpuAddress );
 	}
 
-	ID3D12DescriptorHeap* textureHeap = _heap.GetHeap( GPIResourceViewType_SRV_TEXTURE );
+	ID3D12DescriptorHeap* textureHeap = _heap.GetHeap( RHIResourceViewType_SRV_TEXTURE );
 	cmdList->SetDescriptorHeaps( 1, &textureHeap );
 
 	for( uint32 index = 0; index < pipeline.textureTables.size(); ++index )
@@ -456,12 +456,12 @@ void GPI_DX12::SetGraphicsPipelineState( const GPIPipelineStateDesc& desc, const
 	}
 }
 
-void GPI_DX12::SetComputePipelineState( const GPIPipelineStateDesc& desc, const GPIPipeline_DX12& pipeline )
+void RHI_DX12::SetComputePipelineState( const RHIPipelineStateDesc& desc, const RHIPipeline_DX12& pipeline )
 {
 	//@TODO:
 }
 
-void GPI_DX12::SetRayTracePipelineState( const GPIPipelineStateDesc& desc, const GPIPipeline_DX12& pipeline )
+void RHI_DX12::SetRayTracePipelineState( const RHIPipelineStateDesc& desc, const RHIPipeline_DX12& pipeline )
 {
 	/*CommandQueueContext& cmdQueueCtx = _cmdQueueCtx[ D3D12_COMMAND_LIST_TYPE_COMPUTE ];
 	ID3D12CommandAllocator* cmdAllocator = cmdQueueCtx.allocator;
@@ -473,7 +473,7 @@ void GPI_DX12::SetRayTracePipelineState( const GPIPipelineStateDesc& desc, const
 	cmdList->SetComputeRootSignature( pipeline.rootSignature );
 	cmdList->SetPipelineState1( pipeline.raytrace.pipelineState );
 
-	ID3D12DescriptorHeap* rtvHeap = _heap.GetHeap( GPIResourceViewType_RTV );
+	ID3D12DescriptorHeap* rtvHeap = _heap.GetHeap( RHIResourceViewType_RTV );
 	cmdList->SetDescriptorHeaps( 1, &rtvHeap );
 
 	uint32 rootParamIndex = 0;
@@ -491,11 +491,11 @@ void GPI_DX12::SetRayTracePipelineState( const GPIPipelineStateDesc& desc, const
 	cmdList->DispatchRays( &dispatchRays );*/
 }
 
-void GPI_DX12::SetPipelineState( const GPIPipelineStateDesc& pipelineDesc )
+void RHI_DX12::SetPipelineState( const RHIPipelineStateDesc& pipelineDesc )
 {
 	assert( _pipelineCache.contains( pipelineDesc.id ) );
 
-	std::shared_ptr<GPIPipeline_DX12>& pipeline = _pipelineCache[ pipelineDesc.id ];
+	std::shared_ptr<RHIPipeline_DX12>& pipeline = _pipelineCache[ pipelineDesc.id ];
 
 	switch( pipelineDesc.pipelineType )
 	{
@@ -505,7 +505,7 @@ void GPI_DX12::SetPipelineState( const GPIPipelineStateDesc& pipelineDesc )
 	}
 }
 
-void GPI_DX12::Render( const GPIPipelineInput& pipelineInput )
+void RHI_DX12::Render( const RHIPipelineInput& pipelineInput )
 {
 	CommandQueueContext& cmdQueueCtx = _cmdQueueCtx[ D3D12_COMMAND_LIST_TYPE_DIRECT ];
 	ID3D12GraphicsCommandList* cmdList = *cmdQueueCtx.iCmdList;
@@ -518,7 +518,7 @@ void GPI_DX12::Render( const GPIPipelineInput& pipelineInput )
 
 		if( pipelineInput.vbv[ index ] )
 		{
-			const GPIVertexBufferView_DX12& inVBV = static_cast< const GPIVertexBufferView_DX12& >( *pipelineInput.vbv[ index ] );
+			const RHIVertexBufferView_DX12& inVBV = static_cast< const RHIVertexBufferView_DX12& >( *pipelineInput.vbv[ index ] );
 			vbv.BufferLocation = inVBV.gpuAddress;
 			vbv.SizeInBytes = inVBV.size;
 			vbv.StrideInBytes = inVBV.stride;
@@ -529,9 +529,9 @@ void GPI_DX12::Render( const GPIPipelineInput& pipelineInput )
 		}
 	}
 
-	for( const IGPIIndexBufferViewRef& ibv : pipelineInput.ibv )
+	for( const IRHIIndexBufferViewRef& ibv : pipelineInput.ibv )
 	{
-		const GPIIndexBufferView_DX12& inIBV = static_cast< const GPIIndexBufferView_DX12& >( *ibv );
+		const RHIIndexBufferView_DX12& inIBV = static_cast< const RHIIndexBufferView_DX12& >( *ibv );
 
 		D3D12_INDEX_BUFFER_VIEW IBView{};
 		IBView.BufferLocation = inIBV.gpuAddress;
@@ -544,7 +544,7 @@ void GPI_DX12::Render( const GPIPipelineInput& pipelineInput )
 	}
 }
 
-void GPI_DX12::ExecuteCommandList()
+void RHI_DX12::ExecuteCommandList()
 {
 	CommandQueueContext& cmdQueueCtx = _cmdQueueCtx[ D3D12_COMMAND_LIST_TYPE_DIRECT ];
 	ID3D12GraphicsCommandList* cmdList = *cmdQueueCtx.iCmdList;
@@ -557,7 +557,7 @@ void GPI_DX12::ExecuteCommandList()
 	WaitForFence( cmdQueueCtx );
 }
 
-ID3DBlob* CreateShader( const GPIShaderDesc& shaderDesc )
+ID3DBlob* CreateShader( const RHIShaderDesc& shaderDesc )
 {
 	std::vector<D3D_SHADER_MACRO> macros = TranslateShaderMacros( shaderDesc.macros );
 
@@ -582,7 +582,7 @@ ID3DBlob* CreateShader( const GPIShaderDesc& shaderDesc )
 	return compiledShader;
 }
 
-IDxcBlob* CreateShader2( const GPIShaderDesc& shaderDesc )
+IDxcBlob* CreateShader2( const RHIShaderDesc& shaderDesc )
 {
 	// Initialize the DXC compiler and library
 	IDxcCompiler* pCompiler;
@@ -634,7 +634,7 @@ IDxcBlob* CreateShader2( const GPIShaderDesc& shaderDesc )
 	}
 }
 
-ID3D12RootSignature* CreateGraphicsRootSignature( ID3D12Device* device, const GPIPipelineStateDesc& pipelineDesc )
+ID3D12RootSignature* CreateGraphicsRootSignature( ID3D12Device* device, const RHIPipelineStateDesc& pipelineDesc )
 {
 	ID3D12RootSignature* rootSignature;
 
@@ -726,7 +726,7 @@ ID3D12RootSignature* CreateGraphicsRootSignature( ID3D12Device* device, const GP
 	return rootSignature;
 }
 
-ID3D12PipelineState* CreateGraphicsPipelineState( ID3D12Device* device, const GPIPipelineStateDesc& pipelineDesc, ID3D12RootSignature* rootSignature, ID3DBlob* vertexShader, ID3DBlob* pixelShader )
+ID3D12PipelineState* CreateGraphicsPipelineState( ID3D12Device* device, const RHIPipelineStateDesc& pipelineDesc, ID3D12RootSignature* rootSignature, ID3DBlob* vertexShader, ID3DBlob* pixelShader )
 {
 	ID3D12PipelineState* pso;
 
@@ -790,7 +790,7 @@ ID3D12PipelineState* CreateGraphicsPipelineState( ID3D12Device* device, const GP
 	psoDesc.NumRenderTargets = pipelineDesc.rtvFormats.size();
 	for( uint32 index = 0; index < pipelineDesc.rtvFormats.size(); ++index )
 	{
-		psoDesc.RTVFormats[ index ] = GPIUtil::TranslateResourceFormat( pipelineDesc.rtvFormats[ index ] );
+		psoDesc.RTVFormats[ index ] = RHIUtil::TranslateResourceFormat( pipelineDesc.rtvFormats[ index ] );
 	}
 	psoDesc.DSVFormat = DXGI_FORMAT_D32_FLOAT;
 	psoDesc.InputLayout.NumElements = layout.size();
@@ -808,7 +808,7 @@ ID3D12PipelineState* CreateGraphicsPipelineState( ID3D12Device* device, const GP
 	return pso;
 }
 
-ID3D12RootSignature* CreateComputeRootSignature( ID3D12Device* device, const GPIPipelineStateDesc& pipelineDesc )
+ID3D12RootSignature* CreateComputeRootSignature( ID3D12Device* device, const RHIPipelineStateDesc& pipelineDesc )
 {
 	ID3D12RootSignature* rootSignature;
 
@@ -855,7 +855,7 @@ ID3D12PipelineState* CreateComputePipelineState( ID3D12Device* device, ID3D12Roo
 	return pso;
 }
 
-ID3D12RootSignature* CreateRayTraceRootSignature( ID3D12Device5* device, const GPIPipelineStateDesc& pipelineDesc )
+ID3D12RootSignature* CreateRayTraceRootSignature( ID3D12Device5* device, const RHIPipelineStateDesc& pipelineDesc )
 {
 	ID3D12RootSignature* rootSignature;
 
@@ -919,27 +919,27 @@ ID3D12RootSignature* CreateRayTraceRootSignature( ID3D12Device5* device, const G
 	return rootSignature;
 }
 
-uint32 GPI_DX12::GetSwapChainCurrentIndex()
+uint32 RHI_DX12::GetSwapChainCurrentIndex()
 {
 	return _swapChainIndex;
 }
 
-IGPIResourceRef GPI_DX12::GetSwapChainResource( const uint32 index )
+IRHIResourceRef RHI_DX12::GetSwapChainResource( const uint32 index )
 {
 	ID3D12Resource* swapChainResource;
 	CHECK_HRESULT( _swapChain->GetBuffer( index, IID_PPV_ARGS( &swapChainResource ) ), L"Failed to get swapchain buffer." );
 	
-	return std::make_shared<GPIResource_DX12>( swapChainResource );
+	return std::make_shared<RHIResource_DX12>( swapChainResource );
 }
 
-IGPIPipelineRef GPI_DX12::CreatePipelineState( const GPIPipelineStateDesc& pipelineDesc )
+IRHIPipelineRef RHI_DX12::CreatePipelineState( const RHIPipelineStateDesc& pipelineDesc )
 {
 	if( _pipelineCache.contains( pipelineDesc.id ) )
 	{
 		return nullptr;
 	}
 
-	std::shared_ptr< GPIPipeline_DX12 > pipelineState = std::make_shared<GPIPipeline_DX12>();
+	std::shared_ptr< RHIPipeline_DX12 > pipelineState = std::make_shared<RHIPipeline_DX12>();
 	_pipelineCache.emplace( pipelineDesc.id, pipelineState );
 
 	if( pipelineDesc.pipelineType == PipelineType_Graphics )
@@ -1066,15 +1066,15 @@ IGPIPipelineRef GPI_DX12::CreatePipelineState( const GPIPipelineStateDesc& pipel
 		// ray generation
 		memcpy( shaderParam.shaderIdentifier, pipelineState->raytrace.stateProperties->GetShaderIdentifier( L"RayGeneration" ), D3D12_SHADER_IDENTIFIER_SIZE_IN_BYTES );
 
-		GPIResourceDesc desc{};
+		RHIResourceDesc desc{};
 		desc.name = L"RayTraceTest_RayGeneration";
-		desc.dimension = EGPIResourceDimension::Buffer;
-		desc.format = EGPIResourceFormat::Unknown;
+		desc.dimension = ERHIResourceDimension::Buffer;
+		desc.format = ERHIResourceFormat::Unknown;
 		desc.width = sizeof( shaderParam );
 		desc.height = 1;
 		desc.depth = 1;
 		desc.numMips = 1;
-		desc.flags = GPIResourceFlag_None;
+		desc.flags = RHIResourceFlag_None;
 
 		pipelineState->raytrace.resource = CreateResource_Inner( desc, &shaderParam, sizeof( shaderParam ) );
 		pipelineState->raytrace.resourceByteSize = sizeof( shaderParam );
@@ -1100,33 +1100,33 @@ IGPIPipelineRef GPI_DX12::CreatePipelineState( const GPIPipelineStateDesc& pipel
 	return pipelineState;
 }
 
-IGPIResourceRef GPI_DX12::CreateResource( const GPIResourceDesc& desc )
+IRHIResourceRef RHI_DX12::CreateResource( const RHIResourceDesc& desc )
 {
 	// todo : set clear value for depthstencil and others..
 
-	D3D12_RESOURCE_DESC translatedDesc = GPIUtil::TranslateResourceDesc( desc );
+	D3D12_RESOURCE_DESC translatedDesc = RHIUtil::TranslateResourceDesc( desc );
 	D3D12_HEAP_PROPERTIES defaultHeapProp = HeapProperties( D3D12_HEAP_TYPE_DEFAULT );
 
 	ID3D12Resource* dxResource;
 
-	if( desc.clearValue.type == EGPIResourceClearValueType::None )
+	if( desc.clearValue.type == ERHIResourceClearValueType::None )
 	{
 		CHECK_HRESULT( _device->CreateCommittedResource( &defaultHeapProp,
 					   D3D12_HEAP_FLAG_NONE,
 					   &translatedDesc,
-					   GPIUtil::TranslateResourceState( desc.initialState ),
+					   RHIUtil::TranslateResourceState( desc.initialState ),
 					   nullptr,
 					   IID_PPV_ARGS( &dxResource ) ),
 					   L"Failed to create output buffer." );
 	}
 	else
 	{
-		D3D12_CLEAR_VALUE clearValue = GPIUtil::TranslateResourceClearValue( desc );
+		D3D12_CLEAR_VALUE clearValue = RHIUtil::TranslateResourceClearValue( desc );
 
 		CHECK_HRESULT( _device->CreateCommittedResource( &defaultHeapProp,
 					   D3D12_HEAP_FLAG_NONE,
 					   &translatedDesc,
-					   GPIUtil::TranslateResourceState( desc.initialState ),
+					   RHIUtil::TranslateResourceState( desc.initialState ),
 					   &clearValue,
 					   IID_PPV_ARGS( &dxResource ) ),
 					   L"Failed to create output buffer." );
@@ -1137,25 +1137,25 @@ IGPIResourceRef GPI_DX12::CreateResource( const GPIResourceDesc& desc )
 		dxResource->SetName( desc.name.c_str() );
 	}
 
-	IGPIResourceRef resource = std::make_shared<GPIResource_DX12>( dxResource );
+	IRHIResourceRef resource = std::make_shared<RHIResource_DX12>( dxResource );
 	resource->state = desc.initialState;
 
 	return resource;
 }
 
-IGPIResourceRef GPI_DX12::CreateResource( const GPIResourceDesc& desc, const void* data, uint32 sizeInBytes )
+IRHIResourceRef RHI_DX12::CreateResource( const RHIResourceDesc& desc, const void* data, uint32 sizeInBytes )
 {
 	ID3D12Resource* dxResource = CreateResource_Inner( desc, data, sizeInBytes );
 
-	IGPIResourceRef resource = std::make_shared<GPIResource_DX12>( dxResource );
+	IRHIResourceRef resource = std::make_shared<RHIResource_DX12>( dxResource );
 	resource->state = desc.initialState;
 
 	return resource;
 }
 
-IGPIRayTraceBottomLevelASRef GPI_DX12::CreateRayTraceBottomLevelAS( const GPIRayTraceBottomLevelASDesc& asDesc, const IGPIVertexBufferView& inVBV, const IGPIIndexBufferView& inIBV )
+IRHIRayTraceBottomLevelASRef RHI_DX12::CreateRayTraceBottomLevelAS( const RHIRayTraceBottomLevelASDesc& asDesc, const IRHIVertexBufferView& inVBV, const IRHIIndexBufferView& inIBV )
 {
-	std::shared_ptr<GPIRayTraceBottomLevelAS_DX12> as = std::make_shared<GPIRayTraceBottomLevelAS_DX12>();
+	std::shared_ptr<RHIRayTraceBottomLevelAS_DX12> as = std::make_shared<RHIRayTraceBottomLevelAS_DX12>();
 
 	CommandQueueContext& cmdQueueCtx = _cmdQueueCtx[ D3D12_COMMAND_LIST_TYPE_COMPUTE ];
 	ID3D12CommandAllocator* cmdAllocator = cmdQueueCtx.allocator;
@@ -1164,8 +1164,8 @@ IGPIRayTraceBottomLevelASRef GPI_DX12::CreateRayTraceBottomLevelAS( const GPIRay
 	CHECK_HRESULT( cmdAllocator->Reset(), L"Failed to reset allocator." );
 	CHECK_HRESULT( cmdList->Reset( cmdAllocator, nullptr ), L"Failed to reset command list." );
 
-	const GPIVertexBufferView_DX12& vbv = static_cast< const GPIVertexBufferView_DX12& >( inVBV );
-	const GPIIndexBufferView_DX12& ibv = static_cast< const GPIIndexBufferView_DX12& >( inIBV );
+	const RHIVertexBufferView_DX12& vbv = static_cast< const RHIVertexBufferView_DX12& >( inVBV );
+	const RHIIndexBufferView_DX12& ibv = static_cast< const RHIIndexBufferView_DX12& >( inIBV );
 
 	// create bottom-level acceleration structure
 	D3D12_RAYTRACING_GEOMETRY_TRIANGLES_DESC triangles{};
@@ -1242,7 +1242,7 @@ IGPIRayTraceBottomLevelASRef GPI_DX12::CreateRayTraceBottomLevelAS( const GPIRay
 				   L"Failed to create output buffer." );
 	as->asResource->SetName( L"BLAS" );
 
-	const GPIResourceDesc cbDesc = GPIUtil::GetConstantBufferResourceDesc( L"BLASC", 512 );
+	const RHIResourceDesc cbDesc = RHIUtil::GetConstantBufferResourceDesc( L"BLASC", 512 );
 	CreateResource( cbDesc );
 
 	D3D12_BUILD_RAYTRACING_ACCELERATION_STRUCTURE_DESC buildDesc{};
@@ -1265,14 +1265,14 @@ IGPIRayTraceBottomLevelASRef GPI_DX12::CreateRayTraceBottomLevelAS( const GPIRay
 	return as;
 }
 
-IGPIRayTraceTopLevelASRef GPI_DX12::CreateRayTraceTopLevelAS( const std::vector<IGPIRayTraceBottomLevelASRef>& inBottomLevelAS, const GPIRayTraceTopLevelASDesc& asDesc )
+IRHIRayTraceTopLevelASRef RHI_DX12::CreateRayTraceTopLevelAS( const std::vector<IRHIRayTraceBottomLevelASRef>& inBottomLevelAS, const RHIRayTraceTopLevelASDesc& asDesc )
 {
-	std::shared_ptr<GPIRayTraceTopLevelAS_DX12> as = std::make_shared<GPIRayTraceTopLevelAS_DX12>();
+	std::shared_ptr<RHIRayTraceTopLevelAS_DX12> as = std::make_shared<RHIRayTraceTopLevelAS_DX12>();
 
 	as->bottomLevel.resize( inBottomLevelAS.size() );
 	for( uint32 index = 0; index < inBottomLevelAS.size(); ++index )
 	{
-		as->bottomLevel[ index ] = std::static_pointer_cast< GPIRayTraceBottomLevelAS_DX12 >( inBottomLevelAS[ index ] );
+		as->bottomLevel[ index ] = std::static_pointer_cast< RHIRayTraceBottomLevelAS_DX12 >( inBottomLevelAS[ index ] );
 	}
 
 	CommandQueueContext& cmdQueueCtx = _cmdQueueCtx[ D3D12_COMMAND_LIST_TYPE_COMPUTE ];
@@ -1285,7 +1285,7 @@ IGPIRayTraceTopLevelASRef GPI_DX12::CreateRayTraceTopLevelAS( const std::vector<
 	std::vector<D3D12_RAYTRACING_INSTANCE_DESC> instanceDescs( inBottomLevelAS.size() );
 	for( uint32 index = 0; index < inBottomLevelAS.size(); ++index )
 	{
-		std::shared_ptr<GPIRayTraceBottomLevelAS_DX12> bottomLevelAS = std::static_pointer_cast< GPIRayTraceBottomLevelAS_DX12 >( inBottomLevelAS[ index ] );
+		std::shared_ptr<RHIRayTraceBottomLevelAS_DX12> bottomLevelAS = std::static_pointer_cast< RHIRayTraceBottomLevelAS_DX12 >( inBottomLevelAS[ index ] );
 
 		D3D12_RAYTRACING_INSTANCE_DESC& desc = instanceDescs[ index ];
 
@@ -1424,107 +1424,107 @@ IGPIRayTraceTopLevelASRef GPI_DX12::CreateRayTraceTopLevelAS( const std::vector<
 	return as;
 }
 
-IGPIRenderTargetViewRef GPI_DX12::CreateRenderTargetView( const IGPIResource& inResource, const GPIRenderTargetViewDesc& rtvDesc )
+IRHIRenderTargetViewRef RHI_DX12::CreateRenderTargetView( const IRHIResource& inResource, const RHIRenderTargetViewDesc& rtvDesc )
 {
-	const GPIResource_DX12& resource = static_cast< const GPIResource_DX12& >( inResource );
+	const RHIResource_DX12& resource = static_cast< const RHIResource_DX12& >( inResource );
 
-	std::shared_ptr<GPIRenderTargetView_DX12> rtv = std::make_shared<GPIRenderTargetView_DX12>();
-	rtv->handle = _heap.Allocate( GPIResourceViewType_RTV );
+	std::shared_ptr<RHIRenderTargetView_DX12> rtv = std::make_shared<RHIRenderTargetView_DX12>();
+	rtv->handle = _heap.Allocate( RHIResourceViewType_RTV );
 	rtv->resource = resource.resource;
 
-	D3D12_RENDER_TARGET_VIEW_DESC translatedDesc = GPIUtil::TranslateRTVDesc( rtvDesc );
+	D3D12_RENDER_TARGET_VIEW_DESC translatedDesc = RHIUtil::TranslateRTVDesc( rtvDesc );
 	_device->CreateRenderTargetView( resource.resource, &translatedDesc, rtv->handle.cpu );
 
 	return rtv;
 }
 
-IGPIDepthStencilViewRef GPI_DX12::CreateDepthStencilView( const IGPIResource& inResource, const GPIDepthStencilViewDesc& dsvDesc )
+IRHIDepthStencilViewRef RHI_DX12::CreateDepthStencilView( const IRHIResource& inResource, const RHIDepthStencilViewDesc& dsvDesc )
 {
-	const GPIResource_DX12& resource = static_cast< const GPIResource_DX12& >( inResource );
+	const RHIResource_DX12& resource = static_cast< const RHIResource_DX12& >( inResource );
 
-	std::shared_ptr<GPIDepthStencilView_DX12> dsv = std::make_shared<GPIDepthStencilView_DX12>();
-	dsv->handle = _heap.Allocate( GPIResourceViewType_DSV );
+	std::shared_ptr<RHIDepthStencilView_DX12> dsv = std::make_shared<RHIDepthStencilView_DX12>();
+	dsv->handle = _heap.Allocate( RHIResourceViewType_DSV );
 	dsv->resource = resource.resource;
 
-	D3D12_DEPTH_STENCIL_VIEW_DESC translatedDesc = GPIUtil::TranslateDSVDesc( dsvDesc );
+	D3D12_DEPTH_STENCIL_VIEW_DESC translatedDesc = RHIUtil::TranslateDSVDesc( dsvDesc );
 	_device->CreateDepthStencilView( resource.resource, &translatedDesc, dsv->handle.cpu );
 
 	return dsv;
 }
 
-IGPIConstantBufferViewRef GPI_DX12::CreateConstantBufferView( const IGPIResource& inResource, const GPIConstantBufferViewDesc& cbvDesc )
+IRHIConstantBufferViewRef RHI_DX12::CreateConstantBufferView( const IRHIResource& inResource, const RHIConstantBufferViewDesc& cbvDesc )
 {
-	const GPIResource_DX12& resource = static_cast< const GPIResource_DX12& >( inResource );
+	const RHIResource_DX12& resource = static_cast< const RHIResource_DX12& >( inResource );
 
 	//@TODO: refactoring needed
 	const D3D12_RESOURCE_DESC desc = resource.resource->GetDesc();
 	const bool bUseVirtualAddress = desc.Dimension == D3D12_RESOURCE_DIMENSION_BUFFER;
 	//
 
-	std::shared_ptr<GPIConstantBufferView_DX12> cbv = std::make_shared<GPIConstantBufferView_DX12>();
-	cbv->handle = _heap.Allocate( GPIResourceViewType_CBV );
+	std::shared_ptr<RHIConstantBufferView_DX12> cbv = std::make_shared<RHIConstantBufferView_DX12>();
+	cbv->handle = _heap.Allocate( RHIResourceViewType_CBV );
 	cbv->resource = resource.resource;
 	cbv->gpuAddress = bUseVirtualAddress ? resource.resource->GetGPUVirtualAddress() : 0;
 
-	D3D12_CONSTANT_BUFFER_VIEW_DESC translatedDesc = GPIUtil::TranslateCBVDesc( inResource, cbvDesc );
+	D3D12_CONSTANT_BUFFER_VIEW_DESC translatedDesc = RHIUtil::TranslateCBVDesc( inResource, cbvDesc );
 	_device->CreateConstantBufferView( &translatedDesc, cbv->handle.cpu );
 
 	return cbv;
 }
 
-IGPIShaderResourceViewRef GPI_DX12::CreateShaderResourceView( const IGPIResource& inResource, const GPIShaderResourceViewDesc& srvDesc )
+IRHIShaderResourceViewRef RHI_DX12::CreateShaderResourceView( const IRHIResource& inResource, const RHIShaderResourceViewDesc& srvDesc )
 {
-	const GPIResource_DX12& resource = static_cast< const GPIResource_DX12& >( inResource );
+	const RHIResource_DX12& resource = static_cast< const RHIResource_DX12& >( inResource );
 
 	//@TODO: refactoring needed
 	const D3D12_RESOURCE_DESC desc = resource.resource->GetDesc();
 	const bool bUseVirtualAddress = desc.Dimension == D3D12_RESOURCE_DIMENSION_BUFFER;
 	//
 
-	std::shared_ptr<GPIShaderResourceView_DX12> srv = std::make_shared<GPIShaderResourceView_DX12>();
-	srv->handle = _heap.Allocate( GPIResourceViewType_SRV );
+	std::shared_ptr<RHIShaderResourceView_DX12> srv = std::make_shared<RHIShaderResourceView_DX12>();
+	srv->handle = _heap.Allocate( RHIResourceViewType_SRV );
 	srv->resource = resource.resource;
 	srv->gpuAddress = bUseVirtualAddress ? resource.resource->GetGPUVirtualAddress() : 0;
 
-	D3D12_SHADER_RESOURCE_VIEW_DESC translatedDesc = GPIUtil::TranslateSRVDesc( inResource, srvDesc );
+	D3D12_SHADER_RESOURCE_VIEW_DESC translatedDesc = RHIUtil::TranslateSRVDesc( inResource, srvDesc );
 	_device->CreateShaderResourceView( resource.resource, &translatedDesc, srv->handle.cpu );
 
 	return srv;
 }
 
-IGPIUnorderedAccessViewRef GPI_DX12::CreateUnorderedAccessView( const IGPIResource& inResource, const GPIUnorderedAccessViewDesc& uavDesc, const bool bShaderHidden )
+IRHIUnorderedAccessViewRef RHI_DX12::CreateUnorderedAccessView( const IRHIResource& inResource, const RHIUnorderedAccessViewDesc& uavDesc, const bool bShaderHidden )
 {
-	const GPIResource_DX12& resource = static_cast< const GPIResource_DX12& >( inResource );
+	const RHIResource_DX12& resource = static_cast< const RHIResource_DX12& >( inResource );
 
 	//@TODO: refactoring needed
 	const D3D12_RESOURCE_DESC desc = resource.resource->GetDesc();
 	const bool bUseVirtualAddress = desc.Dimension == D3D12_RESOURCE_DIMENSION_BUFFER;
 	//
 
-	std::shared_ptr<GPIUnorderedAccessView_DX12> uav = std::make_shared<GPIUnorderedAccessView_DX12>();
-	uav->handle = _heap.Allocate( bShaderHidden ? GPIResourceViewType_UAV_SHADERHIDDEN : GPIResourceViewType_UAV );
+	std::shared_ptr<RHIUnorderedAccessView_DX12> uav = std::make_shared<RHIUnorderedAccessView_DX12>();
+	uav->handle = _heap.Allocate( bShaderHidden ? RHIResourceViewType_UAV_SHADERHIDDEN : RHIResourceViewType_UAV );
 	uav->resource = resource.resource;
 	uav->gpuAddress = bUseVirtualAddress ? resource.resource->GetGPUVirtualAddress() : 0;
 
-	D3D12_UNORDERED_ACCESS_VIEW_DESC translatedDesc = GPIUtil::TranslateUAVDesc( inResource, uavDesc );
+	D3D12_UNORDERED_ACCESS_VIEW_DESC translatedDesc = RHIUtil::TranslateUAVDesc( inResource, uavDesc );
 	_device->CreateUnorderedAccessView( resource.resource, nullptr, &translatedDesc, uav->handle.cpu );
 
 	return uav;
 }
 
-IGPITextureViewTableRef GPI_DX12::CreateTextureViewTable( const std::vector<const IGPIResource*> inResources, const std::vector<GPIShaderResourceViewDesc> inDescs )
+IRHITextureViewTableRef RHI_DX12::CreateTextureViewTable( const std::vector<const IRHIResource*> inResources, const std::vector<RHIShaderResourceViewDesc> inDescs )
 {
-	std::vector<GPIDescriptorHeapHandle_DX12> handles;
+	std::vector<RHIDescriptorHeapHandle_DX12> handles;
 	handles.resize( inResources.size() );
 
 	for( uint32 index = 0; index < handles.size(); ++index )
 	{
-		const GPIResource_DX12& resource = static_cast< const GPIResource_DX12& >( *inResources[ index ] );
-		D3D12_SHADER_RESOURCE_VIEW_DESC translatedDesc = GPIUtil::TranslateSRVDesc( resource, inDescs[ index ] );
+		const RHIResource_DX12& resource = static_cast< const RHIResource_DX12& >( *inResources[ index ] );
+		D3D12_SHADER_RESOURCE_VIEW_DESC translatedDesc = RHIUtil::TranslateSRVDesc( resource, inDescs[ index ] );
 
-		handles[ index ] = _heap.Allocate( GPIResourceViewType_SRV_TEXTURE );
+		handles[ index ] = _heap.Allocate( RHIResourceViewType_SRV_TEXTURE );
 
-		if( inDescs[ index ].format == EGPIResourceFormat::R32_Float )
+		if( inDescs[ index ].format == ERHIResourceFormat::R32_Float )
 		{
 			D3D12_SHADER_RESOURCE_VIEW_DESC srvDesc{};
 			srvDesc.Format = DXGI_FORMAT_R32_FLOAT;
@@ -1540,7 +1540,7 @@ IGPITextureViewTableRef GPI_DX12::CreateTextureViewTable( const std::vector<cons
 		_device->CreateShaderResourceView( resource.resource, &translatedDesc, handles[ index ].cpu );
 	}
 
-	std::shared_ptr<GPITextureViewTable_DX12> table = std::make_shared<GPITextureViewTable_DX12>();
+	std::shared_ptr<RHITextureViewTable_DX12> table = std::make_shared<RHITextureViewTable_DX12>();
 	table->handle = handles[ 0 ];
 
 //#pragma warning "[Danger] There are possibilities of sparse memory allocation!"
@@ -1548,23 +1548,23 @@ IGPITextureViewTableRef GPI_DX12::CreateTextureViewTable( const std::vector<cons
 	return table;
 }
 
-IGPIDescriptorTableViewRef GPI_DX12::CreateDescriptorTableView( const std::vector<const IGPIResource*>& inResources, 
-																const std::vector<GPIConstantBufferViewDesc>& inCBVDescs, 
-																const std::vector<GPIShaderResourceViewDesc>& inSRVDescs, 
-																const std::vector<GPIUnorderedAccessViewDesc>& inUAVDescs )
+IRHIDescriptorTableViewRef RHI_DX12::CreateDescriptorTableView( const std::vector<const IRHIResource*>& inResources, 
+																const std::vector<RHIConstantBufferViewDesc>& inCBVDescs, 
+																const std::vector<RHIShaderResourceViewDesc>& inSRVDescs, 
+																const std::vector<RHIUnorderedAccessViewDesc>& inUAVDescs )
 {
 	assert( inResources.size() == inCBVDescs.size() + inSRVDescs.size() + inUAVDescs.size() );
 
-	std::vector<GPIDescriptorHeapHandle_DX12> handles;
+	std::vector<RHIDescriptorHeapHandle_DX12> handles;
 	handles.resize( inResources.size() );
 
 	uint32 resourceIndex = 0;
 	for( uint32 descIndex = 0; descIndex < inCBVDescs.size(); ++descIndex )
 	{
-		const GPIResource_DX12& resource = static_cast< const GPIResource_DX12& >( *inResources[ resourceIndex ] );
-		D3D12_CONSTANT_BUFFER_VIEW_DESC translatedDesc = GPIUtil::TranslateCBVDesc( resource, inCBVDescs[ descIndex ] );
+		const RHIResource_DX12& resource = static_cast< const RHIResource_DX12& >( *inResources[ resourceIndex ] );
+		D3D12_CONSTANT_BUFFER_VIEW_DESC translatedDesc = RHIUtil::TranslateCBVDesc( resource, inCBVDescs[ descIndex ] );
 
-		handles[ resourceIndex ] = _heap.Allocate( GPIResourceViewType_CBV_SRV_UAV_TABLE );
+		handles[ resourceIndex ] = _heap.Allocate( RHIResourceViewType_CBV_SRV_UAV_TABLE );
 
 		_device->CreateConstantBufferView( &translatedDesc, handles[ resourceIndex ].cpu );
 
@@ -1572,10 +1572,10 @@ IGPIDescriptorTableViewRef GPI_DX12::CreateDescriptorTableView( const std::vecto
 	}
 	for( uint32 descIndex = 0; descIndex < inSRVDescs.size(); ++descIndex )
 	{
-		const GPIResource_DX12& resource = static_cast< const GPIResource_DX12& >( *inResources[ resourceIndex ] );
-		D3D12_SHADER_RESOURCE_VIEW_DESC translatedDesc = GPIUtil::TranslateSRVDesc( resource, inSRVDescs[ descIndex ] );
+		const RHIResource_DX12& resource = static_cast< const RHIResource_DX12& >( *inResources[ resourceIndex ] );
+		D3D12_SHADER_RESOURCE_VIEW_DESC translatedDesc = RHIUtil::TranslateSRVDesc( resource, inSRVDescs[ descIndex ] );
 
-		handles[ resourceIndex ] = _heap.Allocate( GPIResourceViewType_CBV_SRV_UAV_TABLE );
+		handles[ resourceIndex ] = _heap.Allocate( RHIResourceViewType_CBV_SRV_UAV_TABLE );
 
 		_device->CreateShaderResourceView( resource.resource, &translatedDesc, handles[ resourceIndex ].cpu );
 
@@ -1583,17 +1583,17 @@ IGPIDescriptorTableViewRef GPI_DX12::CreateDescriptorTableView( const std::vecto
 	}
 	for( uint32 descIndex = 0; descIndex < inUAVDescs.size(); ++descIndex )
 	{
-		const GPIResource_DX12& resource = static_cast< const GPIResource_DX12& >( *inResources[ resourceIndex ] );
-		D3D12_UNORDERED_ACCESS_VIEW_DESC translatedDesc = GPIUtil::TranslateUAVDesc( resource, inUAVDescs[ descIndex ] );
+		const RHIResource_DX12& resource = static_cast< const RHIResource_DX12& >( *inResources[ resourceIndex ] );
+		D3D12_UNORDERED_ACCESS_VIEW_DESC translatedDesc = RHIUtil::TranslateUAVDesc( resource, inUAVDescs[ descIndex ] );
 
-		handles[ resourceIndex ] = _heap.Allocate( GPIResourceViewType_CBV_SRV_UAV_TABLE );
+		handles[ resourceIndex ] = _heap.Allocate( RHIResourceViewType_CBV_SRV_UAV_TABLE );
 
 		_device->CreateUnorderedAccessView( resource.resource, nullptr, &translatedDesc, handles[ resourceIndex ].cpu );
 
 		resourceIndex++;
 	}
 
-	std::shared_ptr<GPIDescriptorTableView_DX12> table = std::make_shared<GPIDescriptorTableView_DX12>();
+	std::shared_ptr<RHIDescriptorTableView_DX12> table = std::make_shared<RHIDescriptorTableView_DX12>();
 	table->handle = handles[ 0 ];
 
 	//#pragma warning "[Danger] There are possibilities of sparse memory allocation!"
@@ -1601,16 +1601,16 @@ IGPIDescriptorTableViewRef GPI_DX12::CreateDescriptorTableView( const std::vecto
 	return table;
 }
 
-IGPISamplerRef GPI_DX12::CreateSampler( const IGPIResource& inResource, const GPISamplerDesc& samplerDesc )
+IRHISamplerRef RHI_DX12::CreateSampler( const IRHIResource& inResource, const RHISamplerDesc& samplerDesc )
 {
 	return nullptr;
 }
 
-IGPIVertexBufferViewRef GPI_DX12::CreateVertexBufferView( const IGPIResource& inResource, const uint32 size, const uint32 stride )
+IRHIVertexBufferViewRef RHI_DX12::CreateVertexBufferView( const IRHIResource& inResource, const uint32 size, const uint32 stride )
 {
-	const GPIResource_DX12& resource = static_cast< const GPIResource_DX12& >( inResource );
+	const RHIResource_DX12& resource = static_cast< const RHIResource_DX12& >( inResource );
 
-	std::shared_ptr<GPIVertexBufferView_DX12> vb = std::make_shared<GPIVertexBufferView_DX12>();
+	std::shared_ptr<RHIVertexBufferView_DX12> vb = std::make_shared<RHIVertexBufferView_DX12>();
 	vb->gpuAddress = resource.resource->GetGPUVirtualAddress();
 	vb->size = size;
 	vb->stride = stride;
@@ -1618,21 +1618,21 @@ IGPIVertexBufferViewRef GPI_DX12::CreateVertexBufferView( const IGPIResource& in
 	return vb;
 }
 
-IGPIIndexBufferViewRef GPI_DX12::CreateIndexBufferView( const IGPIResource& inResource, const uint32 size )
+IRHIIndexBufferViewRef RHI_DX12::CreateIndexBufferView( const IRHIResource& inResource, const uint32 size )
 {
-	const GPIResource_DX12& resource = static_cast< const GPIResource_DX12& >( inResource );
+	const RHIResource_DX12& resource = static_cast< const RHIResource_DX12& >( inResource );
 
-	std::shared_ptr<GPIIndexBufferView_DX12> ib = std::make_shared<GPIIndexBufferView_DX12>();
+	std::shared_ptr<RHIIndexBufferView_DX12> ib = std::make_shared<RHIIndexBufferView_DX12>();
 	ib->gpuAddress = resource.resource->GetGPUVirtualAddress();
 	ib->size = size;
 
 	return ib;
 }
 
-void GPI_DX12::CopyBufferRegion( const IGPIResource& inCopyDst, const IGPIResource& inCopySrc, const uint32 copyDstByteOffset, const uint32 copyByteSize )
+void RHI_DX12::CopyBufferRegion( const IRHIResource& inCopyDst, const IRHIResource& inCopySrc, const uint32 copyDstByteOffset, const uint32 copyByteSize )
 {
-	const GPIResource_DX12& copySrc = static_cast< const GPIResource_DX12& >( inCopySrc );
-	const GPIResource_DX12& copyDst = static_cast< const GPIResource_DX12& >( inCopyDst );
+	const RHIResource_DX12& copySrc = static_cast< const RHIResource_DX12& >( inCopySrc );
+	const RHIResource_DX12& copyDst = static_cast< const RHIResource_DX12& >( inCopyDst );
 
 	CommandQueueContext& cmdQueueCtx = _cmdQueueCtx[ D3D12_COMMAND_LIST_TYPE_DIRECT ];
 
@@ -1642,13 +1642,13 @@ void GPI_DX12::CopyBufferRegion( const IGPIResource& inCopyDst, const IGPIResour
 	CHECK_HRESULT( cmdAllocator->Reset(), L"Failed to reset command allocator." );
 	CHECK_HRESULT( cmdList->Reset( cmdAllocator, nullptr ), L"Failed to reset command list." );
 
-	TransitionResource( cmdList, copySrc.resource, GPIUtil::TranslateResourceState( copySrc.state ), D3D12_RESOURCE_STATE_COPY_SOURCE );;
-	TransitionResource( cmdList, copyDst.resource, GPIUtil::TranslateResourceState( copyDst.state ), D3D12_RESOURCE_STATE_COPY_DEST );
+	TransitionResource( cmdList, copySrc.resource, RHIUtil::TranslateResourceState( copySrc.state ), D3D12_RESOURCE_STATE_COPY_SOURCE );;
+	TransitionResource( cmdList, copyDst.resource, RHIUtil::TranslateResourceState( copyDst.state ), D3D12_RESOURCE_STATE_COPY_DEST );
 
 	cmdList->CopyBufferRegion( copyDst.resource, copyDstByteOffset, copySrc.resource, 0, copyByteSize );
 
-	TransitionResource( cmdList, copySrc.resource, D3D12_RESOURCE_STATE_COPY_SOURCE, GPIUtil::TranslateResourceState( copySrc.state ) );
-	TransitionResource( cmdList, copyDst.resource, D3D12_RESOURCE_STATE_COPY_DEST, GPIUtil::TranslateResourceState( copyDst.state ) );
+	TransitionResource( cmdList, copySrc.resource, D3D12_RESOURCE_STATE_COPY_SOURCE, RHIUtil::TranslateResourceState( copySrc.state ) );
+	TransitionResource( cmdList, copyDst.resource, D3D12_RESOURCE_STATE_COPY_DEST, RHIUtil::TranslateResourceState( copyDst.state ) );
 
 	CHECK_HRESULT( cmdList->Close(), L"Failed to close command list." );
 
@@ -1658,64 +1658,64 @@ void GPI_DX12::CopyBufferRegion( const IGPIResource& inCopyDst, const IGPIResour
 	WaitForFence( cmdQueueCtx );
 }
 
-void GPI_DX12::BindRenderTargetView( IGPIPipeline& inPipeline, const IGPIRenderTargetView& inRTV, uint32 index )
+void RHI_DX12::BindRenderTargetView( IRHIPipeline& inPipeline, const IRHIRenderTargetView& inRTV, uint32 index )
 {
-	const GPIRenderTargetView_DX12& rtv = static_cast< const GPIRenderTargetView_DX12& >( inRTV );
+	const RHIRenderTargetView_DX12& rtv = static_cast< const RHIRenderTargetView_DX12& >( inRTV );
 
-	GPIPipeline_DX12& pipeline = static_cast< GPIPipeline_DX12& >( inPipeline );
+	RHIPipeline_DX12& pipeline = static_cast< RHIPipeline_DX12& >( inPipeline );
 	pipeline.rtv[ index ] = rtv.handle.cpu;
 }
 
-void GPI_DX12::BindConstantBufferView( IGPIPipeline& inPipeline, const IGPIConstantBufferView& inCBV, uint32 index )
+void RHI_DX12::BindConstantBufferView( IRHIPipeline& inPipeline, const IRHIConstantBufferView& inCBV, uint32 index )
 {
-	const GPIConstantBufferView_DX12& cbv = static_cast< const GPIConstantBufferView_DX12& >( inCBV );
+	const RHIConstantBufferView_DX12& cbv = static_cast< const RHIConstantBufferView_DX12& >( inCBV );
 
-	GPIPipeline_DX12& pipeline = static_cast< GPIPipeline_DX12& >( inPipeline );
+	RHIPipeline_DX12& pipeline = static_cast< RHIPipeline_DX12& >( inPipeline );
 	pipeline.cbv[ index ] = cbv.gpuAddress;
 }
 
-void GPI_DX12::BindShaderResourceView( IGPIPipeline& inPipeline, const IGPIShaderResourceView& inSRV, uint32 index )
+void RHI_DX12::BindShaderResourceView( IRHIPipeline& inPipeline, const IRHIShaderResourceView& inSRV, uint32 index )
 {
-	const GPIShaderResourceView_DX12& srv = static_cast< const GPIShaderResourceView_DX12& >( inSRV );
+	const RHIShaderResourceView_DX12& srv = static_cast< const RHIShaderResourceView_DX12& >( inSRV );
 
-	GPIPipeline_DX12& pipeline = static_cast< GPIPipeline_DX12& >( inPipeline );
+	RHIPipeline_DX12& pipeline = static_cast< RHIPipeline_DX12& >( inPipeline );
 	pipeline.srv[ index ] = srv.gpuAddress;
 }
 
-void GPI_DX12::BindUnorderedAccessView( IGPIPipeline& inPipeline, const IGPIUnorderedAccessView& inUAV, uint32 index )
+void RHI_DX12::BindUnorderedAccessView( IRHIPipeline& inPipeline, const IRHIUnorderedAccessView& inUAV, uint32 index )
 {
-	const GPIUnorderedAccessView_DX12& uav = static_cast< const GPIUnorderedAccessView_DX12& >( inUAV );
+	const RHIUnorderedAccessView_DX12& uav = static_cast< const RHIUnorderedAccessView_DX12& >( inUAV );
 
-	GPIPipeline_DX12& pipeline = static_cast< GPIPipeline_DX12& >( inPipeline );
+	RHIPipeline_DX12& pipeline = static_cast< RHIPipeline_DX12& >( inPipeline );
 	pipeline.uav[ index ] = uav.gpuAddress;
 	pipeline.uavHandle[ index ] = uav.handle.gpu;
 }
 
-void GPI_DX12::BindDepthStencilView( IGPIPipeline& inPipeline, const IGPIDepthStencilView& inDSV )
+void RHI_DX12::BindDepthStencilView( IRHIPipeline& inPipeline, const IRHIDepthStencilView& inDSV )
 {
-	const GPIDepthStencilView_DX12& dsv = static_cast< const GPIDepthStencilView_DX12& >( inDSV );
+	const RHIDepthStencilView_DX12& dsv = static_cast< const RHIDepthStencilView_DX12& >( inDSV );
 
-	GPIPipeline_DX12& pipeline = static_cast< GPIPipeline_DX12& >( inPipeline );
+	RHIPipeline_DX12& pipeline = static_cast< RHIPipeline_DX12& >( inPipeline );
 	pipeline.dsv = dsv.handle.cpu;
 }
 
-void GPI_DX12::BindTextureViewTable( IGPIPipeline& inPipeline, const IGPITextureViewTable& inTable, const uint32 index )
+void RHI_DX12::BindTextureViewTable( IRHIPipeline& inPipeline, const IRHITextureViewTable& inTable, const uint32 index )
 {
-	const GPITextureViewTable_DX12& table = static_cast< const GPITextureViewTable_DX12& >( inTable );
+	const RHITextureViewTable_DX12& table = static_cast< const RHITextureViewTable_DX12& >( inTable );
 
-	GPIPipeline_DX12& pipeline = static_cast< GPIPipeline_DX12& >( inPipeline );
+	RHIPipeline_DX12& pipeline = static_cast< RHIPipeline_DX12& >( inPipeline );
 	pipeline.textureTables[ index ] = table.handle.gpu;
 }
 
 //@TODO: memory may leak somewhere..
-void GPI_DX12::UpdateResourceData( const IGPIResource& inResource, void* data, uint32 sizeInBytes )
+void RHI_DX12::UpdateResourceData( const IRHIResource& inResource, void* data, uint32 sizeInBytes )
 {
 	CommandQueueContext& cmdQueueCtx = _cmdQueueCtx[ D3D12_COMMAND_LIST_TYPE_DIRECT ];
 
 	ID3D12GraphicsCommandList* cmdList = *cmdQueueCtx.iCmdList;
 	ID3D12CommandAllocator* cmdAllocator = cmdQueueCtx.allocator;
 
-	const GPIResource_DX12& resource = static_cast< const GPIResource_DX12& >( inResource );
+	const RHIResource_DX12& resource = static_cast< const RHIResource_DX12& >( inResource );
 
 	D3D12_RESOURCE_DESC uploadBufferDesc = resource.resource->GetDesc();
 	D3D12_HEAP_PROPERTIES uploadHeapProp = HeapProperties( D3D12_HEAP_TYPE_UPLOAD );
@@ -1754,16 +1754,16 @@ void GPI_DX12::UpdateResourceData( const IGPIResource& inResource, void* data, u
 	uploadBuffer->Release();
 }
 
-void GPI_DX12::UpdateTextureData( const IGPIResource& inResource, void* data, uint32 width, uint32 height )
+void RHI_DX12::UpdateTextureData( const IRHIResource& inResource, void* data, uint32 width, uint32 height )
 {
 	CommandQueueContext& cmdQueueCtx = _cmdQueueCtx[ D3D12_COMMAND_LIST_TYPE_DIRECT ];
 
 	ID3D12GraphicsCommandList* cmdList = *cmdQueueCtx.iCmdList;
 	ID3D12CommandAllocator* cmdAllocator = cmdQueueCtx.allocator;
 
-	const GPIResource_DX12& resource = static_cast< const GPIResource_DX12& >( inResource );
+	const RHIResource_DX12& resource = static_cast< const RHIResource_DX12& >( inResource );
 
-	D3D12_RESOURCE_DESC resourceDesc = GPIUtil::TranslateResourceDesc( GPIUtil::GetVertexResourceDesc( L"", width * height * sizeof( uint32 ) ) );
+	D3D12_RESOURCE_DESC resourceDesc = RHIUtil::TranslateResourceDesc( RHIUtil::GetVertexResourceDesc( L"", width * height * sizeof( uint32 ) ) );
 	D3D12_HEAP_PROPERTIES heapProp = HeapProperties( D3D12_HEAP_TYPE_UPLOAD );
 
 	// Create upload buffer on CPU
@@ -1815,13 +1815,13 @@ void GPI_DX12::UpdateTextureData( const IGPIResource& inResource, void* data, ui
 	uploadBuffer->Release();
 }
 
-ID3D12Resource* GPI_DX12::CreateResource_Inner( const GPIResourceDesc& desc, const void* data, uint32 sizeInBytes )
+ID3D12Resource* RHI_DX12::CreateResource_Inner( const RHIResourceDesc& desc, const void* data, uint32 sizeInBytes )
 {
 	CommandQueueContext& cmdQueueCtx = _cmdQueueCtx[ D3D12_COMMAND_LIST_TYPE_DIRECT ];
 	ID3D12GraphicsCommandList* cmdList = *cmdQueueCtx.iCmdList;
 	ID3D12CommandAllocator* cmdAllocator = cmdQueueCtx.allocator;
 
-	D3D12_RESOURCE_DESC translatedDesc = GPIUtil::TranslateResourceDesc( desc );
+	D3D12_RESOURCE_DESC translatedDesc = RHIUtil::TranslateResourceDesc( desc );
 	D3D12_HEAP_PROPERTIES defaultHeapProp = HeapProperties( D3D12_HEAP_TYPE_DEFAULT );
 	D3D12_HEAP_PROPERTIES uploadHeapProp = HeapProperties( D3D12_HEAP_TYPE_UPLOAD );
 
@@ -1859,7 +1859,7 @@ ID3D12Resource* GPI_DX12::CreateResource_Inner( const GPIResourceDesc& desc, con
 
 	cmdList->CopyBufferRegion( resource, 0, uploadResource, 0, sizeInBytes );
 
-	TransitionResource( cmdList, resource, D3D12_RESOURCE_STATE_COPY_DEST, GPIUtil::TranslateResourceState( desc.initialState ) );
+	TransitionResource( cmdList, resource, D3D12_RESOURCE_STATE_COPY_DEST, RHIUtil::TranslateResourceState( desc.initialState ) );
 
 	CHECK_HRESULT( cmdList->Close(), L"Failed to close command list." );
 
@@ -1873,7 +1873,7 @@ ID3D12Resource* GPI_DX12::CreateResource_Inner( const GPIResourceDesc& desc, con
 	return resource;
 }
 
-void GPI_DX12::TransitionResource( ID3D12GraphicsCommandList* cmdList, ID3D12Resource* resource, D3D12_RESOURCE_STATES stateBefore, D3D12_RESOURCE_STATES stateAfter )
+void RHI_DX12::TransitionResource( ID3D12GraphicsCommandList* cmdList, ID3D12Resource* resource, D3D12_RESOURCE_STATES stateBefore, D3D12_RESOURCE_STATES stateAfter )
 {
 	D3D12_RESOURCE_BARRIER barrier;
 	barrier.Type = D3D12_RESOURCE_BARRIER_TYPE_TRANSITION;
@@ -1886,16 +1886,16 @@ void GPI_DX12::TransitionResource( ID3D12GraphicsCommandList* cmdList, ID3D12Res
 	cmdList->ResourceBarrier( 1, &barrier );
 }
 
-void GPI_DX12::TransitionResource( const IGPIResource& inResource, const EGPIResourceStates statesBefore, const EGPIResourceStates statesAfter )
+void RHI_DX12::TransitionResource( const IRHIResource& inResource, const ERHIResourceStates statesBefore, const ERHIResourceStates statesAfter )
 {
 	CommandQueueContext& cmdQueueCtx = _cmdQueueCtx[ D3D12_COMMAND_LIST_TYPE_DIRECT ];
 	ID3D12GraphicsCommandList* cmdList = *cmdQueueCtx.iCmdList;
-	const GPIResource_DX12& resource = static_cast< const GPIResource_DX12& >( inResource );
+	const RHIResource_DX12& resource = static_cast< const RHIResource_DX12& >( inResource );
 
-	TransitionResource( cmdList, resource.resource, GPIUtil::TranslateResourceState( statesBefore ), GPIUtil::TranslateResourceState( statesAfter ) );
+	TransitionResource( cmdList, resource.resource, RHIUtil::TranslateResourceState( statesBefore ), RHIUtil::TranslateResourceState( statesAfter ) );
 }
 
-void GPI_DX12::RunCS()
+void RHI_DX12::RunCS()
 {
 	//CHECK_HRESULT( _cmdQueueCtx[ D3D12_COMMAND_LIST_TYPE_COMPUTE ].allocator->Reset(), L"Failed to reset command allocator." );
 	//CHECK_HRESULT( ( *_cmdQueueCtx[ D3D12_COMMAND_LIST_TYPE_COMPUTE ].iCmdList )->Reset( _cmdQueueCtx[ D3D12_COMMAND_LIST_TYPE_COMPUTE ].allocator, nullptr ), L"Failed to reset command list." );
@@ -1954,17 +1954,17 @@ void GPI_DX12::RunCS()
 	//WaitForFence( cmdQueueCtx );
 }
 
-void GPI_DX12::RayTrace( const GPIPipelineStateDesc& desc, const IGPIRayTraceTopLevelASRef& inRTRAS, IGPIDescriptorTableViewRef descTableView, IGPIShaderResourceViewRef testNormalSRV, IGPIShaderResourceViewRef testIndexSRV, IGPIShaderResourceViewRef testIndexOffsetSRV, IGPIShaderResourceViewRef testMaterialSRV )
+void RHI_DX12::RayTrace( const RHIPipelineStateDesc& desc, const IRHIRayTraceTopLevelASRef& inRTRAS, IRHIDescriptorTableViewRef descTableView, IRHIShaderResourceViewRef testNormalSRV, IRHIShaderResourceViewRef testIndexSRV, IRHIShaderResourceViewRef testIndexOffsetSRV, IRHIShaderResourceViewRef testMaterialSRV )
 {
 	assert( _pipelineCache.contains( desc.id ) );
 
-	std::shared_ptr<GPIDescriptorTableView_DX12> descTableView1 = std::static_pointer_cast< GPIDescriptorTableView_DX12 >( descTableView );
-	std::shared_ptr<GPIShaderResourceView_DX12> testNormalSRV1 = std::static_pointer_cast< GPIShaderResourceView_DX12 >( testNormalSRV );
-	std::shared_ptr<GPIShaderResourceView_DX12> testIndexSRV1 = std::static_pointer_cast< GPIShaderResourceView_DX12 >( testIndexSRV );
-	std::shared_ptr<GPIShaderResourceView_DX12> testIndexOffsetSRV1 = std::static_pointer_cast< GPIShaderResourceView_DX12 >( testIndexOffsetSRV );
-	std::shared_ptr<GPIShaderResourceView_DX12> testMaterialSRV1 = std::static_pointer_cast< GPIShaderResourceView_DX12 >( testMaterialSRV );
+	std::shared_ptr<RHIDescriptorTableView_DX12> descTableView1 = std::static_pointer_cast< RHIDescriptorTableView_DX12 >( descTableView );
+	std::shared_ptr<RHIShaderResourceView_DX12> testNormalSRV1 = std::static_pointer_cast< RHIShaderResourceView_DX12 >( testNormalSRV );
+	std::shared_ptr<RHIShaderResourceView_DX12> testIndexSRV1 = std::static_pointer_cast< RHIShaderResourceView_DX12 >( testIndexSRV );
+	std::shared_ptr<RHIShaderResourceView_DX12> testIndexOffsetSRV1 = std::static_pointer_cast< RHIShaderResourceView_DX12 >( testIndexOffsetSRV );
+	std::shared_ptr<RHIShaderResourceView_DX12> testMaterialSRV1 = std::static_pointer_cast< RHIShaderResourceView_DX12 >( testMaterialSRV );
 
-	std::shared_ptr<GPIPipeline_DX12>& pipeline = _pipelineCache[ desc.id ];
+	std::shared_ptr<RHIPipeline_DX12>& pipeline = _pipelineCache[ desc.id ];
 
 	CommandQueueContext& cmdQueueCtx = _cmdQueueCtx[ D3D12_COMMAND_LIST_TYPE_COMPUTE ];
 	ID3D12CommandAllocator* cmdAllocator = cmdQueueCtx.allocator;
@@ -1976,13 +1976,13 @@ void GPI_DX12::RayTrace( const GPIPipelineStateDesc& desc, const IGPIRayTraceTop
 	cmdList->SetComputeRootSignature( pipeline->rootSignature );
 	cmdList->SetPipelineState1( pipeline->raytrace.pipelineState );
 
-	ID3D12DescriptorHeap* uavHeap = _heap.GetHeap( GPIResourceViewType_CBV_SRV_UAV_TABLE );
+	ID3D12DescriptorHeap* uavHeap = _heap.GetHeap( RHIResourceViewType_CBV_SRV_UAV_TABLE );
 	cmdList->SetDescriptorHeaps( 1, &uavHeap );
 
 	uint32 rootParamIndex = 0;
 	cmdList->SetComputeRootDescriptorTable( rootParamIndex++, descTableView1->handle.gpu );
 
-	std::shared_ptr<GPIRayTraceTopLevelAS_DX12> rtrAS = std::static_pointer_cast< GPIRayTraceTopLevelAS_DX12 >( inRTRAS );
+	std::shared_ptr<RHIRayTraceTopLevelAS_DX12> rtrAS = std::static_pointer_cast< RHIRayTraceTopLevelAS_DX12 >( inRTRAS );
 	cmdList->SetComputeRootShaderResourceView( rootParamIndex++, rtrAS->gpuAddress );
 	cmdList->SetComputeRootShaderResourceView( rootParamIndex++, testNormalSRV1->gpuAddress );
 	cmdList->SetComputeRootShaderResourceView( rootParamIndex++, testIndexSRV1->gpuAddress );

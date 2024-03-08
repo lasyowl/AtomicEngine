@@ -1,7 +1,7 @@
 #pragma once
 
 #include "ECS_System.h"
-#include <GPI/GPIResource.h>
+#include <RHI/RHIResource.h>
 
 class RenderSystem : public ISystem
 {
@@ -32,31 +32,31 @@ private:
 	void EndFrame( std::array<std::unique_ptr<struct IComponentRegistry>, NUM_COMPONENT_MAX>& componentRegistry );
 
 private:
-	IGPIResourceRef _swapChainResource[ 3 ];
-	IGPIRenderTargetViewRef _swapChainRTV[ 3 ];
-	IGPIResourceRef _swapChainDepthResource;
-	IGPIDepthStencilViewRef _swapChainDepthDSV;
+	IRHIResourceRef _swapChainResource[ 3 ];
+	IRHIRenderTargetViewRef _swapChainRTV[ 3 ];
+	IRHIResourceRef _swapChainDepthResource;
+	IRHIDepthStencilViewRef _swapChainDepthDSV;
 
-	IGPIResourceRef _viewCBResource;
-	IGPIConstantBufferViewRef _viewCBV;
+	IRHIResourceRef _viewCBResource;
+	IRHIConstantBufferViewRef _viewCBV;
 
-	IGPIResourceRef _gBufferDiffuseResource;
-	IGPIResourceRef _gBufferNormalResource;
-	IGPIResourceRef _gBufferUnknown0Resource;
-	IGPIResourceRef _gBufferUnknown1Resource;
-	IGPIRenderTargetViewRef _gBufferDiffuseRTV;
-	IGPIRenderTargetViewRef _gBufferNormalRTV;
-	IGPIRenderTargetViewRef _gBufferUnknown0RTV;
-	IGPIRenderTargetViewRef _gBufferUnknown1RTV;
-	IGPIUnorderedAccessViewRef _gBufferDiffuseUAV;
-	IGPIUnorderedAccessViewRef _gBufferNormalUAV;
-	IGPIUnorderedAccessViewRef _gBufferUnknown0UAV;
-	IGPIUnorderedAccessViewRef _gBufferUnknown1UAV;
-	IGPITextureViewTableRef _gBufferTextureViewTable;
+	IRHIResourceRef _gBufferDiffuseResource;
+	IRHIResourceRef _gBufferNormalResource;
+	IRHIResourceRef _gBufferUnknown0Resource;
+	IRHIResourceRef _gBufferUnknown1Resource;
+	IRHIRenderTargetViewRef _gBufferDiffuseRTV;
+	IRHIRenderTargetViewRef _gBufferNormalRTV;
+	IRHIRenderTargetViewRef _gBufferUnknown0RTV;
+	IRHIRenderTargetViewRef _gBufferUnknown1RTV;
+	IRHIUnorderedAccessViewRef _gBufferDiffuseUAV;
+	IRHIUnorderedAccessViewRef _gBufferNormalUAV;
+	IRHIUnorderedAccessViewRef _gBufferUnknown0UAV;
+	IRHIUnorderedAccessViewRef _gBufferUnknown1UAV;
+	IRHITextureViewTableRef _gBufferTextureViewTable;
 
-	IGPIResourceRef _sceneLightResource;
-	IGPIRenderTargetViewRef _sceneLightRTV;
-	IGPIUnorderedAccessViewRef _sceneLightUAV;
-	IGPIUnorderedAccessViewRef _sceneLightUAVSH;
-	IGPITextureViewTableRef _sceneLightTextureViewTable;
+	IRHIResourceRef _sceneLightResource;
+	IRHIRenderTargetViewRef _sceneLightRTV;
+	IRHIUnorderedAccessViewRef _sceneLightUAV;
+	IRHIUnorderedAccessViewRef _sceneLightUAVSH;
+	IRHITextureViewTableRef _sceneLightTextureViewTable;
 };

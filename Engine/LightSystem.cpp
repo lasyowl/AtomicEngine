@@ -1,6 +1,6 @@
 #include "LightSystem.h"
 #include "AtomicEngine.h"
-#include <GPI/GPI.h>
+#include <RHI/RHI.h>
 #include <Engine/TransformComponent.h>
 #include <Engine/LightComponent.h>
 
