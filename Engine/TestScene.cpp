@@ -33,9 +33,9 @@ void InitTestScene()
 
 		PrimitiveComponent primComp;
 		primComp.staticMeshGroup = StaticMeshCache::AddStaticMeshGroup( "teapot", *AssetLoader::LoadStaticMeshData( "../Resource/teapot.obj" ) );
-		primComp.material.baseColor = Vec3::right;
-		primComp.material.metalness = 0.75f;
-		primComp.material.roughness = 0.7f;
+		primComp.material.constants.baseColor = Vec3::right;
+		primComp.material.constants.metalness = 0.75f;
+		primComp.material.constants.roughness = 0.7f;
 		ECSAddComponent<PrimitiveComponent>( entity, &primComp );
 	}
 
@@ -48,9 +48,9 @@ void InitTestScene()
 
 		PrimitiveComponent primComp;
 		primComp.staticMeshGroup = StaticMeshCache::FindStaticMeshGroup( "sphere" );
-		primComp.material.baseColor = Vec3::front;
-		primComp.material.metalness = 0.2f;
-		primComp.material.roughness = 0.5f;
+		primComp.material.constants.baseColor = Vec3::front;
+		primComp.material.constants.metalness = 0.2f;
+		primComp.material.constants.roughness = 0.5f;
 		ECSAddComponent<PrimitiveComponent>( entity, &primComp );
 		ECSAddComponent<LightComponent>( entity, nullptr );
 	}
@@ -64,9 +64,9 @@ void InitTestScene()
 
 		PrimitiveComponent primComp;
 		primComp.staticMeshGroup = StaticMeshCache::FindStaticMeshGroup( "cube" );
-		primComp.material.baseColor = Vec3::front;
-		primComp.material.metalness = 0.5f;
-		primComp.material.roughness = 1.0f;
+		primComp.material.constants.baseColor = Vec3::front;
+		primComp.material.constants.metalness = 0.5f;
+		primComp.material.constants.roughness = 1.0f;
 		//primComp.material2.baseColorResource = 
 		ECSAddComponent<PrimitiveComponent>( entity, &primComp );
 	}
@@ -79,9 +79,9 @@ void InitTestScene()
 		ECSAddComponent<TransformComponent>( entity, &transformComp );
 		PrimitiveComponent primComp;
 		primComp.staticMeshGroup = StaticMeshCache::FindStaticMeshGroup( "plane" );
-		primComp.material.baseColor = Vec3::one;
-		primComp.material.metalness = 1.0f;
-		primComp.material.roughness = 0.6f;
+		primComp.material.constants.baseColor = Vec3::one;
+		primComp.material.constants.metalness = 1.0f;
+		primComp.material.constants.roughness = 0.6f;
 		ECSAddComponent<PrimitiveComponent>( entity, &primComp );
 	}
 
@@ -94,9 +94,9 @@ void InitTestScene()
 		ECSAddComponent<TransformComponent>( entity, &transformComp );
 		PrimitiveComponent primComp;
 		primComp.staticMeshGroup = StaticMeshCache::FindStaticMeshGroup( "plane" );
-		primComp.material.baseColor = Vec3( 1, 0, 0 );
-		primComp.material.metalness = 0.5f;
-		primComp.material.roughness = 1.0f;
+		primComp.material.constants.baseColor = Vec3( 1, 0, 0 );
+		primComp.material.constants.metalness = 0.5f;
+		primComp.material.constants.roughness = 1.0f;
 		ECSAddComponent<PrimitiveComponent>( entity, &primComp );
 	}
 
@@ -109,9 +109,9 @@ void InitTestScene()
 		ECSAddComponent<TransformComponent>( entity, &transformComp );
 		PrimitiveComponent primComp;
 		primComp.staticMeshGroup = StaticMeshCache::FindStaticMeshGroup( "plane" );
-		primComp.material.baseColor = Vec3( 1, 1, 1 );
-		primComp.material.metalness = 0.5f;
-		primComp.material.roughness = 1.0f;
+		primComp.material.constants.baseColor = Vec3( 1, 1, 1 );
+		primComp.material.constants.metalness = 0.5f;
+		primComp.material.constants.roughness = 1.0f;
 		ECSAddComponent<PrimitiveComponent>( entity, &primComp );
 	}
 
@@ -124,9 +124,9 @@ void InitTestScene()
 		ECSAddComponent<TransformComponent>( entity, &transformComp );
 		PrimitiveComponent primComp;
 		primComp.staticMeshGroup = StaticMeshCache::FindStaticMeshGroup( "plane" );
-		primComp.material.baseColor = Vec3( 0, 0, 1 );
-		primComp.material.metalness = 0.5f;
-		primComp.material.roughness = 1.0f;
+		primComp.material.constants.baseColor = Vec3( 0, 0, 1 );
+		primComp.material.constants.metalness = 0.5f;
+		primComp.material.constants.roughness = 1.0f;
 		ECSAddComponent<PrimitiveComponent>( entity, &primComp );
 	}
 
@@ -139,9 +139,9 @@ void InitTestScene()
 		ECSAddComponent<TransformComponent>( entity, &transformComp );
 		PrimitiveComponent primComp;
 		primComp.staticMeshGroup = StaticMeshCache::FindStaticMeshGroup( "plane" );
-		primComp.material.baseColor = Vec3( 0, 1, 0 );
-		primComp.material.metalness = 0.5f;
-		primComp.material.roughness = 1.0f;
+		primComp.material.constants.baseColor = Vec3( 0, 1, 0 );
+		primComp.material.constants.metalness = 0.5f;
+		primComp.material.constants.roughness = 1.0f;
 		ECSAddComponent<PrimitiveComponent>( entity, &primComp );
 	}
 

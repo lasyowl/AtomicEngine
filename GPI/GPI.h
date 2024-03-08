@@ -50,6 +50,10 @@ public:
 	virtual IGPIShaderResourceViewRef CreateShaderResourceView( const IGPIResource& inResource, const GPIShaderResourceViewDesc& srvDesc ) abstract;
 	virtual IGPIUnorderedAccessViewRef CreateUnorderedAccessView( const IGPIResource& inResource, const GPIUnorderedAccessViewDesc& uavDesc, const bool bShaderHidden ) abstract;
 	virtual IGPITextureViewTableRef CreateTextureViewTable( const std::vector<const IGPIResource*> inResources, const std::vector<GPIShaderResourceViewDesc> inDescs ) abstract;
+	virtual IGPIDescriptorTableViewRef CreateDescriptorTableView( const std::vector<const IGPIResource*>& inResources,
+																  const std::vector<GPIConstantBufferViewDesc>& inCBVDescs,
+																  const std::vector<GPIShaderResourceViewDesc>& inSRVDescs,
+																  const std::vector<GPIUnorderedAccessViewDesc>& inUAVDescs ) abstract;
 	virtual IGPISamplerRef CreateSampler( const IGPIResource& inResource, const GPISamplerDesc& samplerDesc ) abstract;
 	virtual IGPIVertexBufferViewRef CreateVertexBufferView( const IGPIResource& inResource, const uint32 size, const uint32 stride ) abstract;
 	virtual IGPIIndexBufferViewRef CreateIndexBufferView( const IGPIResource& inResource, const uint32 size ) abstract;
@@ -64,12 +68,13 @@ public:
 	virtual void BindTextureViewTable( IGPIPipeline& inPipeline, const IGPITextureViewTable& inTable, const uint32 index ) abstract;
 
 	virtual void UpdateResourceData( const IGPIResource& inResource, void* data, uint32 sizeInBytes ) abstract;
+	virtual void UpdateTextureData( const IGPIResource& inResource, void* data, uint32 width, uint32 height ) abstract;
 
 	virtual void TransitionResource( const IGPIResource& inResource, const EGPIResourceStates statesBefore, const EGPIResourceStates statesAfter ) abstract;
 
 	virtual void RunCS() abstract;
 
-	virtual void RayTrace( const GPIPipelineStateDesc& desc, const IGPIRayTraceTopLevelASRef& inRTRAS, IGPIShaderResourceViewRef testNormalSRV, IGPIShaderResourceViewRef testIndexSRV, IGPIShaderResourceViewRef testIndexOffsetSRV, IGPIShaderResourceViewRef testMaterialSRV ) abstract;
+	virtual void RayTrace( const GPIPipelineStateDesc& desc, const IGPIRayTraceTopLevelASRef& inRTRAS, IGPIDescriptorTableViewRef descTableView, IGPIShaderResourceViewRef testNormalSRV, IGPIShaderResourceViewRef testIndexSRV, IGPIShaderResourceViewRef testIndexOffsetSRV, IGPIShaderResourceViewRef testMaterialSRV ) abstract;
 
 	void SetWindowSize( const IVec2& size ) { _windowSize = size; }
 	IVec2 GetWindowSize() { return _windowSize; }

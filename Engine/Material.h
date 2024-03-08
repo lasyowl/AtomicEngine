@@ -3,7 +3,7 @@
 #include <GPI/GPIResource.h>
 #include <Core/Vector.h>
 
-struct PBRMaterialSimple
+struct PBRMaterialConstant
 {
 	Vec3 baseColor;
 	Vec3 normal;
@@ -13,6 +13,8 @@ struct PBRMaterialSimple
 
 struct PBRMaterial
 {
+	PBRMaterialConstant constants;
+
 	IGPIResourceRef baseColor;
 	IGPIResourceRef normal;
 	IGPIResourceRef roughness;

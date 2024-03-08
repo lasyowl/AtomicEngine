@@ -28,7 +28,6 @@
     <ClInclude Include="Material.h" />
     <ClInclude Include="MetaDataComponent.h" />
     <ClInclude Include="PrimitiveComponent.h" />
-    <ClInclude Include="RawImage.h" />
     <ClInclude Include="SampleMesh.h" />
     <ClInclude Include="Scene.h" />
     <ClInclude Include="SceneViewSystem.h" />

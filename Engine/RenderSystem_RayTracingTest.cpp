@@ -8,6 +8,8 @@
 #include <Core/IntVector.h>
 #include <Engine/TransformComponent.h>
 #include <Engine/PrimitiveComponent.h>
+#include <Engine/AssetLoader.h>
+#include <Engine/Texture.h>
 
 void RenderSystem::RayTracingTest( std::array<std::unique_ptr<IComponentRegistry>, NUM_COMPONENT_MAX>& componentRegistry )
 {
@@ -44,6 +46,8 @@ void RenderSystem::RayTracingTest( std::array<std::unique_ptr<IComponentRegistry
 	static IGPIShaderResourceViewRef testIndexSRV = nullptr;
 	static IGPIShaderResourceViewRef testInstanceContextSRV = nullptr;
 	static IGPIShaderResourceViewRef testMaterialSRV = nullptr;
+	static IGPIDescriptorTableViewRef descTableView = nullptr;
+	static IGPIResourceRef testTexResource = nullptr;
 	if( !topLevelAS )
 	{
 		uint32 testNormalResourceByteSize = 0;
@@ -101,9 +105,9 @@ void RenderSystem::RayTracingTest( std::array<std::unique_ptr<IComponentRegistry
 		uint32 normalResourceOffset = 0;
 		uint32 indexResourceOffset = 0;
 		std::vector<RayTraceInstanceContext> instanceContexts;
-		std::vector<PBRMaterialSimple> materials;
+		std::vector<PBRMaterialConstant> materialConstants;
 		instanceContexts.reserve( blas.size() );
-		materials.reserve( blas.size() );
+		materialConstants.reserve( blas.size() );
 
 		for( Entity entity = 0; entity < NUM_ENTITY_MAX; ++entity )
 		{
@@ -127,7 +131,7 @@ void RenderSystem::RayTracingTest( std::array<std::unique_ptr<IComponentRegistry
 			instanceContext.normalResourceOffset = normalResourceOffset / sizeof( Vec3 );
 			instanceContext.indexResourceOffset = indexResourceOffset / sizeof( uint32 );
 			instanceContexts.emplace_back( instanceContext );
-			materials.emplace_back( primitiveComp.material );
+			materialConstants.emplace_back( primitiveComp.material.constants );
 			normalResourceOffset += staticMesh.pipelineInput.vbv[ 1 ]->size;
 			indexResourceOffset += staticMesh.pipelineInput.ibv[ 0 ]->size;
 		}
@@ -135,8 +139,8 @@ void RenderSystem::RayTracingTest( std::array<std::unique_ptr<IComponentRegistry
 		resourceDesc.width = instanceContexts.size() * sizeof( RayTraceInstanceContext );
 		topLevelAS->instanceContextResource = AtomicEngine::GetGPI()->CreateResource( resourceDesc, instanceContexts.data(), resourceDesc.width );
 
-		resourceDesc.width = materials.size() * sizeof( PBRMaterialSimple );
-		topLevelAS->materialResource = AtomicEngine::GetGPI()->CreateResource( resourceDesc, materials.data(), resourceDesc.width );
+		resourceDesc.width = materialConstants.size() * sizeof( PBRMaterialConstant );
+		topLevelAS->materialResource = AtomicEngine::GetGPI()->CreateResource( resourceDesc, materialConstants.data(), resourceDesc.width );
 
 		GPIShaderResourceViewDesc srvDesc{};
 		srvDesc.format = EGPIResourceFormat::R32G32B32_Float;
@@ -154,10 +158,40 @@ void RenderSystem::RayTracingTest( std::array<std::unique_ptr<IComponentRegistry
 		testInstanceContextSRV = AtomicEngine::GetGPI()->CreateShaderResourceView( *topLevelAS->instanceContextResource, srvDesc );
 
 		srvDesc.format = EGPIResourceFormat::Unknown;
-		srvDesc.numElements = materials.size();
-		srvDesc.byteStride = sizeof( PBRMaterialSimple );
+		srvDesc.numElements = materialConstants.size();
+		srvDesc.byteStride = sizeof( PBRMaterialConstant );
 		testMaterialSRV = AtomicEngine::GetGPI()->CreateShaderResourceView( *topLevelAS->materialResource, srvDesc );
+
+		// temp texture
+		TextureDataRef baseColorTexture = AssetLoader::LoadTextureData( "../Resource/brick-wall/brick-wall_albedo.png" );
+		GPIResourceDesc desc{};
+		desc.name = L"testpng";
+		desc.dimension = EGPIResourceDimension::Texture2D;
+		desc.format = EGPIResourceFormat::B8G8R8A8;
+		desc.width = baseColorTexture->width;
+		desc.height = baseColorTexture->height;
+		desc.depth = 1;
+		desc.numMips = 1;
+		desc.flags = GPIResourceFlag_None;
+		desc.initialState = GPIResourceState_AllShaderResource;
+		testTexResource = AtomicEngine::GetGPI()->CreateResource( desc );
+		AtomicEngine::GetGPI()->UpdateTextureData( *testTexResource, baseColorTexture->data.data(), baseColorTexture->width, baseColorTexture->height );
+
+		std::vector<const IGPIResource*> resources = 
+		{
+			testTexResource.get(), _sceneLightResource.get()
+		};
+		std::vector<GPIConstantBufferViewDesc> cbvDescs;
+		std::vector<GPIShaderResourceViewDesc> srvDescs =
+		{
+			{ EGPIResourceFormat::B8G8R8A8, EGPIResourceDimension::Texture2D, 0, 0 }
+		};
+		std::vector<GPIUnorderedAccessViewDesc> uavDescs =
+		{
+			{ EGPIResourceFormat::B8G8R8A8, EGPIResourceDimension::Texture2D }
+		};
+		descTableView = AtomicEngine::GetGPI()->CreateDescriptorTableView( resources, cbvDescs, srvDescs, uavDescs );
 	}
 
-	AtomicEngine::GetGPI()->RayTrace( pipelineDesc, topLevelAS, testNormalSRV, testIndexSRV, testInstanceContextSRV, testMaterialSRV );
+	AtomicEngine::GetGPI()->RayTrace( pipelineDesc, topLevelAS, descTableView, testNormalSRV, testIndexSRV, testInstanceContextSRV, testMaterialSRV );
 }

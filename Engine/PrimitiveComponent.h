@@ -10,6 +10,5 @@ struct PrimitiveComponent
 
 	StaticMeshGroupRef staticMeshGroup;
 
-	PBRMaterialSimple material;
-	PBRMaterial material2;
+	PBRMaterial material;
 };

@@ -47,6 +47,7 @@ void GPIDescriptorHeapAllocator_DX12::Initialize( ID3D12Device* device )
 	CreateDescriptorHeap( device, _heapContexts[ GPIResourceViewType_SRV_TEXTURE ], 2048, D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV, D3D12_DESCRIPTOR_HEAP_FLAG_SHADER_VISIBLE );
 	CreateDescriptorHeap( device, _heapContexts[ GPIResourceViewType_UAV ], 1024, D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV, D3D12_DESCRIPTOR_HEAP_FLAG_SHADER_VISIBLE );
 	CreateDescriptorHeap( device, _heapContexts[ GPIResourceViewType_UAV_SHADERHIDDEN ], 1024, D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV, D3D12_DESCRIPTOR_HEAP_FLAG_NONE );
+	CreateDescriptorHeap( device, _heapContexts[ GPIResourceViewType_CBV_SRV_UAV_TABLE ], 1024, D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV, D3D12_DESCRIPTOR_HEAP_FLAG_SHADER_VISIBLE );
 	CreateDescriptorHeap( device, _heapContexts[ GPIResourceViewType_SAMPLER ], 256, D3D12_DESCRIPTOR_HEAP_TYPE_SAMPLER, D3D12_DESCRIPTOR_HEAP_FLAG_SHADER_VISIBLE );
 }
 

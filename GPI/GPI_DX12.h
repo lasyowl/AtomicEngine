@@ -1,13 +1,12 @@
 #pragma once
 
 #include <Core/IntVector.h>
-#include "GPI.h"
-#include "GPIDefine.h"
-#include "GPIResource_DX12.h"
+#include <GPI/GPI.h>
+#include <GPI/GPIDefine.h>
+#include <GPI/GPIResource_DX12.h>
 
 struct IDXGISwapChain;
 struct GPIPipeline_DX12;
-struct RawImage;
 struct ConstantBuffer;
 
 constexpr int32 CMD_LIST_PER_QUEUE_COUNT = 3;
@@ -100,6 +99,10 @@ public:
 	virtual IGPIShaderResourceViewRef CreateShaderResourceView( const IGPIResource& inResource, const GPIShaderResourceViewDesc& srvDesc ) override;
 	virtual IGPIUnorderedAccessViewRef CreateUnorderedAccessView( const IGPIResource& inResource, const GPIUnorderedAccessViewDesc& uavDesc, const bool bShaderHidden ) override;
 	virtual IGPITextureViewTableRef CreateTextureViewTable( const std::vector<const IGPIResource*> inResources, const std::vector<GPIShaderResourceViewDesc> inDescs ) override;
+	virtual IGPIDescriptorTableViewRef CreateDescriptorTableView( const std::vector<const IGPIResource*>& inResources,
+																  const std::vector<GPIConstantBufferViewDesc>& inCBVDescs,
+																  const std::vector<GPIShaderResourceViewDesc>& inSRVDescs,
+																  const std::vector<GPIUnorderedAccessViewDesc>& inUAVDescs ) override;
 	virtual IGPISamplerRef CreateSampler( const IGPIResource& inResource, const GPISamplerDesc& samplerDesc ) override;
 	virtual IGPIVertexBufferViewRef CreateVertexBufferView( const IGPIResource& inResource, const uint32 size, const uint32 stride ) override;
 	virtual IGPIIndexBufferViewRef CreateIndexBufferView( const IGPIResource& inResource, const uint32 size ) override;
@@ -114,12 +117,13 @@ public:
 	virtual void BindTextureViewTable( IGPIPipeline& inPipeline, const IGPITextureViewTable& inTable, const uint32 index ) override;
 
 	virtual void UpdateResourceData( const IGPIResource& inResource, void* data, uint32 sizeInBytes ) override;
+	virtual void UpdateTextureData( const IGPIResource& inResource, void* data, uint32 width, uint32 height ) override;
 
 	virtual void TransitionResource( const IGPIResource& inResource, const EGPIResourceStates statesBefore, const EGPIResourceStates statesAfter ) override;
 
 	virtual void RunCS() override;
 
-	virtual void RayTrace( const GPIPipelineStateDesc& desc, const IGPIRayTraceTopLevelASRef& inRTRAS, IGPIShaderResourceViewRef testNormalSRV, IGPIShaderResourceViewRef testIndexSRV, IGPIShaderResourceViewRef testIndexOffsetSRV, IGPIShaderResourceViewRef testMaterialSRV ) override;
+	virtual void RayTrace( const GPIPipelineStateDesc& desc, const IGPIRayTraceTopLevelASRef& inRTRAS, IGPIDescriptorTableViewRef descTableView, IGPIShaderResourceViewRef testNormalSRV, IGPIShaderResourceViewRef testIndexSRV, IGPIShaderResourceViewRef testIndexOffsetSRV, IGPIShaderResourceViewRef testMaterialSRV ) override;
 
 private:
 	void SetGraphicsPipelineState( const GPIPipelineStateDesc& desc, const GPIPipeline_DX12& pipeline );
@@ -151,7 +155,4 @@ private:
 	//std::unordered_map<uint32, ID3DBlob*> _shaderCache;
 
 	//std::unordered_map<uint32, ID3D12Resource*> _resourceCache;
-
-	//std::shared_ptr<RawImage> rawImage;
-	//ID3D12Resource* textureBuffer;
 };

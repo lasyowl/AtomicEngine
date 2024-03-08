@@ -125,6 +125,11 @@ struct IGPITextureViewTable
 	
 };
 
+struct IGPIDescriptorTableView
+{
+
+};
+
 struct IGPISampler
 {
 
@@ -165,6 +170,7 @@ using IGPIConstantBufferViewRef = std::shared_ptr<IGPIConstantBufferView>;
 using IGPIShaderResourceViewRef = std::shared_ptr<IGPIShaderResourceView>;
 using IGPIUnorderedAccessViewRef = std::shared_ptr<IGPIUnorderedAccessView>;
 using IGPITextureViewTableRef = std::shared_ptr<IGPITextureViewTable>;
+using IGPIDescriptorTableViewRef = std::shared_ptr<IGPIDescriptorTableView>;
 using IGPISamplerRef = std::shared_ptr<IGPISampler>;
 using IGPIVertexBufferViewRef = std::shared_ptr<IGPIVertexBufferView>;
 using IGPIIndexBufferViewRef = std::shared_ptr<IGPIIndexBufferView>;

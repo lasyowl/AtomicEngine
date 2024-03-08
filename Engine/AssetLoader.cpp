@@ -1,4 +1,4 @@
-#include "AssetLoader.h"
+#include <Engine/AssetLoader.h>
 #include <Core/IntVector.h>
 
 #include <ThirdParty/assimp/Importer.hpp>
@@ -9,8 +9,8 @@
 #include <sstream>
 #include <fstream>
 
-#include "StaticMesh.h"
-#include "RawImage.h"
+#include <Engine/StaticMesh.h>
+#include <Engine/Texture.h>
 
 std::shared_ptr<StaticMeshDataGroup> LoadStaticMeshData_Assimp( const aiScene* scene )
 {
@@ -94,7 +94,7 @@ std::shared_ptr<StaticMeshDataGroup> AssetLoader::LoadStaticMeshData( const std:
 	return dataGroup;
 }
 
-std::shared_ptr<RawImage> AssetLoader::LoadRawImage( const std::string& fileName )
+std::shared_ptr<TextureData> AssetLoader::LoadTextureData( const std::string& fileName )
 {
 	static bool bFreeImageInitialized = false;
 	if( !bFreeImageInitialized )
@@ -113,7 +113,7 @@ std::shared_ptr<RawImage> AssetLoader::LoadRawImage( const std::string& fileName
 
 	BITMAPINFO* info = FreeImage_GetInfo( image );
 
-	std::shared_ptr<RawImage> result( new RawImage() );
+	std::shared_ptr<TextureData> result( new TextureData() );
 	result->width = info->bmiHeader.biWidth;
 	result->height = info->bmiHeader.biHeight;
 

@@ -44,6 +44,7 @@ enum EGPIResourceViewType
 	GPIResourceViewType_SRV_TEXTURE,
 	GPIResourceViewType_UAV,
 	GPIResourceViewType_UAV_SHADERHIDDEN,
+	GPIResourceViewType_CBV_SRV_UAV_TABLE,
 	GPIResourceViewType_SAMPLER,
 	GPIResourceViewTypeSize
 };

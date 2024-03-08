@@ -66,9 +66,6 @@
     <ClInclude Include="PrimitiveComponent.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="RawImage.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
     <ClInclude Include="SampleMesh.h">
       <Filter>Header Files</Filter>
     </ClInclude>

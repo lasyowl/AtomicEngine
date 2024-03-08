@@ -87,6 +87,11 @@ struct GPITextureViewTable_DX12 : public IGPITextureViewTable
 	GPIDescriptorHeapHandle_DX12 handle;
 };
 
+struct GPIDescriptorTableView_DX12 : public IGPIDescriptorTableView
+{
+	GPIDescriptorHeapHandle_DX12 handle;
+};
+
 struct GPISampler_DX12 : public IGPISampler
 {
 	ID3D12Resource* resource;

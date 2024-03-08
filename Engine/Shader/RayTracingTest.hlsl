@@ -26,9 +26,11 @@ struct PBRMaterial
 RWTexture2D<float4> renderTarget : register(u0);
 RaytracingAccelerationStructure topLevelAS : register(t0);
 StructuredBuffer<float3> normals : register(t1);
+//StructuredBuffer<float2> uvs : register(t2);
 StructuredBuffer<uint> indices : register(t2);
 StructuredBuffer<RayTraceInstanceContext> instanceContexts : register(t3);
 StructuredBuffer<PBRMaterial> materials : register(t4);
+Texture2D<float4> materialTextures : register(t5);
 
 struct Payload
 {
@@ -135,6 +137,8 @@ void RayGeneration()
 
         renderTarget[rayIdx] = color / color.w;
     }
+
+    //renderTarget[rayIdx] = materialTextures[rayIdx];
 }
 
 struct BuiltInAttribute
