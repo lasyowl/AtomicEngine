@@ -39,12 +39,8 @@ enum ERHIResourceViewType
 {
 	RHIResourceViewType_RTV,
 	RHIResourceViewType_DSV,
-	RHIResourceViewType_CBV,
-	RHIResourceViewType_SRV,
-	RHIResourceViewType_SRV_TEXTURE,
-	RHIResourceViewType_UAV,
-	RHIResourceViewType_UAV_SHADERHIDDEN,
-	RHIResourceViewType_CBV_SRV_UAV_TABLE,
+	RHIResourceViewType_CBV_SRV_UAV_SHADERHIDDEN,
+	RHIResourceViewType_CBV_SRV_UAV_SHADERVISIBLE,
 	RHIResourceViewType_SAMPLER,
 	RHIResourceViewTypeSize
 };

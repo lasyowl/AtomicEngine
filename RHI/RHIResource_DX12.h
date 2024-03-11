@@ -6,8 +6,11 @@ struct ID3D12Resource;
 
 struct RHIDescriptorHeapHandle_DX12
 {
-	RHIDescriptorHeapHandle_DX12() : cpu( {} ), gpu( {} ) {}
-	RHIDescriptorHeapHandle_DX12(const RHIDescriptorHeapHandle_DX12& other) : cpu( other.cpu ), gpu( other.gpu ) {}
+	RHIDescriptorHeapHandle_DX12() {}
+	RHIDescriptorHeapHandle_DX12( D3D12_CPU_DESCRIPTOR_HANDLE inHandleCPU, D3D12_GPU_DESCRIPTOR_HANDLE inHandleGPU )
+		: cpu( inHandleCPU ), gpu( inHandleGPU ) {}
+	RHIDescriptorHeapHandle_DX12(const RHIDescriptorHeapHandle_DX12& other)
+		: cpu( other.cpu ), gpu( other.gpu ) {}
 
 	RHIDescriptorHeapHandle_DX12& operator = ( const RHIDescriptorHeapHandle_DX12& other )
 	{

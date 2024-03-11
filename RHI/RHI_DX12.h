@@ -47,22 +47,31 @@ struct RHIDescriptorHeap_DX12
 	uint64 descSize;
 	ID3D12DescriptorHeap* heap;
 
-	std::queue<RHIDescriptorHeapHandle_DX12> free;
-	std::unordered_set<RHIDescriptorHeapHandle_DX12> used;
+	D3D12_CPU_DESCRIPTOR_HANDLE hCPUStaticCurrent;
+	D3D12_GPU_DESCRIPTOR_HANDLE hGPUStaticCurrent;
+
+	D3D12_CPU_DESCRIPTOR_HANDLE hCPUDynamicBegin;
+	D3D12_CPU_DESCRIPTOR_HANDLE hCPUDynamicCurrent;
+	D3D12_GPU_DESCRIPTOR_HANDLE hGPUDynamicBegin;
+	D3D12_GPU_DESCRIPTOR_HANDLE hGPUDynamicCurrent;
 };
 
 class RHIDescriptorHeapAllocator_DX12
 {
 public:
 	void Initialize( ID3D12Device* device );
+	void Release();
 
-	RHIDescriptorHeapHandle_DX12 Allocate( const ERHIResourceViewType type );
-	void Release( const ERHIResourceViewType type, const RHIDescriptorHeapHandle_DX12& handle );
+	RHIDescriptorHeapHandle_DX12 AllocateStatic( const ERHIResourceViewType type );
+	RHIDescriptorHeapHandle_DX12 AllocateStaticConsecutive( const ERHIResourceViewType type, const uint32 count );
+	RHIDescriptorHeapHandle_DX12 AllocateDynamic( const ERHIResourceViewType type );
+	RHIDescriptorHeapHandle_DX12 AllocateDynamicConsecutive( const ERHIResourceViewType type, const uint32 count );
+	void ClearDynamic();
 
 	ID3D12DescriptorHeap* GetHeap( const ERHIResourceViewType type );
 
 private:
-	std::array<RHIDescriptorHeap_DX12, RHIResourceViewTypeSize> _heapContexts;
+	std::array<RHIDescriptorHeap_DX12, RHIResourceViewTypeSize> _heap;
 };
 
 class RHI_DX12 : public IRHI

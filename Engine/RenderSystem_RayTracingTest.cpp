@@ -143,6 +143,7 @@ void RenderSystem::RayTracingTest( std::array<std::unique_ptr<IComponentRegistry
 		topLevelAS->materialResource = AtomicEngine::GetRHI()->CreateResource( resourceDesc, materialConstants.data(), resourceDesc.width );
 
 		RHIShaderResourceViewDesc srvDesc{};
+		srvDesc.bStatic = true;
 		srvDesc.format = ERHIResourceFormat::R32G32B32_Float;
 		srvDesc.dimension = ERHIResourceDimension::Buffer;
 		srvDesc.numElements = testNormalResourceByteSize / sizeof( Vec3 );
@@ -184,11 +185,11 @@ void RenderSystem::RayTracingTest( std::array<std::unique_ptr<IComponentRegistry
 		std::vector<RHIConstantBufferViewDesc> cbvDescs;
 		std::vector<RHIShaderResourceViewDesc> srvDescs =
 		{
-			{ ERHIResourceFormat::B8G8R8A8, ERHIResourceDimension::Texture2D, 0, 0 }
+			{ true, ERHIResourceFormat::B8G8R8A8, ERHIResourceDimension::Texture2D, 0, 0 }
 		};
 		std::vector<RHIUnorderedAccessViewDesc> uavDescs =
 		{
-			{ ERHIResourceFormat::B8G8R8A8, ERHIResourceDimension::Texture2D }
+			{ true, ERHIResourceFormat::B8G8R8A8, ERHIResourceDimension::Texture2D }
 		};
 		descTableView = AtomicEngine::GetRHI()->CreateDescriptorTableView( resources, cbvDescs, srvDescs, uavDescs );
 	}

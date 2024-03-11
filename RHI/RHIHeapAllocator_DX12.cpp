@@ -1,4 +1,4 @@
-#include "RHI_DX12.h"
+#include <RHI/RHI_DX12.h>
 #include <Core/DebugUtil.h>
 
 // todo : remove duplicated macros among different files
@@ -22,17 +22,19 @@ void CreateDescriptorHeap( ID3D12Device* device, RHIDescriptorHeap_DX12& heapCon
 
 	heapContext.descSize = device->GetDescriptorHandleIncrementSize( descType );
 
-	RHIDescriptorHeapHandle_DX12 handle;
-	handle.cpu = heapContext.heap->GetCPUDescriptorHandleForHeapStart();
-	handle.gpu = heapContext.heap->GetGPUDescriptorHandleForHeapStart();
+	heapContext.hCPUStaticCurrent = heapContext.heap->GetCPUDescriptorHandleForHeapStart();
+	heapContext.hGPUStaticCurrent = heapContext.heap->GetGPUDescriptorHandleForHeapStart();
 
-	for( uint32 iter = 0; iter < numDesc; ++iter )
-	{
-		heapContext.free.push( handle );
-
-		handle.cpu.ptr += heapContext.descSize;
-		handle.gpu.ptr += heapContext.descSize;
-	}
+	heapContext.hCPUDynamicBegin = heapContext.heap->GetCPUDescriptorHandleForHeapStart();
+	heapContext.hCPUDynamicCurrent = heapContext.heap->GetCPUDescriptorHandleForHeapStart();
+	heapContext.hGPUDynamicBegin = heapContext.heap->GetGPUDescriptorHandleForHeapStart();
+	heapContext.hGPUDynamicCurrent = heapContext.heap->GetGPUDescriptorHandleForHeapStart();
+	
+	uint64 dynamicHandleOffset = ( numDesc / 2 ) * heapContext.descSize;
+	heapContext.hCPUDynamicBegin.ptr += dynamicHandleOffset;
+	heapContext.hCPUDynamicCurrent.ptr += dynamicHandleOffset;
+	heapContext.hGPUDynamicBegin.ptr += dynamicHandleOffset;
+	heapContext.hGPUDynamicCurrent.ptr += dynamicHandleOffset;
 }
 
 ////////////////////////////////
@@ -40,35 +42,71 @@ void CreateDescriptorHeap( ID3D12Device* device, RHIDescriptorHeap_DX12& heapCon
 ////////////////////////////////
 void RHIDescriptorHeapAllocator_DX12::Initialize( ID3D12Device* device )
 {
-	CreateDescriptorHeap( device, _heapContexts[ RHIResourceViewType_RTV ], 256, D3D12_DESCRIPTOR_HEAP_TYPE_RTV, D3D12_DESCRIPTOR_HEAP_FLAG_NONE );
-	CreateDescriptorHeap( device, _heapContexts[ RHIResourceViewType_DSV ], 128, D3D12_DESCRIPTOR_HEAP_TYPE_DSV, D3D12_DESCRIPTOR_HEAP_FLAG_NONE );
-	CreateDescriptorHeap( device, _heapContexts[ RHIResourceViewType_CBV ], 2048, D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV, D3D12_DESCRIPTOR_HEAP_FLAG_SHADER_VISIBLE );
-	CreateDescriptorHeap( device, _heapContexts[ RHIResourceViewType_SRV ], 2048, D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV, D3D12_DESCRIPTOR_HEAP_FLAG_SHADER_VISIBLE );
-	CreateDescriptorHeap( device, _heapContexts[ RHIResourceViewType_SRV_TEXTURE ], 2048, D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV, D3D12_DESCRIPTOR_HEAP_FLAG_SHADER_VISIBLE );
-	CreateDescriptorHeap( device, _heapContexts[ RHIResourceViewType_UAV ], 1024, D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV, D3D12_DESCRIPTOR_HEAP_FLAG_SHADER_VISIBLE );
-	CreateDescriptorHeap( device, _heapContexts[ RHIResourceViewType_UAV_SHADERHIDDEN ], 1024, D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV, D3D12_DESCRIPTOR_HEAP_FLAG_NONE );
-	CreateDescriptorHeap( device, _heapContexts[ RHIResourceViewType_CBV_SRV_UAV_TABLE ], 1024, D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV, D3D12_DESCRIPTOR_HEAP_FLAG_SHADER_VISIBLE );
-	CreateDescriptorHeap( device, _heapContexts[ RHIResourceViewType_SAMPLER ], 256, D3D12_DESCRIPTOR_HEAP_TYPE_SAMPLER, D3D12_DESCRIPTOR_HEAP_FLAG_SHADER_VISIBLE );
+	CreateDescriptorHeap( device, _heap[ RHIResourceViewType_RTV ], 256, D3D12_DESCRIPTOR_HEAP_TYPE_RTV, D3D12_DESCRIPTOR_HEAP_FLAG_NONE );
+	CreateDescriptorHeap( device, _heap[ RHIResourceViewType_DSV ], 128, D3D12_DESCRIPTOR_HEAP_TYPE_DSV, D3D12_DESCRIPTOR_HEAP_FLAG_NONE );
+	CreateDescriptorHeap( device, _heap[ RHIResourceViewType_CBV_SRV_UAV_SHADERHIDDEN ], 2048, D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV, D3D12_DESCRIPTOR_HEAP_FLAG_NONE );
+	CreateDescriptorHeap( device, _heap[ RHIResourceViewType_CBV_SRV_UAV_SHADERVISIBLE ], 2048, D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV, D3D12_DESCRIPTOR_HEAP_FLAG_SHADER_VISIBLE );
+	CreateDescriptorHeap( device, _heap[ RHIResourceViewType_SAMPLER ], 256, D3D12_DESCRIPTOR_HEAP_TYPE_SAMPLER, D3D12_DESCRIPTOR_HEAP_FLAG_SHADER_VISIBLE );
 }
 
-RHIDescriptorHeapHandle_DX12 RHIDescriptorHeapAllocator_DX12::Allocate( const ERHIResourceViewType type )
+void RHIDescriptorHeapAllocator_DX12::Release()
 {
-	RHIDescriptorHeap_DX12& heapContext = _heapContexts[ type ];
-	const RHIDescriptorHeapHandle_DX12 handle = heapContext.free.front();
-	heapContext.used.emplace( handle );
-	heapContext.free.pop();
+	for( auto& heap : _heap )
+	{
+		heap.heap->Release();
+	}
+}
+
+RHIDescriptorHeapHandle_DX12 RHIDescriptorHeapAllocator_DX12::AllocateStatic( const ERHIResourceViewType type )
+{
+	RHIDescriptorHeap_DX12& heapContext = _heap[ type ];
+	const RHIDescriptorHeapHandle_DX12 handle( heapContext.hCPUStaticCurrent, heapContext.hGPUStaticCurrent );
+	heapContext.hCPUStaticCurrent.ptr += heapContext.descSize;
+	heapContext.hGPUStaticCurrent.ptr += heapContext.descSize;
 
 	return handle;
 }
 
-void RHIDescriptorHeapAllocator_DX12::Release( const ERHIResourceViewType type, const RHIDescriptorHeapHandle_DX12& handle )
+RHIDescriptorHeapHandle_DX12 RHIDescriptorHeapAllocator_DX12::AllocateStaticConsecutive( const ERHIResourceViewType type, const uint32 count )
 {
-	RHIDescriptorHeap_DX12& heapContext = _heapContexts[ type ];
-	heapContext.free.push( handle );
-	heapContext.used.erase( handle );
+	RHIDescriptorHeap_DX12& heapContext = _heap[ type ];
+	const RHIDescriptorHeapHandle_DX12 handle( heapContext.hCPUStaticCurrent, heapContext.hGPUStaticCurrent );
+	heapContext.hCPUStaticCurrent.ptr += heapContext.descSize * count;
+	heapContext.hGPUStaticCurrent.ptr += heapContext.descSize * count;
+
+	return handle;
+}
+
+RHIDescriptorHeapHandle_DX12 RHIDescriptorHeapAllocator_DX12::AllocateDynamic( const ERHIResourceViewType type )
+{
+	RHIDescriptorHeap_DX12& heapContext = _heap[ type ];
+	const RHIDescriptorHeapHandle_DX12 handle( heapContext.hCPUDynamicCurrent, heapContext.hGPUDynamicCurrent );
+	heapContext.hCPUDynamicCurrent.ptr += heapContext.descSize;
+	heapContext.hGPUDynamicCurrent.ptr += heapContext.descSize;
+
+	return handle;
+}
+
+RHIDescriptorHeapHandle_DX12 RHIDescriptorHeapAllocator_DX12::AllocateDynamicConsecutive( const ERHIResourceViewType type, const uint32 count )
+{
+	RHIDescriptorHeap_DX12& heapContext = _heap[ type ];
+	const RHIDescriptorHeapHandle_DX12 handle( heapContext.hCPUDynamicCurrent, heapContext.hGPUDynamicCurrent );
+	heapContext.hCPUDynamicCurrent.ptr += heapContext.descSize * count;
+	heapContext.hGPUDynamicCurrent.ptr += heapContext.descSize * count;
+
+	return handle;
+}
+
+void RHIDescriptorHeapAllocator_DX12::ClearDynamic()
+{
+	for( RHIDescriptorHeap_DX12& heapContext : _heap )
+	{
+		heapContext.hCPUDynamicCurrent = heapContext.hCPUDynamicBegin;
+		heapContext.hGPUDynamicCurrent = heapContext.hGPUDynamicBegin;
+	}
 }
 
 ID3D12DescriptorHeap* RHIDescriptorHeapAllocator_DX12::GetHeap( const ERHIResourceViewType type )
 {
-	return _heapContexts[ type ].heap;
+	return _heap[ type ].heap;
 }

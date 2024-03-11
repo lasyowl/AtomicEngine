@@ -30,6 +30,7 @@ void RenderSystem::BeginFrame( std::array<std::unique_ptr<IComponentRegistry>, N
 		swapChainResource = AtomicEngine::GetRHI()->GetSwapChainResource( swapChainIndex );
 
 		RHIRenderTargetViewDesc rtvDesc{};
+		rtvDesc.bStatic = true;
 		rtvDesc.format = ERHIResourceFormat::B8G8R8A8_SRGB;
 		rtvDesc.dimension = ERHIResourceDimension::Texture2D;
 
@@ -46,6 +47,7 @@ void RenderSystem::BeginFrame( std::array<std::unique_ptr<IComponentRegistry>, N
 			_swapChainDepthResource = AtomicEngine::GetRHI()->CreateResource( dsDesc );
 
 			RHIDepthStencilViewDesc dsvDesc{};
+			dsvDesc.bStatic = true;
 			dsvDesc.format = ERHIResourceFormat::D32_Float;
 			dsvDesc.dimension = ERHIResourceDimension::Texture2D;
 			dsvDesc.flag = RHIDepthStencilViewFlag_None;
@@ -58,6 +60,7 @@ void RenderSystem::BeginFrame( std::array<std::unique_ptr<IComponentRegistry>, N
 			_viewCBResource = AtomicEngine::GetRHI()->CreateResource( cbDesc );
 
 			RHIConstantBufferViewDesc cbvDesc{};
+			cbvDesc.bStatic = true;
 			cbvDesc.sizeInBytes = sizeof( SceneViewConstantBuffer );
 
 			_viewCBV = AtomicEngine::GetRHI()->CreateConstantBufferView( *_viewCBResource, cbvDesc );
@@ -72,6 +75,7 @@ void RenderSystem::BeginFrame( std::array<std::unique_ptr<IComponentRegistry>, N
 		_gBufferUnknown1Resource = AtomicEngine::GetRHI()->CreateResource( RHIUtil::GetRenderTargetResourceDesc( L"GBufferUnknown1", windowSize ) );
 
 		RHIRenderTargetViewDesc rtvDesc{};
+		rtvDesc.bStatic = true;
 		rtvDesc.format = ERHIResourceFormat::B8G8R8A8_SRGB;
 		rtvDesc.dimension = ERHIResourceDimension::Texture2D;
 
@@ -81,10 +85,12 @@ void RenderSystem::BeginFrame( std::array<std::unique_ptr<IComponentRegistry>, N
 		_gBufferUnknown1RTV = AtomicEngine::GetRHI()->CreateRenderTargetView( *_gBufferUnknown1Resource, rtvDesc );
 
 		RHIShaderResourceViewDesc srvDesc{};
+		srvDesc.bStatic = true;
 		srvDesc.format = ERHIResourceFormat::B8G8R8A8_SRGB;
 		srvDesc.dimension = ERHIResourceDimension::Texture2D;
 
 		RHIShaderResourceViewDesc textureDesc{};
+		textureDesc.bStatic = true;
 		textureDesc.format = ERHIResourceFormat::R32_Float;
 		textureDesc.dimension = ERHIResourceDimension::Texture2D;
 
@@ -103,6 +109,7 @@ void RenderSystem::BeginFrame( std::array<std::unique_ptr<IComponentRegistry>, N
 		_gBufferTextureViewTable = AtomicEngine::GetRHI()->CreateTextureViewTable( textureResources, textureDescs );
 
 		RHIUnorderedAccessViewDesc uavDesc{};
+		uavDesc.bStatic = true;
 		uavDesc.format = ERHIResourceFormat::R32_Uint;
 		uavDesc.dimension = ERHIResourceDimension::Texture2D;
 

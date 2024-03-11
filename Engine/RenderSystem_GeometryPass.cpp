@@ -94,6 +94,7 @@ void RenderSystem::GeometryPass( std::array<std::unique_ptr<IComponentRegistry>,
 		modelCBResource = AtomicEngine::GetRHI()->CreateResource( cbDesc );
 
 		RHIConstantBufferViewDesc cbvDesc{};
+		cbvDesc.bStatic = true;
 		cbvDesc.sizeInBytes = sizeof( PrimitiveConstantBuffer );
 
 		modelCBV = AtomicEngine::GetRHI()->CreateConstantBufferView( *modelCBResource, cbvDesc );

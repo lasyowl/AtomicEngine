@@ -181,6 +181,8 @@ RHI_DX12::RHI_DX12( const HWND hWnd, const IVec2& windowSize )
 
 RHI_DX12::~RHI_DX12()
 {
+	_heap.Release();
+
 #define CHECKED_RELEASE(ref)\
 	if(ref) ref->Release();
 
@@ -327,6 +329,8 @@ void RHI_DX12::EndFrame( const IRHIResource& inSwapChainResource )
 	{
 		cmdQueueCtx.iCmdList = cmdQueueCtx.cmdLists.begin();
 	}
+
+	_heap.ClearDynamic();
 }
 
 void RHI_DX12::ClearSwapChain( const IRHIRenderTargetView& inRTV )
@@ -447,7 +451,7 @@ void RHI_DX12::SetGraphicsPipelineState( const RHIPipelineStateDesc& desc, const
 		cmdList->SetGraphicsRootUnorderedAccessView( rootParamIndex++, gpuAddress );
 	}
 
-	ID3D12DescriptorHeap* textureHeap = _heap.GetHeap( RHIResourceViewType_SRV_TEXTURE );
+	ID3D12DescriptorHeap* textureHeap = _heap.GetHeap( RHIResourceViewType_CBV_SRV_UAV_SHADERVISIBLE );
 	cmdList->SetDescriptorHeaps( 1, &textureHeap );
 
 	for( uint32 index = 0; index < pipeline.textureTables.size(); ++index )
@@ -1429,7 +1433,7 @@ IRHIRenderTargetViewRef RHI_DX12::CreateRenderTargetView( const IRHIResource& in
 	const RHIResource_DX12& resource = static_cast< const RHIResource_DX12& >( inResource );
 
 	std::shared_ptr<RHIRenderTargetView_DX12> rtv = std::make_shared<RHIRenderTargetView_DX12>();
-	rtv->handle = _heap.Allocate( RHIResourceViewType_RTV );
+	rtv->handle = rtvDesc.bStatic ? _heap.AllocateStatic( RHIResourceViewType_RTV ) : _heap.AllocateDynamic( RHIResourceViewType_RTV );
 	rtv->resource = resource.resource;
 
 	D3D12_RENDER_TARGET_VIEW_DESC translatedDesc = RHIUtil::TranslateRTVDesc( rtvDesc );
@@ -1443,7 +1447,7 @@ IRHIDepthStencilViewRef RHI_DX12::CreateDepthStencilView( const IRHIResource& in
 	const RHIResource_DX12& resource = static_cast< const RHIResource_DX12& >( inResource );
 
 	std::shared_ptr<RHIDepthStencilView_DX12> dsv = std::make_shared<RHIDepthStencilView_DX12>();
-	dsv->handle = _heap.Allocate( RHIResourceViewType_DSV );
+	dsv->handle = dsvDesc.bStatic ? _heap.AllocateStatic( RHIResourceViewType_DSV ) : _heap.AllocateDynamic( RHIResourceViewType_DSV );
 	dsv->resource = resource.resource;
 
 	D3D12_DEPTH_STENCIL_VIEW_DESC translatedDesc = RHIUtil::TranslateDSVDesc( dsvDesc );
@@ -1462,7 +1466,7 @@ IRHIConstantBufferViewRef RHI_DX12::CreateConstantBufferView( const IRHIResource
 	//
 
 	std::shared_ptr<RHIConstantBufferView_DX12> cbv = std::make_shared<RHIConstantBufferView_DX12>();
-	cbv->handle = _heap.Allocate( RHIResourceViewType_CBV );
+	cbv->handle = cbvDesc.bStatic ? _heap.AllocateStatic( RHIResourceViewType_CBV_SRV_UAV_SHADERVISIBLE ) : _heap.AllocateDynamic( RHIResourceViewType_CBV_SRV_UAV_SHADERVISIBLE );
 	cbv->resource = resource.resource;
 	cbv->gpuAddress = bUseVirtualAddress ? resource.resource->GetGPUVirtualAddress() : 0;
 
@@ -1482,7 +1486,7 @@ IRHIShaderResourceViewRef RHI_DX12::CreateShaderResourceView( const IRHIResource
 	//
 
 	std::shared_ptr<RHIShaderResourceView_DX12> srv = std::make_shared<RHIShaderResourceView_DX12>();
-	srv->handle = _heap.Allocate( RHIResourceViewType_SRV );
+	srv->handle = srvDesc.bStatic ? _heap.AllocateStatic( RHIResourceViewType_CBV_SRV_UAV_SHADERVISIBLE ) : _heap.AllocateDynamic( RHIResourceViewType_CBV_SRV_UAV_SHADERVISIBLE );
 	srv->resource = resource.resource;
 	srv->gpuAddress = bUseVirtualAddress ? resource.resource->GetGPUVirtualAddress() : 0;
 
@@ -1499,10 +1503,11 @@ IRHIUnorderedAccessViewRef RHI_DX12::CreateUnorderedAccessView( const IRHIResour
 	//@TODO: refactoring needed
 	const D3D12_RESOURCE_DESC desc = resource.resource->GetDesc();
 	const bool bUseVirtualAddress = desc.Dimension == D3D12_RESOURCE_DIMENSION_BUFFER;
+	const ERHIResourceViewType resourceViewType = bShaderHidden ? RHIResourceViewType_CBV_SRV_UAV_SHADERHIDDEN : RHIResourceViewType_CBV_SRV_UAV_SHADERVISIBLE;
 	//
 
 	std::shared_ptr<RHIUnorderedAccessView_DX12> uav = std::make_shared<RHIUnorderedAccessView_DX12>();
-	uav->handle = _heap.Allocate( bShaderHidden ? RHIResourceViewType_UAV_SHADERHIDDEN : RHIResourceViewType_UAV );
+	uav->handle = uavDesc.bStatic ? _heap.AllocateStatic( resourceViewType ) : _heap.AllocateDynamic( resourceViewType );
 	uav->resource = resource.resource;
 	uav->gpuAddress = bUseVirtualAddress ? resource.resource->GetGPUVirtualAddress() : 0;
 
@@ -1520,9 +1525,10 @@ IRHITextureViewTableRef RHI_DX12::CreateTextureViewTable( const std::vector<cons
 	for( uint32 index = 0; index < handles.size(); ++index )
 	{
 		const RHIResource_DX12& resource = static_cast< const RHIResource_DX12& >( *inResources[ index ] );
-		D3D12_SHADER_RESOURCE_VIEW_DESC translatedDesc = RHIUtil::TranslateSRVDesc( resource, inDescs[ index ] );
+		const RHIShaderResourceViewDesc& srvDesc = inDescs[ index ];
+		D3D12_SHADER_RESOURCE_VIEW_DESC translatedDesc = RHIUtil::TranslateSRVDesc( resource, srvDesc );
 
-		handles[ index ] = _heap.Allocate( RHIResourceViewType_SRV_TEXTURE );
+		handles[ index ] = srvDesc.bStatic ? _heap.AllocateStatic( RHIResourceViewType_CBV_SRV_UAV_SHADERVISIBLE ) : _heap.AllocateDynamic( RHIResourceViewType_CBV_SRV_UAV_SHADERVISIBLE );
 
 		if( inDescs[ index ].format == ERHIResourceFormat::R32_Float )
 		{
@@ -1562,9 +1568,10 @@ IRHIDescriptorTableViewRef RHI_DX12::CreateDescriptorTableView( const std::vecto
 	for( uint32 descIndex = 0; descIndex < inCBVDescs.size(); ++descIndex )
 	{
 		const RHIResource_DX12& resource = static_cast< const RHIResource_DX12& >( *inResources[ resourceIndex ] );
-		D3D12_CONSTANT_BUFFER_VIEW_DESC translatedDesc = RHIUtil::TranslateCBVDesc( resource, inCBVDescs[ descIndex ] );
+		const RHIConstantBufferViewDesc& cbvDesc = inCBVDescs[ descIndex ];
+		D3D12_CONSTANT_BUFFER_VIEW_DESC translatedDesc = RHIUtil::TranslateCBVDesc( resource, cbvDesc );
 
-		handles[ resourceIndex ] = _heap.Allocate( RHIResourceViewType_CBV_SRV_UAV_TABLE );
+		handles[ resourceIndex ] = cbvDesc.bStatic ? _heap.AllocateStatic( RHIResourceViewType_CBV_SRV_UAV_SHADERVISIBLE ) : _heap.AllocateDynamic( RHIResourceViewType_CBV_SRV_UAV_SHADERVISIBLE );
 
 		_device->CreateConstantBufferView( &translatedDesc, handles[ resourceIndex ].cpu );
 
@@ -1573,9 +1580,10 @@ IRHIDescriptorTableViewRef RHI_DX12::CreateDescriptorTableView( const std::vecto
 	for( uint32 descIndex = 0; descIndex < inSRVDescs.size(); ++descIndex )
 	{
 		const RHIResource_DX12& resource = static_cast< const RHIResource_DX12& >( *inResources[ resourceIndex ] );
-		D3D12_SHADER_RESOURCE_VIEW_DESC translatedDesc = RHIUtil::TranslateSRVDesc( resource, inSRVDescs[ descIndex ] );
+		const RHIShaderResourceViewDesc& srvDesc = inSRVDescs[ descIndex ];
+		D3D12_SHADER_RESOURCE_VIEW_DESC translatedDesc = RHIUtil::TranslateSRVDesc( resource, srvDesc );
 
-		handles[ resourceIndex ] = _heap.Allocate( RHIResourceViewType_CBV_SRV_UAV_TABLE );
+		handles[ resourceIndex ] = srvDesc.bStatic ? _heap.AllocateStatic( RHIResourceViewType_CBV_SRV_UAV_SHADERVISIBLE ) : _heap.AllocateDynamic( RHIResourceViewType_CBV_SRV_UAV_SHADERVISIBLE );
 
 		_device->CreateShaderResourceView( resource.resource, &translatedDesc, handles[ resourceIndex ].cpu );
 
@@ -1584,9 +1592,10 @@ IRHIDescriptorTableViewRef RHI_DX12::CreateDescriptorTableView( const std::vecto
 	for( uint32 descIndex = 0; descIndex < inUAVDescs.size(); ++descIndex )
 	{
 		const RHIResource_DX12& resource = static_cast< const RHIResource_DX12& >( *inResources[ resourceIndex ] );
+		const RHIUnorderedAccessViewDesc& uavDesc = inUAVDescs[ descIndex ];
 		D3D12_UNORDERED_ACCESS_VIEW_DESC translatedDesc = RHIUtil::TranslateUAVDesc( resource, inUAVDescs[ descIndex ] );
 
-		handles[ resourceIndex ] = _heap.Allocate( RHIResourceViewType_CBV_SRV_UAV_TABLE );
+		handles[ resourceIndex ] = uavDesc.bStatic ? _heap.AllocateStatic( RHIResourceViewType_CBV_SRV_UAV_SHADERVISIBLE ) : _heap.AllocateDynamic( RHIResourceViewType_CBV_SRV_UAV_SHADERVISIBLE );
 
 		_device->CreateUnorderedAccessView( resource.resource, nullptr, &translatedDesc, handles[ resourceIndex ].cpu );
 
@@ -1781,7 +1790,7 @@ void RHI_DX12::UpdateTextureData( const IRHIResource& inResource, void* data, ui
 	CHECK_HRESULT( cmdAllocator->Reset(), L"Failed to reset command allocator." );
 	CHECK_HRESULT( cmdList->Reset( cmdAllocator, nullptr ), L"Failed to reset command list." );
 
-	//TransitionResource( cmdList, outBuffer, D3D12_RESOURCE_STATE_ALL_SHADER_RESOURCE, D3D12_RESOURCE_STATE_COPY_DEST );
+	TransitionResource( cmdList, resource.resource, D3D12_RESOURCE_STATE_ALL_SHADER_RESOURCE, D3D12_RESOURCE_STATE_COPY_DEST );
 
 	uint64 requiredSize = 0;
 	D3D12_PLACED_SUBRESOURCE_FOOTPRINT layout;
@@ -1803,7 +1812,7 @@ void RHI_DX12::UpdateTextureData( const IRHIResource& inResource, void* data, ui
 
 	cmdList->CopyTextureRegion( &dstLocation, 0, 0, 0, &srcLocation, nullptr );
 
-	//TransitionResource( cmdList, outBuffer, D3D12_RESOURCE_STATE_COPY_DEST, D3D12_RESOURCE_STATE_ALL_SHADER_RESOURCE );
+	TransitionResource( cmdList, resource.resource, D3D12_RESOURCE_STATE_COPY_DEST, D3D12_RESOURCE_STATE_ALL_SHADER_RESOURCE );
 
 	CHECK_HRESULT( cmdList->Close(), L"Failed to close command list." );
 
@@ -1976,7 +1985,7 @@ void RHI_DX12::RayTrace( const RHIPipelineStateDesc& desc, const IRHIRayTraceTop
 	cmdList->SetComputeRootSignature( pipeline->rootSignature );
 	cmdList->SetPipelineState1( pipeline->raytrace.pipelineState );
 
-	ID3D12DescriptorHeap* uavHeap = _heap.GetHeap( RHIResourceViewType_CBV_SRV_UAV_TABLE );
+	ID3D12DescriptorHeap* uavHeap = _heap.GetHeap( RHIResourceViewType_CBV_SRV_UAV_SHADERVISIBLE );
 	cmdList->SetDescriptorHeaps( 1, &uavHeap );
 
 	uint32 rootParamIndex = 0;

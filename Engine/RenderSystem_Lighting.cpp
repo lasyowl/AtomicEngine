@@ -50,12 +50,14 @@ void RenderSystem::DirectionalLight( std::array<std::unique_ptr<IComponentRegist
 		_sceneLightResource = AtomicEngine::GetRHI()->CreateResource( sceneLightDesc );
 
 		RHIRenderTargetViewDesc rtvDesc{};
+		rtvDesc.bStatic = true;
 		rtvDesc.format = ERHIResourceFormat::B8G8R8A8_SRGB;
 		rtvDesc.dimension = ERHIResourceDimension::Texture2D;
 
 		_sceneLightRTV = AtomicEngine::GetRHI()->CreateRenderTargetView( *_sceneLightResource, rtvDesc );
 
 		RHIShaderResourceViewDesc srvDesc{};
+		srvDesc.bStatic = true;
 		srvDesc.format = ERHIResourceFormat::B8G8R8A8_SRGB;
 		srvDesc.dimension = ERHIResourceDimension::Texture2D;
 
@@ -68,6 +70,7 @@ void RenderSystem::DirectionalLight( std::array<std::unique_ptr<IComponentRegist
 		_sceneLightTextureViewTable = AtomicEngine::GetRHI()->CreateTextureViewTable( textureResources, textureDescs );
 
 		RHIUnorderedAccessViewDesc uavDesc{};
+		uavDesc.bStatic = true;
 		uavDesc.format = ERHIResourceFormat::B8G8R8A8;
 		uavDesc.dimension = ERHIResourceDimension::Texture2D;
 		_sceneLightUAV = AtomicEngine::GetRHI()->CreateUnorderedAccessView( *_sceneLightResource, uavDesc, false );
@@ -161,6 +164,7 @@ void RenderSystem::PointLight( std::array<std::unique_ptr<IComponentRegistry>, N
 		lightCBResource = AtomicEngine::GetRHI()->CreateResource( cbDesc );
 
 		RHIConstantBufferViewDesc cbvDesc{};
+		cbvDesc.bStatic = true;
 		cbvDesc.sizeInBytes = sizeof( LightConstantBuffer );
 
 		lightCBV = AtomicEngine::GetRHI()->CreateConstantBufferView( *lightCBResource, cbvDesc );
