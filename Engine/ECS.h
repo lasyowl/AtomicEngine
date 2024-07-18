@@ -49,6 +49,11 @@ public:
 		}
 	}
 
+	ArcheTypeRegistry& GetArcheTypeRegistry()
+	{
+		return _archeTypeRegistry;
+	}
+
 	void RunSystems();
 
 	void ExportEntity( const Entity entity, const std::string& fileName );
@@ -60,6 +65,8 @@ private:
 	std::queue<Entity> _entities;
 	std::array<std::unique_ptr<IComponentRegistry>, NUM_COMPONENT_MAX> _componentRegistry;
 	std::array<std::unique_ptr<ISystem>, NUM_SYSTEM_MAX> _systemRegistry;
+
+	ArcheTypeRegistry _archeTypeRegistry;
 };
 
 ///////////////////////
@@ -80,5 +87,7 @@ void ECSAddSystem()
 {
 	ECS::GetInstance().AddSystem<T>();
 }
+
+ArcheTypeRegistry& ECSGetArcheTypeRegistry();
 
 void ECSRunSystems();

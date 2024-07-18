@@ -12,6 +12,11 @@ Entity ECSCreateEntityWithMetaData( uint64 assetHash )
 	return ECS::GetInstance().CreateEntityWithMetaData( assetHash );
 }
 
+ArcheTypeRegistry& ECSGetArcheTypeRegistry()
+{
+	return ECS::GetInstance().GetArcheTypeRegistry();
+}
+
 void ECSRunSystems()
 {
 	ECS::GetInstance().RunSystems();

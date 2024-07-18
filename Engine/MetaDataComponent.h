@@ -2,7 +2,7 @@
 
 #include "ECSDefine.h"
 
-struct MetaDataComponent
+struct MetaDataComponent : public IECSComponent
 {
 	DEFINE_ECS_COMPONENT( MetaData );
 

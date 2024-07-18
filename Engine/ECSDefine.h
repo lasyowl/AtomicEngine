@@ -30,3 +30,8 @@ enum ECSSystemType
 	ECSSystemType_Render,
 	ECSSystemType_Count
 };
+
+struct IECSComponent
+{
+
+};

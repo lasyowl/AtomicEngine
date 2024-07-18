@@ -3,7 +3,7 @@
 #include "ECS.h"
 #include <Core/Vector.h>
 
-struct TransformComponent
+struct TransformComponent : public IECSComponent
 {
 	DEFINE_ECS_COMPONENT( Transform );
 

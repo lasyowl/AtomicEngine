@@ -4,7 +4,7 @@
 #include <Engine/StaticMesh.h>
 #include <Engine/Material.h>
 
-struct PrimitiveComponent
+struct PrimitiveComponent : public IECSComponent
 {
 	DEFINE_ECS_COMPONENT( Primitive );
 
