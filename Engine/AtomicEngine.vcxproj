@@ -19,6 +19,7 @@
     </ProjectConfiguration>
   </ItemGroup>
   <ItemGroup>
+    <ClInclude Include="ArcheType.h" />
     <ClInclude Include="AssetLoader.h" />
     <ClInclude Include="ECSDefine.h" />
     <ClInclude Include="EntityInitializeSystem.h" />
