@@ -4,6 +4,7 @@
 #include "ECS_Component.h"
 #include "ECS_System.h"
 #include "Singleton.h"
+#include <Engine/ArcheType.h>
 
 ///////////////////////
 // ECS

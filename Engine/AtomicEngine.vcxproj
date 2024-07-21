@@ -51,6 +51,7 @@
     <ClInclude Include="TransformComponent.h" />
   </ItemGroup>
   <ItemGroup>
+    <ClCompile Include="ArcheType.cpp" />
     <ClCompile Include="AssetLoader.cpp" />
     <ClCompile Include="ECS.cpp" />
     <ClCompile Include="ECS_Component.cpp" />

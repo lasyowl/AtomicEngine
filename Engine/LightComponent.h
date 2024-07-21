@@ -3,7 +3,7 @@
 #include "ECS.h"
 #include <Core/Vector.h>
 
-struct LightComponent
+struct LightComponent : public IECSComponent
 {
 	DEFINE_ECS_COMPONENT( Light );
 
