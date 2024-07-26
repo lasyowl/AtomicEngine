@@ -7,6 +7,9 @@
 ///////////////////////
 using ArcheTypeRef = std::shared_ptr<class ArcheType>;
 
+template <typename T>
+concept TECSComponent = std::is_convertible_v<T, IECSComponent>;
+
 class ArcheType
 {
 public:
@@ -48,8 +51,8 @@ public:
 	*/
 	static void CopyElementExpand( const ArcheType& A, const ArcheType& B, const ElementKey& keyA, const ElementKey& keyB );
 
-	template<typename T = IECSComponent>
-	T& GetComponent( const ElementKey& key )
+	template<typename T>
+	T& GetComponent( const ElementKey& key ) requires TECSComponent<T>
 	{
 		const ArcheTypeInfo& info = GetTypeInfo( T::type );
 
@@ -58,8 +61,8 @@ public:
 		return block[ key.blockElemIndex ];
 	}
 
-	/*template<typename T = IECSComponent>
-	void ForEachComponent( std::function<void(T&)> func )
+	/*template<typename T>
+	void ForEachComponent( std::function<void(T&)> func ) requires TECSComponent<T>
 	{
 		uint32 typeIndex;
 		GetTypeIndex( typeIndex, T::type );
@@ -110,8 +113,8 @@ private:
 class ArcheTypeRegistry
 {
 public:
-	template<typename T = IECSComponent>
-	T& GetComponent( const ArcheType::ElementKey& key )
+	template<typename T>
+	T& GetComponent( const ArcheType::ElementKey& key ) requires TECSComponent<T>
 	{
 		assert( _elements.contains( key.signature ) );
 
@@ -121,8 +124,8 @@ public:
 	}
 
 	/* Add a component to ArcheType with one or more components. */
-	template<typename T = IECSComponent>
-	const ArcheType::ElementKey AddComponent( const ArcheType::ElementKey& inKey, const T& inComponent )
+	template<typename T>
+	const ArcheType::ElementKey AddComponent( const ArcheType::ElementKey& inKey, const T& inComponent ) requires TECSComponent<T>
 	{
 		assert( _elements.contains( inKey.signature ) );
 
@@ -145,8 +148,8 @@ public:
 	}
 
 	/* ArcheType with only one component. */
-	template<typename T = IECSComponent>
-	const ArcheType::ElementKey AddComponent( const T& inComponent )
+	template<typename T>
+	const ArcheType::ElementKey AddComponent( const T& inComponent ) requires TECSComponent<T>
 	{
 		std::bitset<ECSComponentType_Count> signature;
 		signature.set( T::type );
@@ -165,8 +168,8 @@ public:
 		return key;
 	}
 
-	template<typename T = IECSComponent>
-	const ArcheType::ElementKey RemoveComponent( const ArcheType::ElementKey& inKey )
+	template<typename T>
+	const ArcheType::ElementKey RemoveComponent( const ArcheType::ElementKey& inKey ) requires TECSComponent<T>
 	{
 		assert( _elements.contains( inKey.signature ) );
 

@@ -11,7 +11,7 @@ enum EKeyType
 	KeyType_Count
 };
 
-struct KeyInputComponent
+struct KeyInputComponent : public IECSComponent
 {
 	DEFINE_ECS_COMPONENT( KeyInput );
 
