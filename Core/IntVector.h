@@ -13,6 +13,22 @@ public:
 	int32 y;
 
 public:
+	IVec2& operator -= ( const IVec2& other )
+	{
+		x -= other.x;
+		y -= other.y;
+
+		return *this;
+	}
+
+	IVec2& operator += ( const IVec2& other )
+	{
+		x += other.x;
+		y += other.y;
+
+		return *this;
+	}
+
 	IVec2& operator *= ( const int32 coef )
 	{
 		x *= coef;
@@ -24,6 +40,11 @@ public:
 	friend IVec2 operator +( const IVec2& lhs, const IVec2& rhs )
 	{
 		return IVec2( lhs.x + rhs.x, lhs.y + rhs.y );
+	}
+
+	friend IVec2 operator -( const IVec2& lhs, const IVec2& rhs )
+	{
+		return IVec2( lhs.x - rhs.x, lhs.y - rhs.y );
 	}
 };
 

@@ -18,6 +18,8 @@
 #include <future>
 #include <iostream>
 #include <typeindex>
+#include <functional>
+#include <span>
 
 #include <d3d12.h>
 

@@ -1,6 +1,7 @@
 #pragma once
 
 #include <math.h>
+#include <compare>
 
 struct Vec2
 {
@@ -80,9 +81,26 @@ struct Vec3
 		return *this;
 	}
 
-	friend Vec3 operator +( const Vec3& lhs, const Vec3& rhs )
+	auto operator <=> ( const Vec3& other ) const = default;
+
+	bool operator != ( const Vec3& other ) const
+	{
+		return !(*this == other);
+    }
+
+	friend Vec3 operator + ( const Vec3& lhs, const Vec3& rhs )
 	{
 		return Vec3( lhs.x + rhs.x, lhs.y + rhs.y, lhs.z + rhs.z );
+	}
+
+	friend Vec3 operator * ( const Vec3& lhs, const Vec3& rhs )
+	{
+		return Vec3( lhs.x * rhs.x, lhs.y * rhs.y, lhs.z * rhs.z );
+	}
+
+	friend Vec3 operator * ( const Vec3& value, float multiplier )
+	{
+		return Vec3( value.x * multiplier, value.y * multiplier, value.z * multiplier );
 	}
 
 	static Vec3 Midpoint( const Vec3& lhs, const Vec3& rhs )

@@ -1,11 +1,13 @@
 #pragma once
 
-struct StaticMeshDataGroup;
-struct TextureData;
+struct MeshData;
+class Texture;
+class Material;
 
 class AssetLoader
 {
 public:
-	static std::shared_ptr<StaticMeshDataGroup> LoadStaticMeshData( const std::string& fileName );
-	static std::shared_ptr<TextureData> LoadTextureData( const std::string& fileName );
+	static std::vector<std::shared_ptr<MeshData>> LoadMeshData( const std::string& fileName );
+	static std::shared_ptr<Texture> LoadTexture( const std::string& fileName );
+    static std::shared_ptr<Material> LoadMaterial( const std::string& fileName );
 };
